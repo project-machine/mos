@@ -1,6 +1,6 @@
 all: mosctl
 
-mosctl: cmd/mosctl/*.go
+mosctl: cmd/mosctl/*.go pkg/mosconfig/*.go
 	go build ./cmd/mosctl
 
 .PHONY: test

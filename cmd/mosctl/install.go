@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/apex/log"
@@ -33,23 +32,15 @@ var installCmd = cli.Command{
 	},
 }
 
-func PathExists(d string) bool {
-	_, err := os.Stat(d)
-	if err != nil && os.IsNotExist(err) {
-		return false
-	}
-	return true
-}
-
 func doInstall(ctx *cli.Context) error {
 	// Expect config, scratch-writes, and atomfs-store to exist
 	store := ctx.String("atomfs-store")
-	if !PathExists(store) {
+	if !mosconfig.PathExists(store) {
 		return fmt.Errorf("atomfs store not found")
 	}
 
 	config := ctx.String("config-dir")
-	if !PathExists(config) {
+	if !mosconfig.PathExists(config) {
 		return fmt.Errorf("mos config directory not found")
 	}
 

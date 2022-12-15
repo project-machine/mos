@@ -19,13 +19,15 @@ function teardown() {
 version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
 targets:
-  - layer: docker://zothub.io/c3/ubuntu/base-amd64:jammy
+  - layer: docker://zothub.local/c3/hostfs:1.0.0
     name: hostfs
     service_type: hostfs
     nsgroup: ""
     mounts: []
 EOF
+	skopeo copy docker://busybox:latest oci:$TMPD/oci:hostfs
 	./mosctl install -c $TMPD/config -a $TMPD/atomfs -f $TMPD/install.yaml
+	[ -f $TMPD/atomfs/hostfs/index.json ]
 }
 
 @test "mos install with bad version" {
