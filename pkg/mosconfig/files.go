@@ -32,7 +32,9 @@ type MountSpec struct {
 
 type Target struct {
 	SourceLayer    string       `yaml:"layer"`
-	Name           string       `yaml:"name"`
+	Name           string       `yaml:"name"`      // name of target
+	Fullname       string       `yaml:"fullname"`  // full zot path
+	Version        string       `yaml:"version"`   // docker or oci version tag
 	ServiceType    string       `yaml:"service_type"`
 	Network        string       `yaml:"network"`
 	NSGroup        string       `yaml:"nsgroup"`
@@ -40,11 +42,6 @@ type Target struct {
 	ManifestHash   string       `yaml:"manifest_hash"`
 }
 type InstallTargets []Target
-
-func (t Target) Version() string {
-	splits := strings.Split(t.SourceLayer, ":")
-	return splits[len(splits)-1]
-}
 
 type StorageType string
 
@@ -113,7 +110,7 @@ func (ts InstallTargets) Validate() error {
 			return fmt.Errorf("Target field 'name' cannot be empty: %#v", t)
 		}
 
-		if t.Version() == "" {
+		if t.Version == "" {
 			return fmt.Errorf("Target %s cannot have empty version", t.Name)
 		}
 	}

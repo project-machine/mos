@@ -44,7 +44,12 @@ func (mos *Mos) ExtractTarget(baseDir string, target *Target) error {
 		return fmt.Errorf("no oci or zot storage found under %s", baseDir)
 	}
 	src := fmt.Sprintf("oci:%s:%s", filepath.Join(baseDir, "oci"), target.Name)
-	dest := fmt.Sprintf("oci:%s/%s:%s", mos.opts.StorageCache, target.Name, target.Version())
+	tpath := filepath.Join(mos.opts.StorageCache, target.Fullname)
+	err := EnsureDir(tpath)
+	if err != nil {
+		return fmt.Errorf("Failed creating local zot directory %q: %w", tpath, err)
+	}
+	dest := fmt.Sprintf("oci:%s:%s", tpath, target.Version)
 
 	log.Infof("copying %s from '%s' into zot as '%s'", target.Name, src, dest)
 
