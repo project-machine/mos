@@ -1,7 +1,7 @@
 all: mosctl
 
 mosctl: cmd/mosctl/*.go
-	go build ./...
+	go build ./cmd/mosctl
 
 .PHONY: test
 test: mosctl

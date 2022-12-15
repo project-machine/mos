@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/apex/log"
+	"github.com/project-machine/mos/pkg/mosconfig"
 	"github.com/urfave/cli"
 )
 
@@ -13,17 +15,22 @@ var installCmd = cli.Command{
 	Action: doInstall,
 	Flags: []cli.Flag{
 		cli.StringFlag{
-			Name: "config-dir,c",
+			Name: "f, file",
+			Usage: "File from which to read the install manifest",
+			Value: "./install.yaml",
+		},
+		cli.StringFlag{
+			Name: "config-dir, c",
 			Usage: "Directory where mos config is found",
 			Value: "/config",
 		},
 		cli.StringFlag{
-			Name: "scratchwrites-dir,s",
+			Name: "scratchwrites-dir, s",
 			Usage: "Directory where overlay scratch writes should be mounted",
 			Value: "/scratch-writes",
 		},
 		cli.StringFlag{
-			Name: "atomfs-store,a",
+			Name: "atomfs-store, a",
 			Usage: "Directory under which atomfs store is kept",
 			Value: "/atomfs-store",
 		},
@@ -51,6 +58,12 @@ func doInstall(ctx *cli.Context) error {
 	if !PathExists(ctx.String("scratchwrites-dir")) {
 		return fmt.Errorf("Scratchwrites directory not found")
 	}
+
+	cf, err := mosconfig.NewInstallFile(ctx.String("file"))
+	if err != nil {
+		return err
+	}
+	log.Infof("Installing: %#v\n", cf)
 
 	return nil
 }
