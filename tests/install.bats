@@ -14,7 +14,7 @@ function teardown() {
 	fi
 }
 
-@test "simple mos install" {
+@test "simple mos install from local oci" {
 	cat > $TMPD/install.yaml << EOF
 version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
@@ -28,6 +28,25 @@ targets:
     mounts: []
 EOF
 	skopeo copy docker://busybox:latest oci:$TMPD/oci:hostfs
+	./mosctl install -c $TMPD/config -a $TMPD/atomfs -f $TMPD/install.yaml
+	[ -f $TMPD/atomfs/puzzleos/hostfs/index.json ]
+}
+
+@test "simple mos install from local zot" {
+	cat > $TMPD/install.yaml << EOF
+version: 1
+product: de6c82c5-2e01-4c92-949b-a6545d30fc06
+targets:
+  - layer: docker://zothub.local/c3/hostfs:2.0.1
+    name: hostfs
+    fullname: puzzleos/hostfs
+    version: 1.0.0
+    service_type: hostfs
+    nsgroup: ""
+    mounts: []
+EOF
+	mkdir -p $TMPD/zot/c3
+	skopeo copy docker://busybox:latest oci:$TMPD/zot/c3/hostfs:2.0.1
 	./mosctl install -c $TMPD/config -a $TMPD/atomfs -f $TMPD/install.yaml
 	[ -f $TMPD/atomfs/puzzleos/hostfs/index.json ]
 }
