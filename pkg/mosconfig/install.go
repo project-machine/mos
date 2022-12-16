@@ -14,7 +14,8 @@ func InitializeMos(cf *InstallFile, storeDir, configDir, baseDir string) error {
 	// We must have $basedir/install.yml and $basedir/cert.pem
 	mPath := filepath.Join(baseDir, "install.yaml")
 	cPath := filepath.Join(baseDir, "manifestCert.pem")
-	if !PathExists(mPath) || !PathExists(cPath) {
+	sPath := filepath.Join(baseDir, "install.yaml.signed")
+	if !PathExists(mPath) || !PathExists(cPath) || !PathExists(sPath) {
 		return fmt.Errorf("Install manifest or certificate missing")
 	}
 	mos, err := NewMos(configDir, storeDir)

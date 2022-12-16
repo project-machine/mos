@@ -4,6 +4,7 @@ require (
 	github.com/apex/log v1.9.0
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
+	github.com/msoap/byline v1.1.1
 	github.com/urfave/cli v1.22.10
 	gopkg.in/yaml.v2 v2.4.0
 	stackerbuild.io/stacker v0.0.0-00010101000000-000000000000
