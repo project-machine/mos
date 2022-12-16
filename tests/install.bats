@@ -3,8 +3,17 @@ load helpers
 ROOT_DIR=$(run_git rev-parse --show-toplevel)
 
 function setup() {
+	if [ -z "${KEYS_DIR}" ]; then
+		export KEYS_DIR="${PWD}/keys"
+		if [ ! -d "${KEYS_DIR}" ]; then
+			git clone https://github.com/project-machine/keys
+		fi
+	fi
 	export TMPD=$(mktemp -d "${PWD}/batstest-XXXXX")
-	mkdir -p $TMPD/config $TMPD/atomfs
+	mkdir -p "$TMPD/config" "$TMPD/atomfs"
+	# TODO I'm using the ca cert bc we don't have a sample manifest signing cert yet.
+	# switch that over when it's available.
+	cp "${KEYS_DIR}/sudiCA/cert.pem" "$TMPD/manifestCert.pem"
 }
 
 function teardown() {
@@ -30,6 +39,7 @@ EOF
 	skopeo copy docker://busybox:latest oci:$TMPD/oci:hostfs
 	./mosctl install -c $TMPD/config -a $TMPD/atomfs -f $TMPD/install.yaml
 	[ -f $TMPD/atomfs/puzzleos/hostfs/index.json ]
+	[ -f $TMPD/config/manifest.git/manifest.yaml ]
 }
 
 @test "simple mos install from local zot" {

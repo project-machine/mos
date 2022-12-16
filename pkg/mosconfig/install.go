@@ -11,6 +11,12 @@ import (
 )
 
 func InitializeMos(cf *InstallFile, storeDir, configDir, baseDir string) error {
+	// We must have $basedir/install.yml and $basedir/cert.pem
+	mPath := filepath.Join(baseDir, "install.yaml")
+	cPath := filepath.Join(baseDir, "manifestCert.pem")
+	if !PathExists(mPath) || !PathExists(cPath) {
+		return fmt.Errorf("Install manifest or certificate missing")
+	}
 	mos, err := NewMos(configDir, storeDir)
 	if err != nil {
 		return err
@@ -22,6 +28,12 @@ func InitializeMos(cf *InstallFile, storeDir, configDir, baseDir string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	// Finally set up our manifest store
+	err = initManifest(mPath, cPath, configDir)
+	if err != nil {
+		return err
 	}
 
 	return nil
