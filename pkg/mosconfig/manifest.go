@@ -4,13 +4,17 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/storage/memory"
+	"gopkg.in/yaml.v2"
 )
 
 // Check that the product cert was signed by the global puzzleos cert
@@ -105,14 +109,9 @@ func initManifest(manifestPath, manifestCert, configPath string) error {
 	}
 
 	r, err := git.PlainInit(dir, false)
-	fmt.Printf("r %#v err %v\n", r, err)
-	testBranch1 := &config.Branch{
-		Name:   "main",
-		Remote: "origin",
-		Merge:  "refs/heads/main",
+	if err != nil {
+		return fmt.Errorf("Failed initializing git: %w", err)
 	}
-	err = r.CreateBranch(testBranch1)
-	fmt.Printf("err %v\n", err)
 
 	w, err := r.Worktree()
 	if err != nil {
@@ -169,4 +168,52 @@ func defaultSignature() *object.Signature {
 		Email: "root@machine.local",
 		When:  when,
 	}
+}
+
+func (mos *Mos) CurrentManifest() (*InstallFile, error) {
+	dir := filepath.Join(mos.opts.ConfigDir, "manifest.git")
+	// We're just reading the manifest, so let's check it out into memory
+	// so we're guaranteed no racing.
+	fs := memfs.New()
+	r, err := git.Clone(memory.NewStorage(), fs,
+		&git.CloneOptions{
+			URL: filepath.Join(dir, ".git"),
+			ReferenceName: plumbing.Master,
+			SingleBranch: true,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("Error opening the manifest git tree at %q: %w",err)
+	}
+
+	w, err := r.Worktree()
+	if err != nil {
+		return nil, fmt.Errorf("Error getting worktree")
+	}
+
+	cOpts := git.CheckoutOptions{
+		Branch: plumbing.Master,
+		Force:  true,
+		Create: false,
+	}
+	err = w.Checkout(&cOpts)
+	if err != nil {
+		return nil, fmt.Errorf("Git checkout failed: %w", err)
+	}
+
+	f, err := fs.Open("manifest.yaml")
+	if err != nil {
+		return nil, fmt.Errorf("Error opening manifest")
+	}
+	defer f.Close()
+	contents, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, fmt.Errorf("Failed reading manifest: %w", err)
+	}
+	var IF InstallFile
+	err = yaml.Unmarshal(contents, &IF)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing manifest: %w", err)
+	}
+	return &IF, nil
 }

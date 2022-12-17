@@ -6,3 +6,4 @@ mosctl: cmd/mosctl/*.go pkg/mosconfig/*.go
 .PHONY: test
 test: mosctl
 	bats tests/install.bats
+	bats tests/rfs.bats

@@ -14,6 +14,7 @@ func main() {
 	app.Name = "mos"
 	app.Version = Version
 	app.Commands = []cli.Command{
+		createBootFsCmd,
 		installCmd,
 	}
 	app.Flags = []cli.Flag{

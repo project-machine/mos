@@ -1,6 +1,7 @@
 package mosconfig
 
 import (
+	"fmt"
 	"os"
 )
 
@@ -14,6 +15,10 @@ type MosOptions struct {
 	// Directory where atomfs/puzzlefs cache is rooted
 	StorageCache  string
 
+	// Directory where atomfs keeps its working storage
+	// e.g. upperdirs and temporary mounts
+	ScratchWrites  string
+
 	// whether this will be a session which writes to some mos state
 	LayersReadOnly bool
 
@@ -24,18 +29,22 @@ type MosOptions struct {
 	NoHostCerts bool
 }
 
-func DefaultMosOptions() *MosOptions {
-	return &MosOptions{
-		ConfigDir:   "/config",
-		StorageType: AtomfsStorageType,
-		StorageCache: "/scratch-writes",
+func DefaultMosOptions() MosOptions {
+	return MosOptions{
+		StorageType:      AtomfsStorageType,
+		ConfigDir:        "/config",
+		StorageCache:     "/atomfs-store",
+		ScratchWrites:    "/scratch-writes",
+		LayersReadOnly:   true,
+		ManifestReadOnly: true,
+		NoHostCerts:      false,
 	}
 }
 
 type Mos struct {
 	//storage   Storage
-	//manifest  Manifest
 	//bootmgr   Bootmgr
+
 	opts        MosOptions
 	lockfile    *os.File
 }
@@ -76,4 +85,22 @@ func (mos *Mos) Close() {
 		mos.lockfile.Close()
 		mos.lockfile = nil
 	}
+}
+
+// Give the current information for the target named @name, for instance
+// 'hostfs' or 'zot.  Returns a *Target containing the full target
+// information from the manifest
+func (mos *Mos) Current(name string) (*Target, error) {
+	manifest, err := mos.CurrentManifest()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, t := range manifest.Targets {
+		if t.Name == name {
+			return &t, nil
+		}
+	}
+
+	return nil, fmt.Errorf("Target %s not found", name)
 }
