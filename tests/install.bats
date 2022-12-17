@@ -28,7 +28,7 @@ targets:
     mounts: []
 EOF
 	echo "fooled ya" > "$TMPD/install.yaml.signed"
-	skopeo copy docker://busybox:latest oci:$TMPD/oci:hostfs
+	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
 	failed=0
 	cp "${KEYS_DIR}/manifestCA/cert.pem" "$TMPD/config/manifestCA.pem"
 	./mosctl install -c $TMPD/config -a $TMPD/atomfs -f $TMPD/install.yaml || failed=1
@@ -51,7 +51,7 @@ EOF
 	openssl dgst -sha256 -sign "${KEYS_DIR}/sampleproject/manifest.key" \
 		-out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
 	mkdir -p $TMPD/zot/c3
-	skopeo copy docker://busybox:latest oci:$TMPD/zot/c3/hostfs:2.0.1
+	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
 	cp "${KEYS_DIR}/manifestCA/cert.pem" "$TMPD/config/manifestCA.pem"
 	./mosctl install -c $TMPD/config -a $TMPD/atomfs -f $TMPD/install.yaml
 	[ -f $TMPD/atomfs/puzzleos/hostfs/index.json ]

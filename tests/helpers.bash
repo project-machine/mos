@@ -3,6 +3,10 @@ function run_git {
 }
 
 function common_setup {
+	if [ ! -d "${PWD}/zothub" ]; then
+		stacker --oci-dir zothub build --layer-type squashfs
+	fi
+
 	if [ -z "${KEYS_DIR}" ]; then
 		export KEYS_DIR="${PWD}/keys"
 		if [ ! -d "${KEYS_DIR}" ]; then
@@ -38,7 +42,7 @@ targets:
 EOF
 	openssl dgst -sha256 -sign "${KEYS_DIR}/sampleproject/manifest.key" \
 		-out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
-	skopeo copy docker://busybox:latest oci:$TMPD/oci:hostfs
+	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
 	cp "${KEYS_DIR}/manifestCA/cert.pem" "$TMPD/config/manifestCA.pem"
 	./mosctl install -c $TMPD/config -a $TMPD/atomfs -f $TMPD/install.yaml
 }
