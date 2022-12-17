@@ -5,7 +5,7 @@ function setup() {
 }
 
 function teardown() {
-	echo nah
+	common_teardown
 }
 
 @test "create boot filesystem" {
@@ -13,8 +13,12 @@ function teardown() {
 
 	mkdir -p "${TMPD}/mnt"
 	lxc-usernsexec -s -- <<EOF
-unshare -m -- ./mosctl create-boot-fs -c $TMPD/config -a $TMPD/atomfs \
+unshare -m -- <<XXX
+./mosctl create-boot-fs -c $TMPD/config -a $TMPD/atomfs \
    -s $TMPD/scratch-writes --dest $TMPD/mnt
-ls -l $TMPD/mnt > xxx
+sleep 1s
+[ -e $TMPD/mnt/etc ]
+killall squashfuse
+XXX
 EOF
 }

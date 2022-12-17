@@ -23,7 +23,7 @@ function common_setup {
 function common_teardown {
 	echo "Deleting $TMPD"
 	if [ -n $TMPD ]; then
-		rm -rf $TMPD
+		lxc-usernsexec -s -- rm -rf $TMPD
 	fi
 }
 
