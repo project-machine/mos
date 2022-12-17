@@ -42,7 +42,7 @@ func DefaultMosOptions() MosOptions {
 }
 
 type Mos struct {
-	//storage   Storage
+	storage     Storage
 	//bootmgr   Bootmgr
 
 	opts        MosOptions
@@ -71,9 +71,17 @@ func NewMos(configDir, storeDir string) (*Mos, error) {
 }
 
 func OpenMos(opts MosOptions) (*Mos, error) {
-	mos := &Mos{opts: opts}
+	s, err := NewStorage(opts)
+	if err != nil {
+		return nil, fmt.Errorf("Error initializing storage")
+	}
 
-	err := mos.acquireLock()
+	mos := &Mos{
+		opts: opts,
+		storage: s,
+	}
+
+	err = mos.acquireLock()
 	if err != nil {
 		return nil, err
 	}
@@ -85,6 +93,10 @@ func (mos *Mos) Close() {
 		mos.lockfile.Close()
 		mos.lockfile = nil
 	}
+}
+
+func (mos *Mos) Storage() Storage {
+	return mos.storage
 }
 
 // Give the current information for the target named @name, for instance

@@ -54,11 +54,11 @@ func doCreateBootfs(ctx *cli.Context) error {
 	}
 
 	dest := ctx.String("dest")
-	//err = m.Storage.MountWriteable(t, dest)
-	//if err != nil {
-		//return err
-	//}
-	log.Infof("Would mount %s:%s to %s", t.Fullname, t.Version, dest)
+	// TODO - switch to MountWriteable()
+	_, err = m.Storage().Mount(t, dest)
+	if err != nil {
+		return err
+	}
 
 	log.Infof("Rootfs has been setup under %s", dest)
 	return nil

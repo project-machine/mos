@@ -43,13 +43,6 @@ type Target struct {
 }
 type InstallTargets []Target
 
-type StorageType string
-
-// Only atomfs is supported right now
-const (
-	AtomfsStorageType StorageType = "atomfs"
-)
-
 // This describes an install manifest
 type InstallFile struct {
 	Version     int            `yaml:"version"`
