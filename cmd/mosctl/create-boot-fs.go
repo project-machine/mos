@@ -11,6 +11,10 @@ var createBootFsCmd = cli.Command{
 	Usage: "Create a boot filesystem",
 	Action: doCreateBootfs,
 	Flags: []cli.Flag{
+		cli.BoolFlag{
+			Name: "readonly,ro",
+			Usage: "Make mount read-only",
+		},
 		cli.StringFlag{
 			Name: "config-dir, c",
 			Usage: "Directory where mos config is found",
@@ -54,8 +58,11 @@ func doCreateBootfs(ctx *cli.Context) error {
 	}
 
 	dest := ctx.String("dest")
-	// TODO - switch to MountWriteable()
-	_, err = m.Storage().Mount(t, dest)
+	if ctx.Bool("readonly") {
+		_, err = m.Storage().Mount(t, dest)
+	} else {
+		_, err = m.Storage().MountWriteable(t, dest)
+	}
 	if err != nil {
 		return err
 	}
