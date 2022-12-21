@@ -3,6 +3,8 @@ package mosconfig
 import (
 	"fmt"
 	"os"
+
+	"github.com/pkg/errors"
 )
 
 type MosOptions struct {
@@ -103,16 +105,16 @@ func (mos *Mos) Storage() Storage {
 // 'hostfs' or 'zot.  Returns a *Target containing the full target
 // information from the manifest
 func (mos *Mos) Current(name string) (*Target, error) {
-	manifest, err := mos.CurrentManifest()
+	systargets, err := mos.CurrentManifest()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed opening manifest")
 	}
 
-	for _, t := range manifest.Targets {
+	for _, t := range systargets {
 		if t.Name == name {
-			return &t, nil
+			return t.raw, nil
 		}
 	}
 
-	return nil, fmt.Errorf("Target %s not found", name)
+	return nil, errors.Errorf("Target %s not found", name)
 }

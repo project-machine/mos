@@ -2,6 +2,7 @@ package mosconfig
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -127,3 +128,15 @@ func GetCommandErrorRCDefault(err error, rcError int) int {
 	return rcError
 }
 
+
+func ShaSum(fpath string) (string, error) {
+	f, err := os.Open(fpath)
+	if err != nil {
+		return "", err
+	}
+	h := sha256.New()
+	if _, err = io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}

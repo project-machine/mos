@@ -9,11 +9,13 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/memory"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -102,7 +104,12 @@ func VerifySignature(manifestPath, sigPath, certPath, caPath string) error {
 }
 
 // Only used during first install.  Create a new $config/manifest.git/
-func initManifest(manifestPath, manifestCert, configPath string) error {
+func initManifest(cf *InstallFile, manifestPath, manifestCert, configPath string) error {
+	shaSum, err := ShaSum(manifestPath)
+	if err != nil {
+		return fmt.Errorf("Failed calculating shasum: %w", err)
+	}
+
 	dir := filepath.Join(configPath, "manifest.git")
 	if PathExists(dir) {
 		return fmt.Errorf("manifest already exists, chickening out!")
@@ -121,43 +128,73 @@ func initManifest(manifestPath, manifestCert, configPath string) error {
 	caCert := filepath.Join(configPath, "manifestCA.pem")
 	err = VerifySignature(manifestPath, manifestPath + ".signed", manifestCert, caCert)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed verifying signature on %s: %w", manifestPath, err)
 	}
 
-	dest := filepath.Join(dir, "manifest.yaml.signed")
+	sFile := fmt.Sprintf("%s.yaml.signed", shaSum)
+	dest := filepath.Join(dir, sFile)
 	err = CopyFileBits(manifestPath + ".signed", dest)
 	if err != nil {
 		return fmt.Errorf("Failed copying install manifest: %w", err)
 	}
-	_, err = w.Add("manifest.yaml.signed")
+	_, err = w.Add(sFile)
 	if err != nil {
-		return fmt.Errorf("Git file add for manifest signature failed: %w", err)
+		return fmt.Errorf("Git file add for manifest signature (%q) failed: %w", sFile, err)
 	}
 
-	dest = filepath.Join(dir, "manifest.yaml")
+	mFile := fmt.Sprintf("%s.yaml", shaSum)
+	dest = filepath.Join(dir, mFile)
 	err = CopyFileBits(manifestPath, dest)
 	if err != nil {
 		return fmt.Errorf("Failed copying install manifest: %w", err)
 	}
-	_, err = w.Add("manifest.yaml")
+	_, err = w.Add(mFile)
 	if err != nil {
 		return fmt.Errorf("Git file add for manifest failed: %w", err)
 	}
 
-	dest = filepath.Join(dir, "manifestCert.pem")
+	pFile := fmt.Sprintf("%s.pem", shaSum)
+	dest = filepath.Join(dir, pFile)
 	err = CopyFileBits(manifestCert, dest)
 	if err != nil {
 		return fmt.Errorf("Failed copying manifest Cert: %w", err)
 	}
-	_, err = w.Add("manifestCert.pem")
+	_, err = w.Add(pFile)
 	if err != nil {
 		return fmt.Errorf("Git file add for cert failed: %w", err)
+	}
+
+	dest = filepath.Join(dir, "manifest.yaml")
+	targets := SysTargets{}
+	for _, t := range cf.Targets {
+		newT := SysTarget{
+			Name:   t.Name,
+			Source: mFile,
+		}
+		targets = append(targets, newT)
+
+	}
+	bytes, err := yaml.Marshal(&targets)
+	if err != nil {
+		return fmt.Errorf("Failed marshalling the system manifest")
+	}
+
+	err = os.WriteFile(dest, bytes, 0640)
+	if err != nil {
+		return fmt.Errorf("Failed writing system manifest: %w", err)
+	}
+	_, err = w.Add("manifest.yaml")
+	if err != nil {
+		return fmt.Errorf("Git file add for system manifest failed: %w", err)
 	}
 	commitOpts := &git.CommitOptions{
 		Author: defaultSignature(),
 		Committer: defaultSignature(),
 	}
 	_, err = w.Commit("Initial commit", commitOpts)
+	if err != nil {
+		return fmt.Errorf("Failed committing to git")
+	}
 	return nil
 }
 
@@ -170,7 +207,7 @@ func defaultSignature() *object.Signature {
 	}
 }
 
-func (mos *Mos) CurrentManifest() (*InstallFile, error) {
+func (mos *Mos) CurrentManifest() (SysTargets, error) {
 	dir := filepath.Join(mos.opts.ConfigDir, "manifest.git")
 	// We're just reading the manifest, so let's check it out into memory
 	// so we're guaranteed no racing.
@@ -210,10 +247,59 @@ func (mos *Mos) CurrentManifest() (*InstallFile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed reading manifest: %w", err)
 	}
-	var IF InstallFile
-	err = yaml.Unmarshal(contents, &IF)
+	var STargets SysTargets
+	err = yaml.Unmarshal(contents, &STargets)
 	if err != nil {
 		return nil, fmt.Errorf("Failed parsing manifest: %w", err)
 	}
-	return &IF, nil
+
+	manifests := make(map[string]InstallFile)
+	ret := SysTargets{}
+	for _, t := range STargets {
+		h := t.Source
+		s, err := readInstallManifest(fs, manifests, h)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Error reading install manifest for %#v", t)
+		}
+		raw, ok := findTarget(s, t.Name)
+		if !ok {
+			return nil, fmt.Errorf("target %s not found in %s", t.Name, h)
+		}
+		t.raw = raw
+		ret = append(ret, t)
+	}
+
+	return ret, nil
+}
+
+func findTarget(cf InstallFile, name string) (*Target, bool) {
+	for _, t := range cf.Targets {
+		if t.Name == name {
+			return &t, true
+		}
+	}
+	return &Target{}, false
+}
+
+func readInstallManifest(fs billy.Filesystem, l map[string]InstallFile, yName string) (InstallFile, error) {
+	r, ok := l[yName]
+	if ok {
+		return r, nil
+	}
+	f, err := fs.Open(yName)
+	if err != nil {
+		return InstallFile{}, errors.Wrapf(err, "Error opening %q", yName)
+	}
+	defer f.Close()
+	contents, err := ioutil.ReadAll(f)
+	if err != nil {
+		return InstallFile{}, errors.Wrapf(err, "Error reading contents of %q", yName)
+	}
+	var ret InstallFile
+	err = yaml.Unmarshal(contents, &ret)
+	if err == nil {
+		l[yName] = ret
+		return ret, nil
+	}
+	return ret, errors.Wrapf(err, "Error parsing contents of install manifest")
 }

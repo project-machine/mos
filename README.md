@@ -13,11 +13,16 @@ A mos system must have:
 The configuration directory contains a directory 'manifest.git'.  The
 git directory contains:
 
-* manifest.yaml - this contains an InstallFile. Its format is defined in pkg/mosconfig/files.go.
-* manifest.yaml.signed - signature of manifest.yaml
-* manifestCert.pem - a certificate verifying the manifest signature
+* manifest.yaml - this contains an array of SystemTarget.
+* for each target in SystemTargets, the content addressed filename of the install manifest which defined it, SHA.yaml.
+* for each SHA.yaml,
+  * SHA.yaml.signed - signature of SHA.yaml
+  * SHA.pem - a certificate verifying the manifest signature
 
-Note that the manifestCert.pem must be signed by a manifest CA cert which
+The structures marshalled into manifest.yaml (SystemTargets) and each SHA.yaml
+(InstallFile) are defined in pkg/mosconfig/files.go.
+
+Note that each SHA.pem must be signed by a manifest CA cert which
 is shipped in the signed initrd.  A properly provisioned host will only
 unlock SUDI certificates and LUKS keys to a UKI which is signed by the
 right key.  This UKI will include the initrd which contains the manifest

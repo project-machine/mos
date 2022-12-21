@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/apex/log"
+	"github.com/pkg/errors"
 	"stackerbuild.io/stacker/lib"
 )
 
@@ -20,7 +21,7 @@ func InitializeMos(cf *InstallFile, storeDir, configDir, baseDir string) error {
 	}
 	mos, err := NewMos(configDir, storeDir)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error opening manifest: %w", err)
 	}
 	defer mos.Close()
 
@@ -31,10 +32,14 @@ func InitializeMos(cf *InstallFile, storeDir, configDir, baseDir string) error {
 		}
 	}
 
+	if cf.UpdateType == PartialUpdate {
+		return fmt.Errorf("Cannot install with a partial manifest")
+	}
+
 	// Finally set up our manifest store
-	err = initManifest(mPath, cPath, configDir)
+	err = initManifest(cf, mPath, cPath, configDir)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error initializing system manifest: %w", err)
 	}
 
 	return nil
@@ -61,7 +66,7 @@ func (mos *Mos) ExtractTarget(baseDir string, target *Target) error {
 		err = fmt.Errorf("no oci or zot storage found under %s", baseDir)
 	}
 
-	return err
+	return errors.Wrapf(err, "Error extracting target %#v", target)
 }
 
 // return the fullname and version from a zot url.  For instance,
@@ -94,7 +99,7 @@ func fullnameFromUrl(url string) (string, string, error) {
 func (mos *Mos) copyLocalZot(zotDir string, target *Target) error {
 	sourceFullName, sourceVersion, err := fullnameFromUrl(target.SourceLayer)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error parsing local zot url %q: %w", target.SourceLayer, err)
 	}
 	layerDir := filepath.Join(zotDir, sourceFullName)
 	src := fmt.Sprintf("oci:%s:%s", layerDir, sourceVersion)

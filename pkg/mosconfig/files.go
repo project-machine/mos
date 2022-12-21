@@ -9,12 +9,25 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// An ImageType can be either an ISO or a Zap layer.
 type ImageType string
 
 const (
 	ISO ImageType = "iso"
 	ZAP ImageType = "zap"
 )
+
+// Update can be full, meaning all existing Targets are replaced, or
+// partial, meaning those in the install manifest are installed or
+// replaced, but any other Targets on the system remain.
+
+// An install manifest is a shipped, signed manifest of Targets.
+// A system manifest is an intermediary list of targets actually
+// installed on the system.  In a full install, the system manifest
+// will contain the full set of targets in the install manifest.  On
+// a partial install, the system manifest contains the new targets as
+// well as any pre-existing targets which the new install manifest
+// did not replace.
 
 type UpdateType string
 const (
@@ -55,6 +68,16 @@ type InstallFile struct {
 	// The original file contents, exactly what was signed
 	original string
 }
+
+// SysTarget exists as an intermediary between a 'system manifest'
+// and an 'install manifest'
+type SysTarget struct {
+	Name   string `yaml:"name"`   // the name of the target
+	Source string `yaml:"source"` // the content address manifest file defining it
+
+	raw    *Target
+}
+type SysTargets []SysTarget
 
 func NewInstallFile(p string) (*InstallFile, error) {
 	content, err := ioutil.ReadFile(p)

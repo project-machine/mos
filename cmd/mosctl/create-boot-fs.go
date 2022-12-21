@@ -2,8 +2,10 @@ package main
 
 import (
 	"github.com/apex/log"
+	"github.com/pkg/errors"
 	"github.com/project-machine/mos/pkg/mosconfig"
 	"github.com/urfave/cli"
+
 )
 
 var createBootFsCmd = cli.Command{
@@ -49,12 +51,12 @@ func doCreateBootfs(ctx *cli.Context) error {
 
 	m, err := mosconfig.OpenMos(opts)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Error opening mos")
 	}
 
 	t, err := m.Current("hostfs")
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Error getting hostfs target information")
 	}
 
 	dest := ctx.String("dest")
@@ -64,7 +66,7 @@ func doCreateBootfs(ctx *cli.Context) error {
 		_, err = m.Storage().MountWriteable(t, dest)
 	}
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Error mounting %#v onto %q", t, dest)
 	}
 
 	log.Infof("Rootfs has been setup under %s", dest)
