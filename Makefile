@@ -7,3 +7,4 @@ mosctl: cmd/mosctl/*.go pkg/mosconfig/*.go
 test: mosctl
 	bats tests/install.bats
 	bats tests/rfs.bats
+	bats tests/soci.bats
