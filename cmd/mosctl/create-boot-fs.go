@@ -33,6 +33,11 @@ var createBootFsCmd = cli.Command{
 			Value: "/scratch-writes",
 		},
 		cli.StringFlag{
+			Name: "ca-path",
+			Usage: "Path to the manifest sigining CA certificate",
+			Value: "/factory/secure/manifestCA.pem",
+		},
+		cli.StringFlag{
 			Name: "dest",
 			Usage: "Directory over which to mount the rfs",
 			Value: "/sysroot",
@@ -48,6 +53,7 @@ func doCreateBootfs(ctx *cli.Context) error {
 	opts.ConfigDir = ctx.String("config-dir")
 	opts.StorageCache = ctx.String("atomfs-store")
 	opts.ScratchWrites = ctx.String("scratch-dir")
+	opts.CaPath = ctx.String("ca-path")
 
 	m, err := mosconfig.OpenMos(opts)
 	if err != nil {

@@ -16,7 +16,8 @@ func InitializeMos(cf *InstallFile, storeDir, configDir, baseDir string) error {
 	mPath := filepath.Join(baseDir, "install.yaml")
 	cPath := filepath.Join(baseDir, "manifestCert.pem")
 	sPath := filepath.Join(baseDir, "install.yaml.signed")
-	if !PathExists(mPath) || !PathExists(cPath) || !PathExists(sPath) {
+	caPath := filepath.Join(baseDir, "manifestCA.pem")
+	if !PathExists(mPath) || !PathExists(cPath) || !PathExists(sPath) || !PathExists(caPath) {
 		return fmt.Errorf("Install manifest or certificate missing")
 	}
 	mos, err := NewMos(configDir, storeDir)
@@ -37,7 +38,7 @@ func InitializeMos(cf *InstallFile, storeDir, configDir, baseDir string) error {
 	}
 
 	// Finally set up our manifest store
-	err = initManifest(cf, mPath, cPath, configDir)
+	err = initManifest(cf, mPath, cPath, caPath, configDir)
 	if err != nil {
 		return fmt.Errorf("Error initializing system manifest: %w", err)
 	}

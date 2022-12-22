@@ -7,14 +7,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
-	"github.com/go-git/go-billy/v5"
-	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
@@ -70,11 +68,11 @@ func VerifyCert(cert []byte, caPath string) error {
 	return nil
 }
 
-func VerifySignature(manifestPath, sigPath, certPath, caPath string) error {
+func VerifySignature(manifestPath, certPath, caPath string) error {
 	xtract := []string{"openssl", "x509", "-in", certPath, "-pubkey", "-noout"}
 	cert, err := os.ReadFile(certPath)
 	if err != nil {
-		return fmt.Errorf("Failed reading manifest cert: %w", err)
+		return errors.Wrapf(err, "Failed reading manifest cert (%q)", certPath)
 	}
 	pubout, _, err := RunWithStdall(string(cert), xtract...)
 
@@ -95,6 +93,7 @@ func VerifySignature(manifestPath, sigPath, certPath, caPath string) error {
 	}
 
 
+	sigPath := manifestPath + ".signed"
 	cmd := []string{"openssl", "dgst", "-sha256", "-verify", keyPath,
 		"-signature", sigPath, manifestPath}
 	if err = LogCommand(cmd...); err != nil {
@@ -104,7 +103,7 @@ func VerifySignature(manifestPath, sigPath, certPath, caPath string) error {
 }
 
 // Only used during first install.  Create a new $config/manifest.git/
-func initManifest(cf *InstallFile, manifestPath, manifestCert, configPath string) error {
+func initManifest(cf *InstallFile, manifestPath, manifestCert, manifestCA, configPath string) error {
 	shaSum, err := ShaSum(manifestPath)
 	if err != nil {
 		return fmt.Errorf("Failed calculating shasum: %w", err)
@@ -125,8 +124,7 @@ func initManifest(cf *InstallFile, manifestPath, manifestCert, configPath string
 		return fmt.Errorf("Failed opening git worktree: %w", err)
 	}
 
-	caCert := filepath.Join(configPath, "manifestCA.pem")
-	err = VerifySignature(manifestPath, manifestPath + ".signed", manifestCert, caCert)
+	err = VerifySignature(manifestPath, manifestCert, manifestCA)
 	if err != nil {
 		return fmt.Errorf("Failed verifying signature on %s: %w", manifestPath, err)
 	}
@@ -209,10 +207,13 @@ func defaultSignature() *object.Signature {
 
 func (mos *Mos) CurrentManifest() (SysTargets, error) {
 	dir := filepath.Join(mos.opts.ConfigDir, "manifest.git")
-	// We're just reading the manifest, so let's check it out into memory
-	// so we're guaranteed no racing.
-	fs := memfs.New()
-	r, err := git.Clone(memory.NewStorage(), fs,
+	clonedir, err := os.MkdirTemp("", "verify")
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error making tempdir")
+	}
+	defer os.RemoveAll(clonedir)
+
+	r, err := git.PlainClone(clonedir, false,
 		&git.CloneOptions{
 			URL: filepath.Join(dir, ".git"),
 			ReferenceName: plumbing.Master,
@@ -238,7 +239,7 @@ func (mos *Mos) CurrentManifest() (SysTargets, error) {
 		return nil, fmt.Errorf("Git checkout failed: %w", err)
 	}
 
-	f, err := fs.Open("manifest.yaml")
+	f, err := os.Open(filepath.Join(clonedir, "manifest.yaml"))
 	if err != nil {
 		return nil, fmt.Errorf("Error opening manifest")
 	}
@@ -257,7 +258,7 @@ func (mos *Mos) CurrentManifest() (SysTargets, error) {
 	ret := SysTargets{}
 	for _, t := range STargets {
 		h := t.Source
-		s, err := readInstallManifest(fs, manifests, h)
+		s, err := mos.readInstallManifest(clonedir, manifests, h)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Error reading install manifest for %#v", t)
 		}
@@ -281,12 +282,12 @@ func findTarget(cf InstallFile, name string) (*Target, bool) {
 	return &Target{}, false
 }
 
-func readInstallManifest(fs billy.Filesystem, l map[string]InstallFile, yName string) (InstallFile, error) {
+func (mos *Mos) readInstallManifest(gitdir string, l map[string]InstallFile, yName string) (InstallFile, error) {
 	r, ok := l[yName]
 	if ok {
 		return r, nil
 	}
-	f, err := fs.Open(yName)
+	f, err := os.Open(filepath.Join(gitdir, yName))
 	if err != nil {
 		return InstallFile{}, errors.Wrapf(err, "Error opening %q", yName)
 	}
@@ -297,9 +298,25 @@ func readInstallManifest(fs billy.Filesystem, l map[string]InstallFile, yName st
 	}
 	var ret InstallFile
 	err = yaml.Unmarshal(contents, &ret)
-	if err == nil {
-		l[yName] = ret
-		return ret, nil
+	if err != nil {
+		return ret, errors.Wrapf(err, "Error parsing contents of install manifest")
 	}
-	return ret, errors.Wrapf(err, "Error parsing contents of install manifest")
+
+	pemName := strings.TrimSuffix(yName, ".yaml") + ".pem"
+
+	tmpd, err := os.MkdirTemp("", "verify")
+	if err != nil {
+		return InstallFile{}, fmt.Errorf("Failed creating a tempdir: %w", err)
+	}
+	defer os.RemoveAll(tmpd)
+
+	err = VerifySignature(
+		filepath.Join(gitdir, yName),
+		filepath.Join(gitdir, pemName),
+		mos.opts.CaPath)
+	if err != nil {
+		return ret, errors.Wrapf(err, "Failed verifying signature for target %q", yName)
+	}
+	l[yName] = ret
+	return ret, nil
 }

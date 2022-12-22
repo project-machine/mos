@@ -29,6 +29,9 @@ type MosOptions struct {
 
 	// During initial install, we can't read the provisioned host certs
 	NoHostCerts bool
+
+	// OTOH if we want to fetch the manifest CA from a custom path:
+	CaPath string
 }
 
 func DefaultMosOptions() MosOptions {
@@ -40,6 +43,7 @@ func DefaultMosOptions() MosOptions {
 		LayersReadOnly:   true,
 		ManifestReadOnly: true,
 		NoHostCerts:      false,
+		CaPath:           "/factory/secure/manifestCA.pem",
 	}
 }
 
@@ -47,6 +51,7 @@ type Mos struct {
 	storage     Storage
 	//bootmgr   Bootmgr
 
+	CaPath      string
 	opts        MosOptions
 	lockfile    *os.File
 }

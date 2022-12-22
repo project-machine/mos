@@ -44,6 +44,6 @@ EOF
 	openssl dgst -sha256 -sign "${KEYS_DIR}/sampleproject/manifest.key" \
 		-out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
 	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
-	cp "${KEYS_DIR}/manifestCA/cert.pem" "$TMPD/config/manifestCA.pem"
+	cp "${KEYS_DIR}/manifestCA/cert.pem" "$TMPD/manifestCA.pem"
 	./mosctl install -c $TMPD/config -a $TMPD/atomfs -f $TMPD/install.yaml
 }
