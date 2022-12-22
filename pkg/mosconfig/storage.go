@@ -7,7 +7,7 @@ import (
 
 	"github.com/apex/log"
 	"golang.org/x/sys/unix"
-	"stackerbuild.io/stacker/atomfs"
+	"stackerbuild.io/stacker/pkg/atomfs"
 )
 
 type StorageType string

@@ -16,6 +16,7 @@ func main() {
 	app.Commands = []cli.Command{
 		createBootFsCmd,
 		installCmd,
+		sociCmd,
 	}
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{

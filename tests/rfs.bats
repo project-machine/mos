@@ -21,7 +21,7 @@ sleep 1s
 failed=0
 echo testing > $TMPD/mnt/helloworld || failed=1
 [ $failed -eq 1 ]
-killall squashfuse
+killall squashfuse || true
 XXX
 EOF
 }
@@ -38,7 +38,7 @@ sleep 1s
 [ -e $TMPD/mnt/etc ]
 echo testing > $TMPD/mnt/helloworld
 [ -f $TMPD/mnt/helloworld ]
-killall squashfuse
+killall squashfuse || true
 XXX
 EOF
 }

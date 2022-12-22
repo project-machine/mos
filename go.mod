@@ -5,9 +5,11 @@ require (
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/msoap/byline v1.1.1
+	github.com/pkg/errors v0.9.1
 	github.com/urfave/cli v1.22.10
+	golang.org/x/sys v0.3.0
 	gopkg.in/yaml.v2 v2.4.0
-	stackerbuild.io/stacker v0.0.0-00010101000000-000000000000
+	stackerbuild.io/stacker v0.40.1
 )
 
 require (
@@ -76,7 +78,6 @@ require (
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417 // indirect
 	github.com/opencontainers/umoci v0.4.8-0.20220412065115-12453f247749 // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/xattr v0.4.9 // indirect
 	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
@@ -102,8 +103,7 @@ require (
 	golang.org/x/crypto v0.3.0 // indirect
 	golang.org/x/net v0.2.0 // indirect
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
-	golang.org/x/sys v0.3.0 // indirect
-	golang.org/x/term v0.2.0 // indirect
+	golang.org/x/term v0.3.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20220303160752-862486edd9cc // indirect
 	google.golang.org/grpc v1.44.0 // indirect
@@ -116,4 +116,4 @@ require (
 
 go 1.18
 
-replace stackerbuild.io/stacker => github.com/hallyn/stacker-1 v0.0.0-20221213145702-2187eb316bd8
+replace stackerbuild.io/stacker => github.com/hallyn/stacker-1 v0.0.0-20221221221017-6a64317ee177

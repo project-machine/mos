@@ -8,7 +8,7 @@ import (
 
 	"github.com/apex/log"
 	"github.com/pkg/errors"
-	"stackerbuild.io/stacker/lib"
+	"stackerbuild.io/stacker/pkg/lib"
 )
 
 func InitializeMos(cf *InstallFile, storeDir, configDir, baseDir string) error {
