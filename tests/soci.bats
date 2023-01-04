@@ -20,6 +20,8 @@ targets:
     version: 1.0.0
     service_type: hostfs
     nsgroup: ""
+    network:
+      type: host
     mounts: []
 EOF
 	openssl dgst -sha256 -sign "${KEYS_DIR}/sampleproject/manifest.key" \

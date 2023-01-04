@@ -43,16 +43,28 @@ type MountSpec struct {
 	Options string `yaml:"options"`
 }
 
+// Only host network supported right now.
+// To do: simple/nat, CNI
+type TargetNetworkType string
+const (
+	HostNetwork TargetNetworkType = "host"
+	NoNetwork   TargetNetworkType = "none"
+)
+
+type TargetNetwork struct {
+	Type    TargetNetworkType  `yaml:"type"`
+}
+
 type Target struct {
-	SourceLayer    string       `yaml:"layer"`
-	Name           string       `yaml:"name"`      // name of target
-	Fullname       string       `yaml:"fullname"`  // full zot path
-	Version        string       `yaml:"version"`   // docker or oci version tag
-	ServiceType    string       `yaml:"service_type"`
-	Network        string       `yaml:"network"`
-	NSGroup        string       `yaml:"nsgroup"`
-	Mounts         []*MountSpec `yaml:"mounts"`
-	ManifestHash   string       `yaml:"manifest_hash"`
+	SourceLayer  string        `yaml:"layer"`
+	Name         string        `yaml:"name"`     // name of target
+	Fullname     string        `yaml:"fullname"` // full zot path
+	Version      string        `yaml:"version"`  // docker or oci version tag
+	ServiceType  string        `yaml:"service_type"`
+	Network      TargetNetwork `yaml:"network"`
+	NSGroup      string        `yaml:"nsgroup"`
+	Mounts       []*MountSpec  `yaml:"mounts"`
+	ManifestHash string        `yaml:"manifest_hash"`
 }
 type InstallTargets []Target
 
@@ -128,6 +140,10 @@ func (ts InstallTargets) Validate() error {
 
 		if t.Version == "" {
 			return fmt.Errorf("Target %s cannot have empty version", t.Name)
+		}
+
+		if !t.ValidateNetwork() {
+			return fmt.Errorf("Target %s has bad network: %#v", t.Name, t.Network)
 		}
 	}
 
