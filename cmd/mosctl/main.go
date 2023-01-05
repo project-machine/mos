@@ -15,6 +15,7 @@ func main() {
 	app.Version = Version
 	app.Commands = []cli.Command{
 		createBootFsCmd,
+		activateCmd,
 		installCmd,
 		sociCmd,
 	}

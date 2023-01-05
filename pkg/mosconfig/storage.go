@@ -4,10 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
 
 	"github.com/apex/log"
 	"golang.org/x/sys/unix"
 	"stackerbuild.io/stacker/pkg/atomfs"
+	"stackerbuild.io/stacker/pkg/mount"
 )
 
 type StorageType string
@@ -22,6 +26,11 @@ type Storage interface {
 
 	Mount(t *Target, mountpoint string) (func(), error)
 	MountWriteable(t *Target, mountpoint string) (func(), error)
+
+	MountedByHash(target *Target) (string, error)
+	TearDownTarget(name string) error
+	TargetMountdir(t *Target) (string, error)
+	SetupTarget(t *Target) error
 }
 
 func NewStorage(opts MosOptions) (Storage, error) {
@@ -129,4 +138,102 @@ func (a *AtomfsStorage) MountWriteable(t *Target, mountpoint string) (func(), er
 	}
 
 	return cleanup, nil
+}
+
+func getHashFromOverlay(mountinfo string, mountPoint string) (string, error) {
+	mounts, err := mount.ParseMounts(mountinfo)
+	if err != nil {
+		return "", err
+	}
+
+	for _, m := range mounts {
+		if m.Target != mountPoint {
+			continue
+		}
+
+		dirs, err := m.GetOverlayDirs()
+		if err != nil {
+			return "", fmt.Errorf("Failed getting overlay dirs for mount %+v: %w", m, err)
+		}
+
+		// atomix has traditionally used the first layer as the 'hash'
+		// field of everything.
+		firstDir := dirs[0]
+		hash := filepath.Base(firstDir)
+		return hash, nil
+	}
+
+	return "", nil
+}
+
+func (a *AtomfsStorage) MountedByHash(target *Target) (string, error) {
+	switch target.ServiceType {
+	case "hostfs":
+		return getHashFromOverlay("/proc/self/mountinfo", "/")
+	case "fs-only":
+		/* see SetupTargetRuntime() */
+		return getHashFromOverlay("/proc/self/mountinfo", filepath.Join("/mnt/atom", target.Name))
+	case "container":
+		// container services are lxc containers, which may or may not
+		// have their rootfs visible in this mount namespace. let's
+		// look at the specific mountinfo for the container just to be
+		// sure.
+		out, rc := RunCommandWithRc("lxc-info", "-H", "-n", target.Name, "-p")
+		if rc != 0 {
+			/* if the service didn't previously exist, it's ok for lxc-ls to fail */
+			return "", nil
+		}
+		pid, err := strconv.Atoi(strings.TrimSpace(string(out)))
+		if err != nil {
+			return "", fmt.Errorf("couldn't get pid from %s: %w", strings.TrimSpace(string(out)), err)
+		}
+
+		return getHashFromOverlay(fmt.Sprintf("/proc/%d/mountinfo", pid), "/")
+	default:
+		return "", fmt.Errorf("couldn't determine mountpoint for %s (%s)", target.Name, target.ServiceType)
+	}
+}
+
+func (a *AtomfsStorage) SetupTarget(t *Target) error {
+	mp := filepath.Join(a.scratchPath, "roots", t.Name)
+	mounted, err := IsMountpoint(mp)
+	if err != nil {
+		return fmt.Errorf("Failed checking whether %q is mounted: %w", mp, err)
+	}
+	if mounted {
+		err := syscall.Unmount(mp, syscall.MNT_DETACH)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = a.Mount(t, mp)
+	if err != nil {
+		return fmt.Errorf("Failed mounting %s:%s to %q: %w", t.Name, t.Version, mp, err)
+	}
+
+	// TODO - we have to shift or idmap into t's namespace...
+
+	return nil
+}
+
+// We mount a readonly copy of the fs under $scratch-writes/roots/$target.
+// A container service will want to set lxc.rootfs.path = that, while an
+// fs-only service will simply want to do an overlay rw mount onto
+// /mnt/atom/$target
+func (a *AtomfsStorage) TargetMountdir(t *Target) (string, error) {
+	return filepath.Join(a.scratchPath, "roots", t.Name), nil
+}
+
+func (a *AtomfsStorage) TearDownTarget(name string) error {
+	mp := filepath.Join(a.scratchPath, "roots", name)
+	mounted, err := IsMountpoint(mp)
+	if err != nil {
+		return fmt.Errorf("Failed checking whether %q is mounted: %w", mp, err)
+	}
+	if mounted {
+		return nil
+	}
+
+	return syscall.Unmount(mp, 0)
 }

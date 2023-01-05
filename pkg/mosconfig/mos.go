@@ -3,13 +3,21 @@ package mosconfig
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
 type MosOptions struct {
 	// Storage type - atomfs for now
 	StorageType StorageType
+
+	// The host root directory.  If you specify this (to anything other
+	// than "/"), then the ConfigDir, StorageCache, and ScratchWrites
+	// will be set relative to it.
+	RootDir       string
 
 	// Where install manifest is found
 	ConfigDir     string
@@ -37,9 +45,10 @@ type MosOptions struct {
 func DefaultMosOptions() MosOptions {
 	return MosOptions{
 		StorageType:      AtomfsStorageType,
-		ConfigDir:        "/config",
-		StorageCache:     "/atomfs-store",
-		ScratchWrites:    "/scratch-writes",
+		ConfigDir:        "",
+		StorageCache:     "",
+		ScratchWrites:    "",
+		RootDir:          "/",
 		LayersReadOnly:   true,
 		ManifestReadOnly: true,
 		NoHostCerts:      false,
@@ -61,6 +70,7 @@ func NewMos(configDir, storeDir string) (*Mos, error) {
 		StorageType: AtomfsStorageType,
 		ConfigDir: configDir,
 		StorageCache: storeDir,
+		RootDir: "/",
 		LayersReadOnly: false,
 		ManifestReadOnly: false,
 		NoHostCerts: true,
@@ -77,12 +87,29 @@ func NewMos(configDir, storeDir string) (*Mos, error) {
 	return mos, nil
 }
 
+func setDirOpts(opts MosOptions) MosOptions {
+	if opts.RootDir == "" {
+		opts.RootDir = "/"
+	}
+	if opts.ConfigDir == "" {
+		opts.ConfigDir = filepath.Join(opts.RootDir, "config")
+	}
+	if opts.StorageCache == "" {
+		opts.StorageCache = filepath.Join(opts.RootDir, "atomfs-store")
+	}
+	if opts.ScratchWrites == "" {
+		opts.ScratchWrites = filepath.Join(opts.RootDir, "scratch-writes")
+	}
+	return opts
+}
+
 func OpenMos(opts MosOptions) (*Mos, error) {
 	s, err := NewStorage(opts)
 	if err != nil {
 		return nil, fmt.Errorf("Error initializing storage")
 	}
 
+	opts = setDirOpts(opts)
 	mos := &Mos{
 		opts: opts,
 		storage: s,
@@ -122,4 +149,126 @@ func (mos *Mos) Current(name string) (*Target, error) {
 	}
 
 	return nil, errors.Errorf("Target %s not found", name)
+}
+
+// Activate a target (service):
+// If it is not yet running then start it.
+// If it is already running, but is not at the newest version (i.e. after an
+// upgrade), then restart it. (Not yet implemented)
+func (mos *Mos) Activate(name string) error {
+	unitName := fmt.Sprintf("%s.service", name)
+	t, err := mos.Current(name)
+	if err != nil {
+		return err
+	}
+
+	if t.ServiceType == HostfsService {
+		return fmt.Errorf("Reboot not yet supported, do it yourself")
+	}
+
+	v, err := mos.RunningVersion(t)
+	if err != nil {
+		return err
+	}
+
+	if v == t.Version {
+		// latest version already running
+		return nil
+	}
+
+	if v != "" {
+		err = mos.StopTarget(t)
+		if err != nil {
+			return fmt.Errorf("Failed stopping service %s for update: %w", name, err)
+		}
+	}
+
+	err = mos.SetupTargetRuntime(t)
+	if err != nil {
+		return err
+	}
+
+	if t.ServiceType != ContainerService {
+		return nil
+	}
+
+	return RunCommand("systemctl", "start", "--no-block", unitName)
+}
+
+func (mos *Mos) SetupTargetRuntime(t *Target) error {
+	err := mos.storage.SetupTarget(t)
+	if err != nil {
+		return fmt.Errorf("Failed setting up storage for %s:%s: %w", t.Name, t.Version, err)
+	}
+
+	switch t.ServiceType {
+	case FsService:
+		src, err := mos.storage.TargetMountdir(t)
+		if err != nil {
+			return err
+		}
+		dest := filepath.Join(mos.opts.RootDir, "/mnt/atom", t.Name)
+		if err := EnsureDir(dest); err != nil {
+			return fmt.Errorf("Unable to create directory %s: %w", dest, err)
+		}
+		if err = unix.Mount(src, dest, "", unix.MS_BIND, ""); err != nil {
+			return err
+		}
+	case HostfsService:
+		return nil
+	case ContainerService:
+		return fmt.Errorf("Container service type not yet implemented")
+	default:
+		return fmt.Errorf("Unhandled service type %s", t.ServiceType)
+	}
+
+	return nil
+}
+
+// Return the layer hash for a running service.
+// We do this by looking for the mounted fs and using the hash to look
+// back through the manifest and find the current version.
+// Return "", nil if the service is not running.
+func (mos *Mos) RunningVersion(t *Target) (string, error) {
+	hash, err := mos.storage.MountedByHash(t)
+	if err != nil {
+		return "", err
+	}
+
+	return hash, nil
+}
+
+func (mos *Mos) StopTarget(t *Target) error {
+	unitName := fmt.Sprintf("%s.service", t.Name)
+	switch t.ServiceType {
+	case ContainerService:
+		out, rc := RunCommandWithRc("systemctl", "stop", unitName)
+		outs := string(out)
+		if rc != 0 && !strings.HasSuffix(outs, "not loaded.\n") {
+			return fmt.Errorf("Failed to stop service %s: %s", t.Name, outs)
+		}
+	case HostfsService:
+		return fmt.Errorf("Stopping hostfs is not yet supported.  Please poweroff")
+	}
+
+	err := mos.storage.TearDownTarget(t.Name)
+	if err !=  nil {
+		return fmt.Errorf("Failed shutting down storage for %s: %w", t.Name, err)
+	}
+
+	err = mos.SetupTargetRuntime(t)
+	if err != nil {
+		return fmt.Errorf("Failed setting up target runtime for %s: %w", t.Name, err)
+	}
+
+	switch t.ServiceType {
+	case ContainerService:
+		return RunCommand("systemctl", "start", "--no-block", unitName)
+	case FsService:
+		break
+	default:
+		return fmt.Errorf("StopTarget: Unhandled service type: %s", t.ServiceType)
+	}
+
+	return nil
 }

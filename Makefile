@@ -8,3 +8,4 @@ test: mosctl
 	bats tests/install.bats
 	bats tests/rfs.bats
 	bats tests/soci.bats
+	bats tests/activate.bats

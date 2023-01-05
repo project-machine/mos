@@ -1,18 +1,47 @@
 package mosconfig
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"syscall"
 
 	"github.com/msoap/byline"
 	"github.com/apex/log"
 )
+
+func IsMountpoint(path string) (bool, error) {
+	return IsMountpointOfDevice(path, "")
+}
+
+func IsMountpointOfDevice(path, devicepath string) (bool, error) {
+	path = strings.TrimSuffix(path, "/")
+	f, err := os.Open("/proc/self/mounts")
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+		if len(fields) <= 1 {
+			continue
+		}
+		if (fields[1] == path || path == "") && (fields[0] == devicepath || devicepath == "") {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
 
 func PathExists(d string) bool {
 	_, err := os.Stat(d)
@@ -51,6 +80,38 @@ func CopyFileBits(src, dest string) error {
 		return err
 	}
 	return out.Close()
+}
+
+func RunCommand(args ...string) error {
+	cmd := exec.Command(args[0], args[1:]...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s: %s: %s", strings.Join(args, " "), err, string(output))
+	}
+	return nil
+}
+
+func RunCommandWithRc(args ...string) ([]byte, int) {
+	out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
+	return out, GetCommandErrorRC(err)
+}
+
+func GetCommandErrorRCDefault(err error, rcError int) int {
+	if err == nil {
+		return 0
+	}
+	exitError, ok := err.(*exec.ExitError)
+	if ok {
+		if status, ok := exitError.Sys().(syscall.WaitStatus); ok {
+			return status.ExitStatus()
+		}
+	}
+	log.Debugf("Unavailable return code for %s. returning %d", err, rcError)
+	return rcError
+}
+
+func GetCommandErrorRC(err error) int {
+	return GetCommandErrorRCDefault(err, 127)
 }
 
 func LogCommand(args ...string) error {
@@ -109,25 +170,6 @@ func RunWithStdall(stdinString string, args ...string) (string, string, error) {
 	err = cmd.Run()
 	return stdout.String(), stderr.String(), err
 }
-
-func GetCommandErrorRC(err error) int {
-	return GetCommandErrorRCDefault(err, 127)
-}
-
-func GetCommandErrorRCDefault(err error, rcError int) int {
-	if err == nil {
-		return 0
-	}
-	exitError, ok := err.(*exec.ExitError)
-	if ok {
-		if status, ok := exitError.Sys().(syscall.WaitStatus); ok {
-			return status.ExitStatus()
-		}
-	}
-	log.Debugf("Unavailable return code for %s. returning %d", err, rcError)
-	return rcError
-}
-
 
 func ShaSum(fpath string) (string, error) {
 	f, err := os.Open(fpath)

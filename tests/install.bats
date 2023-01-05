@@ -9,7 +9,7 @@ function teardown() {
 }
 
 @test "simple mos install from local oci" {
-	good_install
+	good_install hostfsonly
 	[ -f $TMPD/atomfs/puzzleos/hostfs/index.json ]
 	[ -f $TMPD/config/manifest.git/manifest.yaml ]
 }

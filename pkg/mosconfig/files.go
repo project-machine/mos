@@ -55,12 +55,19 @@ type TargetNetwork struct {
 	Type    TargetNetworkType  `yaml:"type"`
 }
 
+type ServiceType string
+const (
+	HostfsService    ServiceType = "hostfs"
+	ContainerService ServiceType = "container"
+	FsService        ServiceType = "fs-only"
+)
+
 type Target struct {
 	SourceLayer  string        `yaml:"layer"`
 	Name         string        `yaml:"name"`     // name of target
 	Fullname     string        `yaml:"fullname"` // full zot path
 	Version      string        `yaml:"version"`  // docker or oci version tag
-	ServiceType  string        `yaml:"service_type"`
+	ServiceType  ServiceType   `yaml:"service_type"`
 	Network      TargetNetwork `yaml:"network"`
 	NSGroup      string        `yaml:"nsgroup"`
 	Mounts       []*MountSpec  `yaml:"mounts"`

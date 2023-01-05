@@ -9,7 +9,7 @@ function teardown() {
 }
 
 @test "create ro boot filesystem" {
-	good_install
+	good_install hostfsonly
 
 	mkdir -p "${TMPD}/mnt"
 	lxc-usernsexec -s -- <<EOF
@@ -27,7 +27,7 @@ EOF
 }
 
 @test "create rw boot filesystem" {
-	good_install
+	good_install hostfsonly
 
 	mkdir -p "${TMPD}/mnt"
 	lxc-usernsexec -s -- <<EOF
@@ -44,7 +44,7 @@ EOF
 }
 
 @test "create boot filesystem with corrupted manifest" {
-	good_install
+	good_install hostfsonly
 	# Make the install.yaml fail verification with install.yaml.signature
 	pushd "${TMPD}/config/manifest.git"
 	sed -i 's/^targets:/\n\0/' *.yaml
