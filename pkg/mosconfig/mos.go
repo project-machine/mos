@@ -173,9 +173,13 @@ func (mos *Mos) Activate(name string) error {
 		return err
 	}
 
-	// TODO we'll need to find the version from the hash?
-	log.Debugf("running version is \"%q\" wanted version is %q", v, t.Version)
+	log.Infof("running version is \"%q\" wanted version is %q", v, t.Version)
 	if v == t.Version {
+		// TODO this is actually broken - what we get is the layer config
+		// hash (e.g. ee60af2a371e08a67174387985dd5f270d5596f7265f94f15107889aab454157),
+		// but we need the version.  This isn't so bad, we just always restart
+		// on activate.
+
 		// latest version already running
 		return nil
 	}
@@ -241,6 +245,7 @@ func (mos *Mos) RunningVersion(t *Target) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	log.Infof("RunningVersion: %s has version %q", t.Name, hash)
 
 	return hash, nil
 }
@@ -256,6 +261,13 @@ func (mos *Mos) StopTarget(t *Target) error {
 		}
 	case HostfsService:
 		return fmt.Errorf("Stopping hostfs is not yet supported.  Please poweroff")
+	case FsService:
+		mp := filepath.Join(mos.opts.RootDir, "/mnt/atom", t.Name)
+		err := unix.Unmount(mp, 0)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 
 	err := mos.storage.TearDownTarget(t.Name)

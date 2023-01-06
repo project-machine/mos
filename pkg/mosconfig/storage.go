@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/apex/log"
 	"golang.org/x/sys/unix"
@@ -38,7 +37,7 @@ func NewStorage(opts MosOptions) (Storage, error) {
 	var e error
 	switch opts.StorageType {
 	case AtomfsStorageType:
-		s, e = NewAtomfsStorage(opts.StorageCache, opts.ScratchWrites)
+		s, e = NewAtomfsStorage(opts.RootDir, opts.StorageCache, opts.ScratchWrites)
 	case PuzzlefsStorageType:
 		return nil, fmt.Errorf("Not yet implemented")
 	default:
@@ -49,12 +48,14 @@ func NewStorage(opts MosOptions) (Storage, error) {
 }
 
 type AtomfsStorage struct {
+	RootDir      string
 	zotPath      string
 	scratchPath  string
 }
 
-func NewAtomfsStorage(zotPath, scratchPath string) (*AtomfsStorage, error) {
+func NewAtomfsStorage(rootDir, zotPath, scratchPath string) (*AtomfsStorage, error) {
 	return &AtomfsStorage{
+		RootDir: rootDir,
 		zotPath: zotPath,
 		scratchPath: scratchPath,
 	}, nil
@@ -177,10 +178,10 @@ func getHashFromOverlay(mountinfo string, mountPoint string) (string, error) {
 func (a *AtomfsStorage) MountedByHash(target *Target) (string, error) {
 	switch target.ServiceType {
 	case "hostfs":
-		return getHashFromOverlay("/proc/self/mountinfo", "/")
+		return getHashFromOverlay("/proc/self/mountinfo", a.RootDir)
 	case "fs-only":
 		/* see SetupTargetRuntime() */
-		return getHashFromOverlay("/proc/self/mountinfo", filepath.Join("/mnt/atom", target.Name))
+		return getHashFromOverlay("/proc/self/mountinfo", filepath.Join(a.RootDir, "mnt/atom", target.Name))
 	case "container":
 		// container services are lxc containers, which may or may not
 		// have their rootfs visible in this mount namespace. let's
@@ -209,7 +210,7 @@ func (a *AtomfsStorage) SetupTarget(t *Target) error {
 		return fmt.Errorf("Failed checking whether %q is mounted: %w", mp, err)
 	}
 	if mounted {
-		err := syscall.Unmount(mp, syscall.MNT_DETACH)
+		err := atomfs.Umount(mp)
 		if err != nil {
 			return err
 		}
@@ -220,7 +221,7 @@ func (a *AtomfsStorage) SetupTarget(t *Target) error {
 		return fmt.Errorf("Failed creating mountpoint %q: %w", mp, err)
 	}
 
-	_, err = a.MountWriteable(t, mp)
+	_, err = a.Mount(t, mp)
 	if err != nil {
 		return fmt.Errorf("Failed mounting %s:%s to %q: %w", t.Name, t.Version, mp, err)
 	}
@@ -239,14 +240,19 @@ func (a *AtomfsStorage) TargetMountdir(t *Target) (string, error) {
 }
 
 func (a *AtomfsStorage) TearDownTarget(name string) error {
+	log.Warnf("tearing down %q", name)
 	mp := filepath.Join(a.scratchPath, "roots", name)
 	mounted, err := IsMountpoint(mp)
 	if err != nil {
 		return fmt.Errorf("Failed checking whether %q is mounted: %w", mp, err)
 	}
-	if mounted {
+	if !mounted {
 		return nil
 	}
 
-	return syscall.Unmount(mp, 0)
+	err = atomfs.Umount(mp)
+	if err != nil {
+		return fmt.Errorf("atomfs umount of %q failed: %w", mp, err)
+	}
+	return err
 }

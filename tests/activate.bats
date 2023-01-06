@@ -18,6 +18,10 @@ set -e
 ./mosctl activate -r $TMPD -t hostfstarget -capath $TMPD/manifestCA.pem
 [ -e $TMPD/mnt/atom/hostfstarget/etc ]
 /bin/ls -l $TMPD/mnt/atom/hostfstarget
+cat /proc/self/mountinfo
+# Re-activate, to test stop
+./mosctl activate -r $TMPD -t hostfstarget -capath $TMPD/manifestCA.pem
+[ -e $TMPD/mnt/atom/hostfstarget/etc ]
 killall squashfuse || true
 XXX
 EOF
