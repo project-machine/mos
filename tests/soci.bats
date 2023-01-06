@@ -50,8 +50,9 @@ EOF
 	  --layer-type squashfs
 	umoci tag --image ${TMPD}/oci:hostfs-squashfs hostfs
 	mkdir ${TMPD}/mnt
-	lxc-usernsexec -s -- <<EOF
-unshare -m -- <<XXX
+	export TMPD
+	lxc-usernsexec -s -- << "EOF"
+unshare -m -- << "XXX"
 #!/bin/bash
 set -e
 ./mosctl soci mount --ocidir ${TMPD}/oci  \

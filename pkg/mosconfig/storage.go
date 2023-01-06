@@ -71,6 +71,10 @@ func (a *AtomfsStorage) metadataPath() string {
 }
 
 func (a *AtomfsStorage) Mount(t *Target, mountpoint string) (func(), error) {
+	if err := EnsureDir(mountpoint); err != nil {
+		return func() {}, fmt.Errorf("Failed creating mountpoint %q: %w", mountpoint, err)
+	}
+
 	opts := atomfs.MountOCIOpts{
 		OCIDir:       filepath.Join(a.zotPath, t.Fullname),
 		MetadataPath: a.metadataPath(),
@@ -80,7 +84,7 @@ func (a *AtomfsStorage) Mount(t *Target, mountpoint string) (func(), error) {
 
 	mol, err := atomfs.BuildMoleculeFromOCI(opts)
 	if err != nil {
-		return func() {}, err
+		return func() {}, fmt.Errorf("Failed building atomfs molecule for %#v: %w", opts, err)
 	}
 
 	cleanup := func() {
@@ -89,7 +93,11 @@ func (a *AtomfsStorage) Mount(t *Target, mountpoint string) (func(), error) {
 			log.Warnf("unmounting %s failed: %s", mountpoint, err)
 		}
 	}
-	return cleanup, mol.Mount(mountpoint)
+	err = mol.Mount(mountpoint)
+	if err != nil {
+		return cleanup, fmt.Errorf("Failed mounting molecule %#v: %w", mol, err)
+	}
+	return cleanup, nil
 }
 
 func (a *AtomfsStorage) MountWriteable(t *Target, mountpoint string) (func(), error) {
@@ -207,7 +215,12 @@ func (a *AtomfsStorage) SetupTarget(t *Target) error {
 		}
 	}
 
-	_, err = a.Mount(t, mp)
+	err = EnsureDir(mp)
+	if err != nil {
+		return fmt.Errorf("Failed creating mountpoint %q: %w", mp, err)
+	}
+
+	_, err = a.MountWriteable(t, mp)
 	if err != nil {
 		return fmt.Errorf("Failed mounting %s:%s to %q: %w", t.Name, t.Version, mp, err)
 	}

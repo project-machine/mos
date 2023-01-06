@@ -14,7 +14,7 @@ function common_setup {
 		fi
 	fi
 	export TMPD=$(mktemp -d "${PWD}/batstest-XXXXX")
-	mkdir -p "$TMPD/config" "$TMPD/atomfs" "$TMPD/scratch-writes"
+	mkdir -p "$TMPD/config" "$TMPD/atomfs-store" "$TMPD/scratch-writes"
 	# TODO I'm using the ca cert bc we don't have a sample manifest signing cert yet.
 	# switch that over when it's available.
 	cp "${KEYS_DIR}/sampleproject/manifest.crt" "$TMPD/manifestCert.pem"
@@ -116,5 +116,5 @@ function good_install {
 	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
 	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfstarget
 	cp "${KEYS_DIR}/manifestCA/cert.pem" "$TMPD/manifestCA.pem"
-	./mosctl install -c $TMPD/config -a $TMPD/atomfs -f $TMPD/install.yaml
+	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml
 }

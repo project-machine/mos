@@ -10,6 +10,17 @@ function teardown() {
 
 @test "activate of fs-only layer" {
 	good_install fsonly
+	export TMPD
+	lxc-usernsexec -s -- << "EOF"
+unshare -m -- << "XXX"
+#!/bin/bash
+set -e
+./mosctl activate -r $TMPD -t hostfstarget -capath $TMPD/manifestCA.pem
+[ -e $TMPD/mnt/atom/hostfstarget/etc ]
+/bin/ls -l $TMPD/mnt/atom/hostfstarget
+killall squashfuse || true
+XXX
+EOF
 }
 
 # TODO - right now this is not implemented (needs the lxc container

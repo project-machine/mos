@@ -10,7 +10,7 @@ function teardown() {
 
 @test "simple mos install from local oci" {
 	good_install hostfsonly
-	[ -f $TMPD/atomfs/puzzleos/hostfs/index.json ]
+	[ -f $TMPD/atomfs-store/puzzleos/hostfs/index.json ]
 	[ -f $TMPD/config/manifest.git/manifest.yaml ]
 }
 
@@ -34,7 +34,7 @@ EOF
 	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
 	failed=0
 	cp "${KEYS_DIR}/manifestCA/cert.pem" "$TMPD/manifestCA.pem"
-	./mosctl install -c $TMPD/config -a $TMPD/atomfs -f $TMPD/install.yaml || failed=1
+	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml || failed=1
 	[ $failed -eq 1 ]
 }
 
@@ -59,8 +59,8 @@ EOF
 	mkdir -p $TMPD/zot/c3
 	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
 	cp "${KEYS_DIR}/manifestCA/cert.pem" "$TMPD/manifestCA.pem"
-	./mosctl install -c $TMPD/config -a $TMPD/atomfs -f $TMPD/install.yaml
-	[ -f $TMPD/atomfs/puzzleos/hostfs/index.json ]
+	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml
+	[ -f $TMPD/atomfs-store/puzzleos/hostfs/index.json ]
 }
 
 @test "mos install with bad version" {
@@ -72,6 +72,6 @@ targets:
 EOF
 	failed=0
 	cp "${KEYS_DIR}/manifestCA/cert.pem" "$TMPD/manifestCA.pem"
-	./mosctl install -c $TMPD/config -a $TMPD/atomfs -f $TMPD/install.yaml || failed=1
+	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml || failed=1
 	[ $failed -eq 1 ]
 }

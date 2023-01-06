@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/apex/log"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
@@ -104,12 +105,13 @@ func setDirOpts(opts MosOptions) MosOptions {
 }
 
 func OpenMos(opts MosOptions) (*Mos, error) {
+	opts = setDirOpts(opts)
+
 	s, err := NewStorage(opts)
 	if err != nil {
 		return nil, fmt.Errorf("Error initializing storage")
 	}
 
-	opts = setDirOpts(opts)
 	mos := &Mos{
 		opts: opts,
 		storage: s,
@@ -171,16 +173,20 @@ func (mos *Mos) Activate(name string) error {
 		return err
 	}
 
+	// TODO we'll need to find the version from the hash?
+	log.Debugf("running version is \"%q\" wanted version is %q", v, t.Version)
 	if v == t.Version {
 		// latest version already running
 		return nil
 	}
 
 	if v != "" {
+		log.Infof("Stopping target %q", t.Name)
 		err = mos.StopTarget(t)
 		if err != nil {
 			return fmt.Errorf("Failed stopping service %s for update: %w", name, err)
 		}
+		log.Infof("Stopped target %q", t.Name)
 	}
 
 	err = mos.SetupTargetRuntime(t)
@@ -196,6 +202,7 @@ func (mos *Mos) Activate(name string) error {
 }
 
 func (mos *Mos) SetupTargetRuntime(t *Target) error {
+	log.Debugf("Setting up target %s", t.Name)
 	err := mos.storage.SetupTarget(t)
 	if err != nil {
 		return fmt.Errorf("Failed setting up storage for %s:%s: %w", t.Name, t.Version, err)
@@ -254,20 +261,6 @@ func (mos *Mos) StopTarget(t *Target) error {
 	err := mos.storage.TearDownTarget(t.Name)
 	if err !=  nil {
 		return fmt.Errorf("Failed shutting down storage for %s: %w", t.Name, err)
-	}
-
-	err = mos.SetupTargetRuntime(t)
-	if err != nil {
-		return fmt.Errorf("Failed setting up target runtime for %s: %w", t.Name, err)
-	}
-
-	switch t.ServiceType {
-	case ContainerService:
-		return RunCommand("systemctl", "start", "--no-block", unitName)
-	case FsService:
-		break
-	default:
-		return fmt.Errorf("StopTarget: Unhandled service type: %s", t.ServiceType)
 	}
 
 	return nil
