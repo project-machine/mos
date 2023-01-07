@@ -10,9 +10,13 @@ import (
 	"strings"
 	"time"
 
+	ispec "github.com/opencontainers/image-spec/specs-go/v1"
+	stackeroci "stackerbuild.io/stacker/pkg/oci"
+
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/opencontainers/umoci"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
@@ -164,6 +168,8 @@ func initManifest(cf *InstallFile, manifestPath, manifestCert, manifestCA, confi
 
 	dest = filepath.Join(dir, "manifest.yaml")
 	targets := SysTargets{}
+	uidmaps := []IdmapSet{}
+
 	for _, t := range cf.Targets {
 		newT := SysTarget{
 			Name:   t.Name,
@@ -171,8 +177,15 @@ func initManifest(cf *InstallFile, manifestPath, manifestCert, manifestCA, confi
 		}
 		targets = append(targets, newT)
 
+		uidmaps = addUIDMap(uidmaps, t)
 	}
-	bytes, err := yaml.Marshal(&targets)
+
+	sysmanifest := SysManifest{
+		UidMaps: uidmaps,
+		SysTargets: targets,
+	}
+
+	bytes, err := yaml.Marshal(&sysmanifest)
 	if err != nil {
 		return fmt.Errorf("Failed marshalling the system manifest")
 	}
@@ -205,7 +218,34 @@ func defaultSignature() *object.Signature {
 	}
 }
 
-func (mos *Mos) CurrentManifest() (SysTargets, error) {
+func (mos *Mos) ReadTargetManifest(t *Target) (ispec.Manifest, ispec.Image, error) {
+	emptyM := ispec.Manifest{}
+	emptyC := ispec.Image{}
+	ociDir := filepath.Join(mos.opts.StorageCache, t.Fullname)
+	oci, err := umoci.OpenLayout(ociDir)
+	if err != nil {
+		return emptyM, emptyC, fmt.Errorf("Failed reading OCI manifest for %s: %w", t.Fullname, err)
+	}
+	defer oci.Close()
+
+	ociManifest, err := stackeroci.LookupManifest(oci, t.Version)
+	if err != nil {
+		return emptyM, emptyC, err
+	}
+
+	ociConfig, err := stackeroci.LookupConfig(oci, ociManifest.Config)
+	if err != nil {
+		return emptyM, emptyC, err
+	}
+
+	return ociManifest, ociConfig, nil
+}
+
+func (mos *Mos) CurrentManifest() (*SysManifest, error) {
+	if mos.Manifest != nil {
+		return mos.Manifest, nil
+	}
+
 	dir := filepath.Join(mos.opts.ConfigDir, "manifest.git")
 	clonedir, err := os.MkdirTemp("", "verify")
 	if err != nil {
@@ -215,13 +255,13 @@ func (mos *Mos) CurrentManifest() (SysTargets, error) {
 
 	r, err := git.PlainClone(clonedir, false,
 		&git.CloneOptions{
-			URL: filepath.Join(dir, ".git"),
+			URL:           dir,
 			ReferenceName: plumbing.Master,
-			SingleBranch: true,
+			SingleBranch:  true,
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Error opening the manifest git tree at %q: %w",err)
+		return nil, fmt.Errorf("Error opening the manifest git tree at %q: %w", dir, err)
 	}
 
 	w, err := r.Worktree()
@@ -248,15 +288,15 @@ func (mos *Mos) CurrentManifest() (SysTargets, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed reading manifest: %w", err)
 	}
-	var STargets SysTargets
-	err = yaml.Unmarshal(contents, &STargets)
+	var sysmanifest SysManifest
+	err = yaml.Unmarshal(contents, &sysmanifest)
 	if err != nil {
 		return nil, fmt.Errorf("Failed parsing manifest: %w", err)
 	}
 
 	manifests := make(map[string]InstallFile)
 	ret := SysTargets{}
-	for _, t := range STargets {
+	for _, t := range sysmanifest.SysTargets {
 		h := t.Source
 		s, err := mos.readInstallManifest(clonedir, manifests, h)
 		if err != nil {
@@ -267,10 +307,19 @@ func (mos *Mos) CurrentManifest() (SysTargets, error) {
 			return nil, fmt.Errorf("target %s not found in %s", t.Name, h)
 		}
 		t.raw = raw
+
+		t.OCIManifest, t.OCIConfig, err = mos.ReadTargetManifest(t.raw)
+		if err != nil {
+			return nil, fmt.Errorf("Target manifest not found for %#v: %w", t, err)
+		}
+
 		ret = append(ret, t)
 	}
+	sysmanifest.SysTargets = ret
 
-	return ret, nil
+	mos.Manifest = &sysmanifest
+
+	return &sysmanifest, nil
 }
 
 func findTarget(cf InstallFile, name string) (*Target, bool) {

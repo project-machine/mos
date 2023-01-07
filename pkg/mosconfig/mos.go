@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/apex/log"
 	"github.com/pkg/errors"
@@ -64,6 +65,8 @@ type Mos struct {
 	CaPath      string
 	opts        MosOptions
 	lockfile    *os.File
+
+	Manifest    *SysManifest
 }
 
 func NewMos(configDir, storeDir string) (*Mos, error) {
@@ -139,12 +142,12 @@ func (mos *Mos) Storage() Storage {
 // 'hostfs' or 'zot.  Returns a *Target containing the full target
 // information from the manifest
 func (mos *Mos) Current(name string) (*Target, error) {
-	systargets, err := mos.CurrentManifest()
+	manifest, err := mos.CurrentManifest()
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed opening manifest")
 	}
 
-	for _, t := range systargets {
+	for _, t := range manifest.SysTargets {
 		if t.Name == name {
 			return t.raw, nil
 		}
@@ -156,9 +159,8 @@ func (mos *Mos) Current(name string) (*Target, error) {
 // Activate a target (service):
 // If it is not yet running then start it.
 // If it is already running, but is not at the newest version (i.e. after an
-// upgrade), then restart it. (Not yet implemented)
+// upgrade), then restart it. (Not fully implemented)
 func (mos *Mos) Activate(name string) error {
-	unitName := fmt.Sprintf("%s.service", name)
 	t, err := mos.Current(name)
 	if err != nil {
 		return err
@@ -202,7 +204,12 @@ func (mos *Mos) Activate(name string) error {
 		return nil
 	}
 
-	return RunCommand("systemctl", "start", "--no-block", unitName)
+	err = mos.startInit(t)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (mos *Mos) SetupTargetRuntime(t *Target) error {
@@ -214,23 +221,176 @@ func (mos *Mos) SetupTargetRuntime(t *Target) error {
 
 	switch t.ServiceType {
 	case FsService:
-		src, err := mos.storage.TargetMountdir(t)
-		if err != nil {
-			return err
-		}
-		dest := filepath.Join(mos.opts.RootDir, "/mnt/atom", t.Name)
-		if err := EnsureDir(dest); err != nil {
-			return fmt.Errorf("Unable to create directory %s: %w", dest, err)
-		}
-		if err = unix.Mount(src, dest, "", unix.MS_BIND, ""); err != nil {
-			return err
-		}
+		return mos.startFsOnly(t)
 	case HostfsService:
 		return nil
 	case ContainerService:
-		return fmt.Errorf("Container service type not yet implemented")
+		return mos.setupContainerService(t)
 	default:
 		return fmt.Errorf("Unhandled service type %s", t.ServiceType)
+	}
+}
+
+func (mos *Mos) GetSystarget(t *Target) (*SysTarget, error) {
+	manifest, err := mos.CurrentManifest()
+	if err != nil {
+		return &SysTarget{}, err
+	}
+	for _, e := range manifest.SysTargets {
+		if e.Name == t.Name {
+			return &e, nil
+		}
+	}
+
+	return &SysTarget{}, fmt.Errorf("No system target found for %s!", t.Fullname)
+}
+
+func (mos *Mos) startFsOnly(t *Target) error {
+	src, err := mos.storage.TargetMountdir(t)
+	if err != nil {
+		return err
+	}
+	dest := filepath.Join(mos.opts.RootDir, "/mnt/atom", t.Name)
+	if err := EnsureDir(dest); err != nil {
+		return fmt.Errorf("Unable to create directory %s: %w", dest, err)
+	}
+	if err = unix.Mount(src, dest, "", unix.MS_BIND, ""); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (mos *Mos) setupContainerService(t *Target) error {
+	err := mos.writeLxcConfig(t)
+	if err != nil {
+		return err
+	}
+
+	err = mos.writeContainerService(t)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (mos *Mos) SetupNetwork(t *Target) ([]string, error) {
+	switch t.Network.Type {
+	case HostNetwork:
+		return []string{"lxc.net.0.type = none"}, nil
+	case NoNetwork:
+		return []string{"lxc.net.0.type = empty"}, nil
+	default:
+		return []string{}, fmt.Errorf("Unhandled network type: %s", t.Network.Type)
+	}
+}
+
+func (mos *Mos) writeLxcConfig(t *Target) error {
+	// We are guaranteed to have stopped the container before reaching
+	// here
+	lxcconfigDir := filepath.Join(mos.opts.RootDir, "var/lib/lxc", t.Name)
+	lxclogDir := filepath.Join(mos.opts.RootDir, "/var/log/lxc")
+	err := os.RemoveAll(lxcconfigDir)
+	if err != nil {
+		return fmt.Errorf("Failed removing pre-existing container config for %q: %w", t.Name, err)
+	}
+	err = EnsureDir(lxcconfigDir)
+	if err != nil {
+		return fmt.Errorf("Failed creating container config dir: %w", err)
+	}
+
+	syst, err := mos.GetSystarget(t)
+	if err != nil {
+		return err
+	}
+
+	lxcConf := []string{}
+
+	rfs, err := mos.storage.TargetMountdir(t)
+	if err != nil {
+		return err
+	}
+
+	idmapset, lxcIdrange, err := mos.GetUIDMapStr(t)
+	if err != nil {
+		return err
+	}
+	lxcConf = append(lxcConf, lxcIdrange...)
+
+	if len(syst.OCIConfig.Config.Entrypoint) == 0 || syst.OCIConfig.Config.Entrypoint[0] == "" {
+		return fmt.Errorf("No entrypoint defined for %q", t.Name)
+	}
+	cmd := append(syst.OCIConfig.Config.Entrypoint, syst.OCIConfig.Config.Cmd...)
+	for i, c := range cmd {
+		if strings.Contains(c, " ") {
+			cmd[i] = fmt.Sprintf("%q", c)
+		}
+	}
+
+	const maxTries int = 10
+	count := 0
+	canary := filepath.Join(rfs, cmd[0])
+	for ; count < maxTries; count++ {
+		// make sure squashfuse is ready
+		_, err = os.Lstat(canary)
+		if err == nil {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+	if count == maxTries {
+		return fmt.Errorf("Timed out waiting for rfs at %q", rfs)
+	}
+	log.Infof("mountpoint %q is ready after %d seconds", rfs, count)
+
+	if !UidmapIsHost() {
+		err = fixupSymlinks(rfs)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(idmapset.Idmap) != 0 {
+		err = idmapset.ShiftFile(rfs)
+		if err != nil {
+			return err
+		}
+	}
+	lxcConf = append(lxcConf, "lxc.rootfs.path = " + rfs)
+
+
+	netconf, err := mos.SetupNetwork(t)
+	if err != nil {
+		return err
+	}
+	lxcConf = append(lxcConf, netconf...)
+
+	lxcConf = append(lxcConf, fmt.Sprintf("lxc.uts.name = %s", t.Name))
+
+		lxcConf = append(lxcConf, fmt.Sprintf("lxc.execute.cmd = %s", strings.Join(cmd, " ")))
+	lxcConf = append(lxcConf, "lxc.mount.auto = proc:mixed")
+	lxcConf = append(lxcConf, "lxc.log.level = TRACE")
+	// XXX TODO the apparmor profile should only be unset if we
+	// are running in a confined, nested parent container (for testing).
+	lxcConf = append(lxcConf, "lxc.apparmor.profile = unchanged")
+	lxcConf = append(lxcConf, fmt.Sprintf("lxc.log.file = %s/%s.log", lxclogDir, t.Name))
+
+	for _, env := range syst.OCIConfig.Config.Env {
+		lxcConf = append(lxcConf, fmt.Sprintf("lxc.environment = %s", env))
+	}
+
+	// TODO - setup the mounts
+
+	// Write the result
+	lxcConfFile := filepath.Join(lxcconfigDir, "config")
+	data := []byte(strings.Join(lxcConf, "\n") + "\n")
+	err = os.WriteFile(lxcConfFile, data, 0644)
+	if err != nil {
+		return fmt.Errorf("couldn't write config file %q: %w", lxcConfFile, err)
+	}
+	err = os.WriteFile("/tmp/lxcconf", data, 0644)
+	if err != nil {
+		return fmt.Errorf("couldn't write config file %q: %w", "/tmp/lxcconf", err)
 	}
 
 	return nil
@@ -268,6 +428,8 @@ func (mos *Mos) StopTarget(t *Target) error {
 			return err
 		}
 		return nil
+	default:
+		return fmt.Errorf("Unhandled service type: %s", t.ServiceType)
 	}
 
 	err := mos.storage.TearDownTarget(t.Name)

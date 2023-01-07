@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	ispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gopkg.in/yaml.v2"
 )
 
@@ -75,6 +76,10 @@ type Target struct {
 }
 type InstallTargets []Target
 
+func (t *Target) NeedsIdmap() bool {
+	return t.NSGroup != "" && t.NSGroup != "none"
+}
+
 // This describes an install manifest
 type InstallFile struct {
 	Version     int            `yaml:"version"`
@@ -88,15 +93,29 @@ type InstallFile struct {
 	original string
 }
 
+// Note we only do combined uid+gid ranges, range 65536, and only starting at
+// container id 0.
+type IdmapSet struct {
+	Name   string `yaml:"idmap-name"` // This is the NSGroup specified in target
+	Hostid int64  `yaml:"hostid"`
+}
+
 // SysTarget exists as an intermediary between a 'system manifest'
 // and an 'install manifest'
 type SysTarget struct {
 	Name   string `yaml:"name"`   // the name of the target
 	Source string `yaml:"source"` // the content address manifest file defining it
 
-	raw    *Target
+	raw         *Target
+	OCIManifest ispec.Manifest
+	OCIConfig   ispec.Image
 }
 type SysTargets []SysTarget
+
+type SysManifest struct {
+	UidMaps    []IdmapSet  `yaml:"uidmaps"`
+	SysTargets []SysTarget `yaml:"targets"`
+}
 
 func NewInstallFile(p string) (*InstallFile, error) {
 	content, err := ioutil.ReadFile(p)

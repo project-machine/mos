@@ -82,6 +82,9 @@ func (a *AtomfsStorage) Mount(t *Target, mountpoint string) (func(), error) {
 		Tag:          t.Version,
 		Target:       mountpoint,
 	}
+	if !UidmapIsHost() {
+		opts.AllowMissingVerityData = true
+	}
 
 	mol, err := atomfs.BuildMoleculeFromOCI(opts)
 	if err != nil {
@@ -128,7 +131,7 @@ func (a *AtomfsStorage) MountWriteable(t *Target, mountpoint string) (func(), er
 		return func() {}, fmt.Errorf("Failed creating upperdir: %w", err)
 	}
 
-	overlayArgs := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", ropath, upperdir, workdir)
+	overlayArgs := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s,userxattr", ropath, upperdir, workdir)
 	err = unix.Mount("overlayfs", mountpoint, "overlay", 0, overlayArgs)
 	if err != nil {
 		roCleanup()
@@ -187,7 +190,15 @@ func (a *AtomfsStorage) MountedByHash(target *Target) (string, error) {
 		// have their rootfs visible in this mount namespace. let's
 		// look at the specific mountinfo for the container just to be
 		// sure.
-		out, rc := RunCommandWithRc("lxc-info", "-H", "-n", target.Name, "-p")
+		out, rc := RunCommandWithRc("lxc-info", "-H", "-n", target.Name, "-s")
+		if rc != 0 {
+			/* if the service didn't previously exist, it's ok for lxc-ls to fail */
+			return "", nil
+		}
+		if strings.TrimSpace(string(out)) != "RUNNING" {
+			return "", nil
+		}
+		out, rc = RunCommandWithRc("lxc-info", "-H", "-n", target.Name, "-p")
 		if rc != 0 {
 			/* if the service didn't previously exist, it's ok for lxc-ls to fail */
 			return "", nil
@@ -221,12 +232,19 @@ func (a *AtomfsStorage) SetupTarget(t *Target) error {
 		return fmt.Errorf("Failed creating mountpoint %q: %w", mp, err)
 	}
 
-	_, err = a.Mount(t, mp)
+	if t.ServiceType == "container" {
+		// For containers, we have to make this writeable to support
+		// uid shifting.  We can un-do this if/when we can use id mapped
+		// mounts.
+		// XXX TODO we should probably, therefore, umount this after
+		// every service stop.
+		_, err = a.MountWriteable(t, mp)
+	} else {
+		_, err = a.Mount(t, mp)
+	}
 	if err != nil {
 		return fmt.Errorf("Failed mounting %s:%s to %q: %w", t.Name, t.Version, mp, err)
 	}
-
-	// TODO - we have to shift or idmap into t's namespace...
 
 	return nil
 }

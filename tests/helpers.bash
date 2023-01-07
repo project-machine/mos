@@ -20,11 +20,29 @@ function common_setup {
 	cp "${KEYS_DIR}/sampleproject/manifest.crt" "$TMPD/manifestCert.pem"
 }
 
+function lxc_setup {
+	common_setup
+	lxc-info -q -n mos-test || {
+		./tests/create-test-container.bash
+	}
+	lxc-info -q -n mos-test-1 && {
+		lxc-destroy -n mos-test-1 -f
+	}
+	lxc-copy -n mos-test -N mos-test-1
+	lxc-start -n mos-test-1
+	lxc-wait -n mos-test-1 -s RUNNING
+}
+
 function common_teardown {
 	echo "Deleting $TMPD"
 	if [ -n $TMPD ]; then
 		lxc-usernsexec -s -- rm -rf $TMPD
 	fi
+}
+
+function lxc_teardown {
+	#lxc-destroy -n mos-test-1 -f
+	common_teardown
 }
 
 function write_install_yaml {
@@ -95,7 +113,7 @@ targets:
     fullname: puzzleos/hostfstarget
     version: 1.0.0
     service_type: container
-    nsgroup: ""
+    nsgroup: c1
     network:
       type: host
     mounts: []
@@ -117,4 +135,23 @@ function good_install {
 	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfstarget
 	cp "${KEYS_DIR}/manifestCA/cert.pem" "$TMPD/manifestCA.pem"
 	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml
+}
+
+function lxc_install {
+	# set up the file we need under TMPD
+	spectype=$1
+	write_install_yaml "$spectype"
+	openssl dgst -sha256 -sign "${KEYS_DIR}/sampleproject/manifest.key" \
+		-out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
+	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
+	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfstarget
+	cp mosctl ${TMPD}/
+	cp "${KEYS_DIR}/manifestCA/cert.pem" "$TMPD/manifestCA.pem"
+	# copy TMPD over to the container under /iso/
+	lxc-attach -n mos-test-1 -- mkdir -p /iso /config /atomfs-store /scratch-writes /factory/secure
+	tar -C $TMPD -cf - . | lxc-attach -n mos-test-1 -- tar -C /iso -xf -
+	# do the install
+	lxc-attach -n mos-test-1 -- cp /iso/manifestCA.pem /factory/secure/
+	lxc-attach -n mos-test-1 -- cp /iso/mosctl /usr/bin/
+	lxc-attach -n mos-test-1 -- mosctl install -f /iso/install.yaml
 }

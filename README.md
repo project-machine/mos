@@ -43,3 +43,33 @@ and booting a mos system.
 
 cmd/mosctl builds 'mosctl', the frontend binary.
 
+## Test notes
+
+To test the more baroque features, we use an lxc container.  This
+must be permitted to mount overlay filesystems.  You can allow this
+by adding
+
+```
+mount fstype=overlay,
+```
+
+to the lxc-container-default-cgns profile.  THe updated /etc/apparmor.d/lxc/lxc-default-cgns
+should look like:
+
+```
+# Do not load this file.  Rather, load /etc/apparmor.d/lxc-containers, which
+# will source all profiles under /etc/apparmor.d/lxc
+
+profile lxc-container-default-cgns flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/lxc/container-base>
+
+  # the container may never be allowed to mount devpts.  If it does, it
+  # will remount the host's devpts.  We could allow it to do it with
+  # the newinstance option (but, right now, we don't).
+  deny mount fstype=devpts,
+  mount fstype=cgroup -> /sys/fs/cgroup/**,
+  mount fstype=cgroup2 -> /sys/fs/cgroup/**,
+  mount fstype=overlay,
+}
+```
+Reload this by calling "sudo systemctl restart apparmor.

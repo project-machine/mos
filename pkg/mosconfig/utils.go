@@ -6,8 +6,10 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -181,4 +183,57 @@ func ShaSum(fpath string) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
+
+// Taken from stacker's squashfs package
+// Takes /proc/self/uid_map contents as one string
+// Returns true if this is a uidmap representing the whole host
+// uid range.
+func uidmapIsHost(oneline string) bool {
+	oneline = strings.TrimSuffix(oneline, "\n")
+	if len(oneline) == 0 {
+		return false
+	}
+	lines := strings.Split(oneline, "\n")
+	if len(lines) != 1 {
+		return false
+	}
+	words := strings.Fields(lines[0])
+	if len(words) != 3 || words[0] != "0" || words[1] != "0" || words[2] != "4294967295" {
+		return false
+	}
+
+	return true
+}
+
+// chown of symlinks in overlay on top of squashfuse fails.  So, if we are using
+// squashfuse, then find all symlinks, delete and re-reate them.
+func fixupSymlinks(dir string) error {
+	err := filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			log.Warnf("fixupSymlinks: failed accessing %q: %v (continuing)", path, err)
+			return nil
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			dest, err := os.Readlink(path)
+			if err != nil {
+				log.Warnf("fixupSymlinks: readlink failed on %q: %w (continuing)", path, err)
+				return nil
+			}
+			err = os.Remove(path)
+			if err != nil {
+				return err
+			}
+			// func Symlink(oldname, newname string) error
+			err = os.Symlink(dest, path)
+			if err != nil {
+				return err
+			}
+			stat := info.Sys().(*syscall.Stat_t)
+			return os.Lchown(path, int(stat.Uid), int(stat.Gid))
+		}
+		return nil
+	})
+
+	return err
 }
