@@ -315,7 +315,9 @@ func (mos *Mos) writeLxcConfig(t *Target) error {
 	if err != nil {
 		return err
 	}
-	lxcConf = append(lxcConf, lxcIdrange...)
+	for _, line := range lxcIdrange {
+		lxcConf = append(lxcConf, "lxc.idmap = " + line)
+	}
 
 	if len(syst.OCIConfig.Config.Entrypoint) == 0 || syst.OCIConfig.Config.Entrypoint[0] == "" {
 		return fmt.Errorf("No entrypoint defined for %q", t.Name)
