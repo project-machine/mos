@@ -319,6 +319,10 @@ func (mos *Mos) writeLxcConfig(t *Target) error {
 		lxcConf = append(lxcConf, "lxc.idmap = " + line)
 	}
 
+	if err := addUidMapping(idmapset); err != nil {
+		return err
+	}
+
 	if len(syst.OCIConfig.Config.Entrypoint) == 0 || syst.OCIConfig.Config.Entrypoint[0] == "" {
 		return fmt.Errorf("No entrypoint defined for %q", t.Name)
 	}

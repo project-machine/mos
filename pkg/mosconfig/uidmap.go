@@ -108,3 +108,24 @@ func (mos *Mos) GetUIDMapStr(t *Target) (idmap.IdmapSet, []string, error) {
 	return empty, []string{}, fmt.Errorf("Error finding UID Mapping for %s", t.Name)
 }
 
+func addUidMapping(set idmap.IdmapSet) error {
+	for _, u := range set.Idmap {
+		// In atomix we wrote /etc/subuid by hand.  Here we are
+		// calling out to usermod.  Not sure which is the "better"
+		// way.
+		first := u.Hostid
+		last := first + u.Maprange - 1
+		r := fmt.Sprintf("%d-%d", first, last)
+
+		cmdStr := []string{"usermod", "-v", r, "root"}
+		if err := RunCommand(cmdStr...); err != nil {
+			return fmt.Errorf("Error adding subuid allocation: %w", err)
+		}
+		cmdStr = []string{"usermod", "-w", r, "root"}
+		if err := RunCommand(cmdStr...); err != nil {
+			return fmt.Errorf("Error adding subgid allocation: %w", err)
+		}
+	}
+
+	return nil
+}
