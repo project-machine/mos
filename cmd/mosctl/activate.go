@@ -8,22 +8,22 @@ import (
 )
 
 var activateCmd = cli.Command{
-	Name: "activate",
-	Usage: "activate (start or re-start) a service",
+	Name:   "activate",
+	Usage:  "activate (start or re-start) a service",
 	Action: doActivate,
 	Flags: []cli.Flag{
 		cli.StringFlag{
-			Name: "t, target",
+			Name:  "t, target",
 			Usage: "Target to activate.  hostfs (the default) means boot/reboot",
 			Value: "hostfs",
 		},
 		cli.StringFlag{
-			Name: "root, rfs, r",
+			Name:  "root, rfs, r",
 			Usage: "Directory under which to find the mos install",
 			Value: "/",
 		},
 		cli.StringFlag{
-			Name: "capath, ca",
+			Name:  "capath, ca",
 			Usage: "Manifest CA path",
 			Value: "/factory/secure/manifestCA.pem",
 		},

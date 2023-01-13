@@ -96,7 +96,6 @@ func VerifySignature(manifestPath, certPath, caPath string) error {
 		return fmt.Errorf("Manifest certificate does not match the CA: %w", err)
 	}
 
-
 	sigPath := manifestPath + ".signed"
 	cmd := []string{"openssl", "dgst", "-sha256", "-verify", keyPath,
 		"-signature", sigPath, manifestPath}
@@ -135,7 +134,7 @@ func initManifest(cf *InstallFile, manifestPath, manifestCert, manifestCA, confi
 
 	sFile := fmt.Sprintf("%s.yaml.signed", shaSum)
 	dest := filepath.Join(dir, sFile)
-	err = CopyFileBits(manifestPath + ".signed", dest)
+	err = CopyFileBits(manifestPath+".signed", dest)
 	if err != nil {
 		return fmt.Errorf("Failed copying install manifest: %w", err)
 	}
@@ -181,7 +180,7 @@ func initManifest(cf *InstallFile, manifestPath, manifestCert, manifestCA, confi
 	}
 
 	sysmanifest := SysManifest{
-		UidMaps: uidmaps,
+		UidMaps:    uidmaps,
 		SysTargets: targets,
 	}
 
@@ -199,7 +198,7 @@ func initManifest(cf *InstallFile, manifestPath, manifestCert, manifestCA, confi
 		return fmt.Errorf("Git file add for system manifest failed: %w", err)
 	}
 	commitOpts := &git.CommitOptions{
-		Author: defaultSignature(),
+		Author:    defaultSignature(),
 		Committer: defaultSignature(),
 	}
 	_, err = w.Commit("Initial commit", commitOpts)

@@ -19,17 +19,17 @@ type MosOptions struct {
 	// The host root directory.  If you specify this (to anything other
 	// than "/"), then the ConfigDir, StorageCache, and ScratchWrites
 	// will be set relative to it.
-	RootDir       string
+	RootDir string
 
 	// Where install manifest is found
-	ConfigDir     string
+	ConfigDir string
 
 	// Directory where atomfs/puzzlefs cache is rooted
-	StorageCache  string
+	StorageCache string
 
 	// Directory where atomfs keeps its working storage
 	// e.g. upperdirs and temporary mounts
-	ScratchWrites  string
+	ScratchWrites string
 
 	// whether this will be a session which writes to some mos state
 	LayersReadOnly bool
@@ -59,29 +59,29 @@ func DefaultMosOptions() MosOptions {
 }
 
 type Mos struct {
-	storage     Storage
+	storage Storage
 	//bootmgr   Bootmgr
 
-	CaPath      string
-	opts        MosOptions
-	lockfile    *os.File
+	CaPath   string
+	opts     MosOptions
+	lockfile *os.File
 
-	Manifest    *SysManifest
+	Manifest *SysManifest
 }
 
 func NewMos(configDir, storeDir string) (*Mos, error) {
 	opts := MosOptions{
-		StorageType: AtomfsStorageType,
-		ConfigDir: configDir,
-		StorageCache: storeDir,
-		RootDir: "/",
-		LayersReadOnly: false,
+		StorageType:      AtomfsStorageType,
+		ConfigDir:        configDir,
+		StorageCache:     storeDir,
+		RootDir:          "/",
+		LayersReadOnly:   false,
 		ManifestReadOnly: false,
-		NoHostCerts: true,
+		NoHostCerts:      true,
 	}
 
 	mos := &Mos{
-		opts: opts,
+		opts:     opts,
 		lockfile: nil,
 	}
 	err := mos.acquireLock()
@@ -116,7 +116,7 @@ func OpenMos(opts MosOptions) (*Mos, error) {
 	}
 
 	mos := &Mos{
-		opts: opts,
+		opts:    opts,
 		storage: s,
 	}
 
@@ -316,7 +316,7 @@ func (mos *Mos) writeLxcConfig(t *Target) error {
 		return err
 	}
 	for _, line := range lxcIdrange {
-		lxcConf = append(lxcConf, "lxc.idmap = " + line)
+		lxcConf = append(lxcConf, "lxc.idmap = "+line)
 	}
 
 	if err := addUidMapping(idmapset); err != nil {
@@ -362,8 +362,7 @@ func (mos *Mos) writeLxcConfig(t *Target) error {
 			return err
 		}
 	}
-	lxcConf = append(lxcConf, "lxc.rootfs.path = " + rfs)
-
+	lxcConf = append(lxcConf, "lxc.rootfs.path = "+rfs)
 
 	netconf, err := mos.SetupNetwork(t)
 	if err != nil {
@@ -373,7 +372,7 @@ func (mos *Mos) writeLxcConfig(t *Target) error {
 
 	lxcConf = append(lxcConf, fmt.Sprintf("lxc.uts.name = %s", t.Name))
 
-		lxcConf = append(lxcConf, fmt.Sprintf("lxc.execute.cmd = %s", strings.Join(cmd, " ")))
+	lxcConf = append(lxcConf, fmt.Sprintf("lxc.execute.cmd = %s", strings.Join(cmd, " ")))
 	lxcConf = append(lxcConf, "lxc.mount.auto = proc:mixed")
 	lxcConf = append(lxcConf, "lxc.log.level = TRACE")
 	// XXX TODO the apparmor profile should only be unset if we
@@ -439,7 +438,7 @@ func (mos *Mos) StopTarget(t *Target) error {
 	}
 
 	err := mos.storage.TearDownTarget(t.Name)
-	if err !=  nil {
+	if err != nil {
 		return fmt.Errorf("Failed shutting down storage for %s: %w", t.Name, err)
 	}
 

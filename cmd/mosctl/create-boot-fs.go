@@ -5,40 +5,39 @@ import (
 	"github.com/pkg/errors"
 	"github.com/project-machine/mos/pkg/mosconfig"
 	"github.com/urfave/cli"
-
 )
 
 var createBootFsCmd = cli.Command{
-	Name: "create-boot-fs",
-	Usage: "Create a boot filesystem",
+	Name:   "create-boot-fs",
+	Usage:  "Create a boot filesystem",
 	Action: doCreateBootfs,
 	Flags: []cli.Flag{
 		cli.BoolFlag{
-			Name: "readonly,ro",
+			Name:  "readonly,ro",
 			Usage: "Make mount read-only",
 		},
 		cli.StringFlag{
-			Name: "config-dir, c",
+			Name:  "config-dir, c",
 			Usage: "Directory where mos config is found",
 			Value: "/config",
 		},
 		cli.StringFlag{
-			Name: "atomfs-store, a",
+			Name:  "atomfs-store, a",
 			Usage: "Directory under which atomfs store is kept",
 			Value: "/atomfs-store",
 		},
 		cli.StringFlag{
-			Name: "scratch-dir, s",
+			Name:  "scratch-dir, s",
 			Usage: "Directory under which storage should keep overlays and tempdirs",
 			Value: "/scratch-writes",
 		},
 		cli.StringFlag{
-			Name: "ca-path",
+			Name:  "ca-path",
 			Usage: "Path to the manifest sigining CA certificate",
 			Value: "/factory/secure/manifestCA.pem",
 		},
 		cli.StringFlag{
-			Name: "dest",
+			Name:  "dest",
 			Usage: "Directory over which to mount the rfs",
 			Value: "/sysroot",
 		},

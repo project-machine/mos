@@ -10,22 +10,22 @@ import (
 )
 
 var installCmd = cli.Command{
-	Name: "install",
-	Usage: "install a new mos system",
+	Name:   "install",
+	Usage:  "install a new mos system",
 	Action: doInstall,
 	Flags: []cli.Flag{
 		cli.StringFlag{
-			Name: "f, file",
+			Name:  "f, file",
 			Usage: "File from which to read the install manifest",
 			Value: "./install.yaml",
 		},
 		cli.StringFlag{
-			Name: "config-dir, c",
+			Name:  "config-dir, c",
 			Usage: "Directory where mos config is found",
 			Value: "/config",
 		},
 		cli.StringFlag{
-			Name: "atomfs-store, a",
+			Name:  "atomfs-store, a",
 			Usage: "Directory under which atomfs store is kept",
 			Value: "/atomfs-store",
 		},

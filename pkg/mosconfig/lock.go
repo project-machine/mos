@@ -90,4 +90,3 @@ func (mos *Mos) acquireLock() error {
 	owner := findLock(fi.Sys().(*syscall.Stat_t))
 	return fmt.Errorf("couldn't acquire lock on %s: %v: %w", p, owner, lockErr)
 }
-

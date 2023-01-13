@@ -31,6 +31,7 @@ const (
 // did not replace.
 
 type UpdateType string
+
 const (
 	PartialUpdate UpdateType = "partial"
 	FullUpdate    UpdateType = "complete"
@@ -47,16 +48,18 @@ type MountSpec struct {
 // Only host network supported right now.
 // To do: simple/nat, CNI
 type TargetNetworkType string
+
 const (
 	HostNetwork TargetNetworkType = "host"
 	NoNetwork   TargetNetworkType = "none"
 )
 
 type TargetNetwork struct {
-	Type    TargetNetworkType  `yaml:"type"`
+	Type TargetNetworkType `yaml:"type"`
 }
 
 type ServiceType string
+
 const (
 	HostfsService    ServiceType = "hostfs"
 	ContainerService ServiceType = "container"

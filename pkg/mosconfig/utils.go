@@ -14,8 +14,8 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/msoap/byline"
 	"github.com/apex/log"
+	"github.com/msoap/byline"
 )
 
 func IsMountpoint(path string) (bool, error) {
@@ -61,9 +61,9 @@ func EnsureDir(dir string) error {
 	return nil
 }
 
-//  If src is a symlink, copies content, not link.
-//  TODO - copy the permissions.  For now it just makes all new files
-//  0644 which is what we want anyway.
+// If src is a symlink, copies content, not link.
+// TODO - copy the permissions.  For now it just makes all new files
+// 0644 which is what we want anyway.
 func CopyFileBits(src, dest string) error {
 	in, err := os.Open(src)
 	if err != nil {

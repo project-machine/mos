@@ -17,10 +17,10 @@ func MountOCILayer(ocidir, name, dest string) (func(), error) {
 
 	cleanup := func() { os.RemoveAll(metadir) }
 	opts := satomfs.MountOCIOpts{
-		OCIDir: ocidir,
+		OCIDir:       ocidir,
 		MetadataPath: metadir,
-		Tag: name,
-		Target: dest,
+		Tag:          name,
+		Target:       dest,
 	}
 	mol, err := satomfs.BuildMoleculeFromOCI(opts)
 	if err != nil {

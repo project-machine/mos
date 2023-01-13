@@ -8,31 +8,31 @@ import (
 )
 
 var sociCmd = cli.Command{
-	Name: "soci",
-	Usage: "install a new mos system",
+	Name:   "soci",
+	Usage:  "install a new mos system",
 	Action: doInstall,
 	Subcommands: []cli.Command{
 		cli.Command{
-			Name: "mount",
+			Name:   "mount",
 			Action: mountSOci,
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name: "ocidir",
+					Name:  "ocidir",
 					Usage: "OCI directory",
 					Value: "oci",
 				},
 				cli.StringFlag{
-					Name: "meta, metalayer, zaplayer",
+					Name:  "meta, metalayer, zaplayer",
 					Usage: "zap (oci metadata) layer name",
 					Value: "meta",
 				},
 				cli.StringFlag{
-					Name: "capath, ca",
+					Name:  "capath, ca",
 					Usage: "Path to manifest signing CA",
 					Value: "/factory/secure/manifestCA.pem",
 				},
 				cli.StringFlag{
-					Name: "mountpoint, dest",
+					Name:  "mountpoint, dest",
 					Usage: "Directory onto which to mount the layer",
 				},
 			},

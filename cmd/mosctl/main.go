@@ -21,7 +21,7 @@ func main() {
 	}
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
-			Name: "debug",
+			Name:  "debug",
 			Usage: "display additional debug information",
 		},
 	}

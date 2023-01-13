@@ -69,8 +69,8 @@ func addUIDMap(uidmaps []IdmapSet, t Target) []IdmapSet {
 	}
 
 	// Create a new idmap range
-	uidmap := IdmapSet {
-		Name: t.NSGroup,
+	uidmap := IdmapSet{
+		Name:   t.NSGroup,
 		Hostid: firstUnusedUID(uidmaps),
 	}
 	uidmaps = append(uidmaps, uidmap)
@@ -92,10 +92,10 @@ func (mos *Mos) GetUIDMapStr(t *Target) (idmap.IdmapSet, []string, error) {
 	for _, u := range manifest.UidMaps {
 		if u.Name == t.NSGroup {
 			uidmap := idmap.IdmapEntry{
-				Isuid: true,
-				Isgid: true,
-				Hostid: u.Hostid,
-				Nsid: 0,
+				Isuid:    true,
+				Isgid:    true,
+				Hostid:   u.Hostid,
+				Nsid:     0,
 				Maprange: rangedefs.SubidRange,
 			}
 			set := idmap.IdmapSet{

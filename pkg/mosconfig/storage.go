@@ -48,15 +48,15 @@ func NewStorage(opts MosOptions) (Storage, error) {
 }
 
 type AtomfsStorage struct {
-	RootDir      string
-	zotPath      string
-	scratchPath  string
+	RootDir     string
+	zotPath     string
+	scratchPath string
 }
 
 func NewAtomfsStorage(rootDir, zotPath, scratchPath string) (*AtomfsStorage, error) {
 	return &AtomfsStorage{
-		RootDir: rootDir,
-		zotPath: zotPath,
+		RootDir:     rootDir,
+		zotPath:     zotPath,
 		scratchPath: scratchPath,
 	}, nil
 }
