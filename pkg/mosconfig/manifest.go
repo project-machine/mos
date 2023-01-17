@@ -176,7 +176,7 @@ func initManifest(cf *InstallFile, manifestPath, manifestCert, manifestCA, confi
 		}
 		targets = append(targets, newT)
 
-		uidmaps = addUIDMap(uidmaps, t)
+		uidmaps = addUIDMap([]IdmapSet{}, uidmaps, t)
 	}
 
 	sysmanifest := SysManifest{
@@ -280,7 +280,7 @@ func (mos *Mos) CurrentManifest() (*SysManifest, error) {
 
 	f, err := os.Open(filepath.Join(clonedir, "manifest.yaml"))
 	if err != nil {
-		return nil, fmt.Errorf("Error opening manifest")
+		return nil, fmt.Errorf("Error opening manifest: %w", err)
 	}
 	defer f.Close()
 	contents, err := ioutil.ReadAll(f)
@@ -367,4 +367,90 @@ func (mos *Mos) readInstallManifest(gitdir string, l map[string]InstallFile, yNa
 	}
 	l[yName] = ret
 	return ret, nil
+}
+
+func (mos *Mos) UpdateManifest(manifest *SysManifest, newmanifest *SysManifest, newdir string) error {
+	// Check out a new branch, copy over each required install.yaml
+	// from the old manifest, and the files from the new install.
+
+	// TODO - upon failure we should restore the old git branch
+
+	mPath := filepath.Join(mos.opts.ConfigDir, "manifest.git")
+	repo, err := git.PlainOpen(mPath)
+	if err != nil {
+		return fmt.Errorf("Failed opening manifest git repo at %q: %w", mPath, err)
+	}
+
+	files, err := os.ReadDir(mPath)
+	if err != nil {
+		return fmt.Errorf("Failed reading manifest directory: %w", err)
+	}
+
+	w, err := repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("Failed opening manifest repo: %w", err)
+	}
+
+	// Copy any needed source yamls into our tempdir
+	for _, t := range manifest.SysTargets {
+		f := t.Source
+		if PathExists(filepath.Join(newdir, f)) {
+			continue
+		}
+		base := strings.TrimSuffix(f, ".yaml")
+		for _, ext := range []string{".yaml", ".yaml.signed", ".pem"} {
+			fName := base + ext
+			src := filepath.Join(mPath, fName)
+			dest := filepath.Join(newdir, fName)
+			if err := CopyFileBits(src, dest); err != nil {
+				return fmt.Errorf("Failed copying %q out of system manifest repo: %w", src, err)
+			}
+		}
+	}
+
+	// Remove all files from git index
+	for _, f := range files {
+		if _, err := w.Remove(f.Name()); err != nil {
+			return fmt.Errorf("Failed removing %q from previous manifest: %w", f.Name(), err)
+		}
+	}
+
+	// And copy back the files we need
+	for _, t := range newmanifest.SysTargets {
+		f := t.Source
+		if PathExists(filepath.Join(mPath, f)) {
+			continue
+		}
+		base := strings.TrimSuffix(f, ".yaml")
+		for _, ext := range []string{".yaml", ".yaml.signed", ".pem"} {
+			fName := base + ext
+			src := filepath.Join(newdir, fName)
+			dest := filepath.Join(mPath, fName)
+			if err := CopyFileBits(src, dest); err != nil {
+				return fmt.Errorf("Failed copying %q to system manifest repo: %w", src, err)
+			}
+			if _, err = w.Add(fName); err != nil {
+				return fmt.Errorf("Error adding %q to manifest git index: %w", src, err)
+			}
+		}
+	}
+	src := filepath.Join(newdir, "manifest.yaml")
+	dest := filepath.Join(mPath, "manifest.yaml")
+	if err := CopyFileBits(src, dest); err != nil {
+		return fmt.Errorf("Failed copying manifest to final directory")
+	}
+	if _, err = w.Add("manifest.yaml"); err != nil {
+		return fmt.Errorf("Error adding manifest.yaml to manifest git index: %w", err)
+	}
+
+	commitOpts := &git.CommitOptions{
+		Author:    defaultSignature(),
+		Committer: defaultSignature(),
+	}
+	msg := "System upgrade to (TODO - fill in version)" // TODO
+	if _, err := w.Commit(msg, commitOpts); err != nil {
+		return fmt.Errorf("Failed committing to git")
+	}
+
+	return nil
 }

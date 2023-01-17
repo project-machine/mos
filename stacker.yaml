@@ -3,3 +3,10 @@ busybox:
   from:
     type: docker
     url: docker://busybox
+busyboxu1:
+  entrypoint: /bin/sh -c "sleep 1200"
+  from:
+    type: docker
+    url: docker://busybox
+  run: |
+    echo u1 > /u1

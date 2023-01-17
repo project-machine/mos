@@ -18,6 +18,7 @@ func main() {
 		activateCmd,
 		installCmd,
 		sociCmd,
+		updateCmd,
 	}
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{

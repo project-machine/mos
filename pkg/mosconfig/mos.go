@@ -62,7 +62,6 @@ type Mos struct {
 	storage Storage
 	//bootmgr   Bootmgr
 
-	CaPath   string
 	opts     MosOptions
 	lockfile *os.File
 
@@ -103,6 +102,9 @@ func setDirOpts(opts MosOptions) MosOptions {
 	}
 	if opts.ScratchWrites == "" {
 		opts.ScratchWrites = filepath.Join(opts.RootDir, "scratch-writes")
+	}
+	if opts.RootDir != "/" && !strings.HasPrefix(opts.CaPath, opts.RootDir) {
+		opts.CaPath = filepath.Join(opts.RootDir, opts.CaPath)
 	}
 	return opts
 }
@@ -288,15 +290,17 @@ func (mos *Mos) SetupNetwork(t *Target) ([]string, error) {
 func (mos *Mos) writeLxcConfig(t *Target) error {
 	// We are guaranteed to have stopped the container before reaching
 	// here
-	lxcconfigDir := filepath.Join(mos.opts.RootDir, "var/lib/lxc", t.Name)
+	lxcStateDir := filepath.Join(mos.opts.RootDir, "var/lib/lxc")
+	lxcconfigDir := filepath.Join(lxcStateDir, t.Name)
 	lxclogDir := filepath.Join(mos.opts.RootDir, "/var/log/lxc")
-	err := os.RemoveAll(lxcconfigDir)
-	if err != nil {
+	if err := os.RemoveAll(lxcconfigDir); err != nil {
 		return fmt.Errorf("Failed removing pre-existing container config for %q: %w", t.Name, err)
 	}
-	err = EnsureDir(lxcconfigDir)
-	if err != nil {
+	if err := EnsureDir(lxcconfigDir); err != nil {
 		return fmt.Errorf("Failed creating container config dir: %w", err)
+	}
+	if err := os.Chmod(lxcStateDir, 0755); err != nil {
+		return fmt.Errorf("Failed setting perms on host container configuration directory: %w", err)
 	}
 
 	syst, err := mos.GetSystarget(t)

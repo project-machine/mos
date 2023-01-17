@@ -57,7 +57,7 @@ func firstUnusedUID(uidmaps []IdmapSet) int64 {
 	return min
 }
 
-func addUIDMap(uidmaps []IdmapSet, t Target) []IdmapSet {
+func addUIDMap(old []IdmapSet, uidmaps []IdmapSet, t Target) []IdmapSet {
 	if !t.NeedsIdmap() {
 		return uidmaps
 	}
@@ -67,6 +67,14 @@ func addUIDMap(uidmaps []IdmapSet, t Target) []IdmapSet {
 			return uidmaps
 		}
 	}
+
+	for _, u := range old {
+		if u.Name == t.NSGroup {
+			// use the nsgroup already defined in system manifest
+			return append(uidmaps, u)
+		}
+	}
+
 
 	// Create a new idmap range
 	uidmap := IdmapSet{

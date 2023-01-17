@@ -115,6 +115,15 @@ type SysTarget struct {
 }
 type SysTargets []SysTarget
 
+func (s *SysTargets) Contains (needle SysTarget) (SysTarget, bool) {
+	for _, t := range *s {
+		if t.Name == needle.Name {
+			return t, true
+		}
+	}
+	return SysTarget{}, false
+}
+
 type SysManifest struct {
 	UidMaps    []IdmapSet  `yaml:"uidmaps"`
 	SysTargets []SysTarget `yaml:"targets"`
