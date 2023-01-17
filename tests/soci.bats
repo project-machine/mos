@@ -24,7 +24,7 @@ targets:
       type: host
     mounts: []
 EOF
-	openssl dgst -sha256 -sign "${KEYS_DIR}/sampleproject/manifest.key" \
+	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
 		-out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
 	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
 
@@ -57,7 +57,7 @@ unshare -m -- << "XXX"
 set -e
 ./mosctl soci mount --ocidir ${TMPD}/oci  \
     --metalayer hostfs-meta-squashfs \
-    --capath ${KEYS_DIR}/manifestCA/cert.pem \
+    --capath ${KEYS_DIR}/manifest-ca/cert.pem \
     --mountpoint ${TMPD}/mnt
 diff ${TMPD}/mnt/IWASHERE ${TMPD}/IWASHERE
 XXX

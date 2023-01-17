@@ -33,7 +33,7 @@ EOF
 	echo "fooled ya" > "$TMPD/install.yaml.signed"
 	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
 	failed=0
-	cp "${KEYS_DIR}/manifestCA/cert.pem" "$TMPD/manifestCA.pem"
+	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
 	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml || failed=1
 	[ $failed -eq 1 ]
 }
@@ -54,11 +54,11 @@ targets:
       type: host
     mounts: []
 EOF
-	openssl dgst -sha256 -sign "${KEYS_DIR}/sampleproject/manifest.key" \
+	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
 		-out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
 	mkdir -p $TMPD/zot/c3
 	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
-	cp "${KEYS_DIR}/manifestCA/cert.pem" "$TMPD/manifestCA.pem"
+	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
 	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml
 	[ -f $TMPD/atomfs-store/puzzleos/hostfs/index.json ]
 }
@@ -71,7 +71,7 @@ update_type: complete
 targets:
 EOF
 	failed=0
-	cp "${KEYS_DIR}/manifestCA/cert.pem" "$TMPD/manifestCA.pem"
+	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
 	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml || failed=1
 	[ $failed -eq 1 ]
 }

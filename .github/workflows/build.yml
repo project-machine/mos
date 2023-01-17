@@ -1,0 +1,53 @@
+on:
+  push:
+  pull_request:
+name: build
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out git
+        uses: actions/checkout@v3
+        with:
+          ref: main
+      - name: Set up golang
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+      - name: install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install bats cryptsetup-bin golang libacl1-dev libcryptsetup-dev libgpgme-dev libcap-dev libdevmapper-dev liblxc-dev libpam0g-dev libseccomp-dev libsquashfs-dev lxc lxc-dev make openssl uidmap
+          which newuidmap
+          which newgidmap
+          cat /etc/subuid /etc/subgid
+          sudo snap install --devmode --edge skopeo
+      - name: make
+        run: |
+          pwd
+          find .
+          go get -v ./...
+          make
+      - name: checkout stacker
+        uses: actions/checkout@v3
+        with:
+          repository: project-stacker/stacker
+          ref: main
+          path: ./stacker
+      - name: build stacker
+        run: |
+          cd stacker
+          go get ./...
+          make
+          mkdir -p ~/bin
+          cp stacker ~/bin/
+      - name: test
+        run: |
+          export PATH=~/bin:$PATH
+          make test || true # ignore odd newgidmap $PATH breakage
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: mos

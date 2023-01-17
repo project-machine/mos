@@ -17,7 +17,7 @@ function common_setup {
 	mkdir -p "$TMPD/config" "$TMPD/atomfs-store" "$TMPD/scratch-writes"
 	# TODO I'm using the ca cert bc we don't have a sample manifest signing cert yet.
 	# switch that over when it's available.
-	cp "${KEYS_DIR}/sampleproject/manifest.crt" "$TMPD/manifestCert.pem"
+	cp "${KEYS_DIR}/manifest/cert.pem" "$TMPD/manifestCert.pem"
 }
 
 function lxc_setup {
@@ -129,11 +129,11 @@ EOF
 function good_install {
 	spectype=$1
 	write_install_yaml "$spectype"
-	openssl dgst -sha256 -sign "${KEYS_DIR}/sampleproject/manifest.key" \
+	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
 		-out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
 	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
 	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfstarget
-	cp "${KEYS_DIR}/manifestCA/cert.pem" "$TMPD/manifestCA.pem"
+	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
 	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml
 }
 
@@ -141,12 +141,12 @@ function lxc_install {
 	# set up the file we need under TMPD
 	spectype=$1
 	write_install_yaml "$spectype"
-	openssl dgst -sha256 -sign "${KEYS_DIR}/sampleproject/manifest.key" \
+	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
 		-out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
 	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
 	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfstarget
 	cp mosctl ${TMPD}/
-	cp "${KEYS_DIR}/manifestCA/cert.pem" "$TMPD/manifestCA.pem"
+	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
 	# copy TMPD over to the container under /iso/
 	lxc-attach -n mos-test-1 -- mkdir -p /iso /config /atomfs-store /scratch-writes /factory/secure
 	tar -C $TMPD -cf - . | lxc-attach -n mos-test-1 -- tar -C /iso -xf -
