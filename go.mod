@@ -105,4 +105,4 @@ require (
 
 go 1.19
 
-replace stackerbuild.io/stacker => github.com/hallyn/stacker-1 v0.0.0-20230120003919-9917c199865d
+replace stackerbuild.io/stacker => github.com/hallyn/stacker-1 v0.0.0-20230121002801-88732cc089a5
