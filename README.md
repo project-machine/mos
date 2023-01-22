@@ -88,4 +88,4 @@ profile lxc-container-default-cgns flags=(attach_disconnected,mediate_deleted) {
   mount fstype=overlay,
 }
 ```
-Reload this by calling "sudo systemctl restart apparmor.
+Reload this by calling "sudo systemctl restart apparmor".
