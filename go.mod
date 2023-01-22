@@ -11,7 +11,7 @@ require (
 	github.com/urfave/cli v1.22.11
 	golang.org/x/sys v0.4.0
 	gopkg.in/yaml.v2 v2.4.0
-	stackerbuild.io/stacker v0.40.2-0.20230109233932-832af9a7fb93
+	stackerbuild.io/stacker v0.40.2-0.20230121032931-06affd857c1c
 )
 
 require (
@@ -104,5 +104,3 @@ require (
 )
 
 go 1.19
-
-replace stackerbuild.io/stacker => github.com/hallyn/stacker-1 v0.0.0-20230121002801-88732cc089a5
