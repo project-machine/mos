@@ -1,5 +1,21 @@
 # mos - machine os
 
+mos is the systems management portion of project machine.  See
+(this post on OCI based linux)[https://s3hh.wordpress.com/2022/10/27/oci-based-linux/]
+for a general overview.  Mos is responsible for
+
+	1. system install
+	2. rootfs setup for livecd
+	3. secure rootfs setup at boot
+	4. service startup
+	5. upgrade
+
+Users do not deal with mos directly.  Rather it is called during
+initrd and in response to authenticated api calls.  However, to
+get more familiar with what mos is doing in the background, you
+can look at the tests or try the below experiment using 'machine'
+(coming soon).
+
 ## General system outline
 
 A mos system must have:
