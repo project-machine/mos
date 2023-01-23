@@ -14,9 +14,8 @@ version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
 update_type: complete
 targets:
-  - layer: docker://zothub.local/c3/hostfs:2.0.1
-    name: hostfs
-    fullname: puzzleos/hostfs
+  - service_name: hostfs
+    zotpath: puzzleos/hostfs
     version: 1.0.0
     service_type: hostfs
     nsgroup: ""
@@ -36,9 +35,8 @@ version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
 update_type: complete
 targets:
-  - layer: docker://zothub.local/c3/hostfs:2.0.2
-    name: hostfs
-    fullname: puzzleos/hostfs
+  - service_name: hostfs
+    zotpath: puzzleos/hostfs
     version: 1.0.2
     service_type: hostfs
     nsgroup: ""
@@ -63,18 +61,16 @@ version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
 update_type: complete
 targets:
-  - layer: docker://zothub.local/c3/hostfs:2.0.1
-    name: hostfs
-    fullname: puzzleos/hostfs
+  - service_name: hostfs
+    zotpath: puzzleos/hostfs
     version: 1.0.0
     service_type: hostfs
     nsgroup: ""
     network:
       type: host
     mounts: []
-  - layer: docker://zothub.local/c3/hostfs:2.0.1
-    name: hostfstarget
-    fullname: puzzleos/hostfstarget
+  - service_name: hostfstarget
+    zotpath: puzzleos/hostfstarget
     version: 1.0.0
     service_type: fs-only
     nsgroup: ""
@@ -108,18 +104,16 @@ version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
 update_type: complete
 targets:
-  - layer: docker://zothub.local/c3/hostfs:2.0.2
-    name: hostfs
-    fullname: puzzleos/hostfs
+  - service_name: hostfs
+    zotpath: puzzleos/hostfs
     version: 1.0.2
     service_type: hostfs
     nsgroup: ""
     network:
       type: host
     mounts: []
-  - layer: docker://zothub.local/c3/hostfs:2.0.2
-    name: hostfstarget
-    fullname: puzzleos/hostfstarget
+  - service_name: hostfstarget
+    zotpath: puzzleos/hostfstarget
     version: 1.0.2
     service_type: fs-only
     nsgroup: ""
@@ -165,9 +159,8 @@ version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
 update_type: complete
 targets:
-  - layer: docker://zothub.local/c3/hostfs:2.0.1
-    name: hostfs
-    fullname: puzzleos/hostfs
+  - service_name: hostfs
+    zotpath: puzzleos/hostfs
     version: 1.0.0
     service_type: hostfs
     nsgroup: ""
@@ -188,9 +181,8 @@ version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
 update_type: partial
 targets:
-  - layer: docker://zothub.local/c3/hostfs:2.0.2
-    name: hostfstarget
-    fullname: puzzleos/hostfstarget
+  - service_name: hostfstarget
+    zotpath: puzzleos/hostfstarget
     version: 1.0.2
     service_type: fs-only
     nsgroup: ""

@@ -98,20 +98,15 @@ func fullnameFromUrl(url string) (string, string, error) {
 }
 
 func (mos *Mos) copyLocalZot(zotDir string, target *Target) error {
-	sourceFullName, sourceVersion, err := fullnameFromUrl(target.SourceLayer)
-	if err != nil {
-		return fmt.Errorf("Error parsing local zot url %q: %w", target.SourceLayer, err)
-	}
-	layerDir := filepath.Join(zotDir, sourceFullName)
-	src := fmt.Sprintf("oci:%s:%s", layerDir, sourceVersion)
-	tpath := filepath.Join(mos.opts.StorageCache, target.Fullname)
-	err = EnsureDir(tpath)
-	if err != nil {
+	layerDir := filepath.Join(zotDir, target.ZotPath)
+	src := fmt.Sprintf("oci:%s:%s", layerDir, target.Version)
+	tpath := filepath.Join(mos.opts.StorageCache, target.ZotPath)
+	if err := EnsureDir(tpath); err != nil {
 		return fmt.Errorf("Failed creating local zot directory %q: %w", tpath, err)
 	}
 	dest := fmt.Sprintf("oci:%s:%s", tpath, target.Version)
 
-	log.Infof("copying %q:%s from local zot ('%s') into zot as '%s'", target.Fullname, target.Version, src, dest)
+	log.Infof("copying %q:%s from local zot ('%s') into zot as '%s'", target.ZotPath, target.Version, src, dest)
 
 	copyOpts := lib.ImageCopyOpts{Src: src, Dest: dest, Progress: os.Stdout}
 	if err := lib.ImageCopy(copyOpts); err != nil {
@@ -122,15 +117,15 @@ func (mos *Mos) copyLocalZot(zotDir string, target *Target) error {
 }
 
 func (mos *Mos) copyLocalOci(ociDir string, target *Target) error {
-	src := fmt.Sprintf("oci:%s:%s", ociDir, target.Name)
-	tpath := filepath.Join(mos.opts.StorageCache, target.Fullname)
+	src := fmt.Sprintf("oci:%s:%s", ociDir, target.ServiceName)
+	tpath := filepath.Join(mos.opts.StorageCache, target.ZotPath)
 	err := EnsureDir(tpath)
 	if err != nil {
 		return fmt.Errorf("Failed creating local zot directory %q: %w", tpath, err)
 	}
 	dest := fmt.Sprintf("oci:%s:%s", tpath, target.Version)
 
-	log.Infof("copying %s from local oci ('%s') into zot as '%s'", target.Name, src, dest)
+	log.Infof("copying %s from local oci ('%s') into zot as '%s'", target.ServiceName, src, dest)
 
 	copyOpts := lib.ImageCopyOpts{Src: src, Dest: dest, Progress: os.Stdout}
 	if err := lib.ImageCopy(copyOpts); err != nil {

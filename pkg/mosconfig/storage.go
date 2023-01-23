@@ -77,7 +77,7 @@ func (a *AtomfsStorage) Mount(t *Target, mountpoint string) (func(), error) {
 	}
 
 	opts := atomfs.MountOCIOpts{
-		OCIDir:       filepath.Join(a.zotPath, t.Fullname),
+		OCIDir:       filepath.Join(a.zotPath, t.ZotPath),
 		MetadataPath: a.metadataPath(),
 		Tag:          t.Version,
 		Target:       mountpoint,
@@ -105,7 +105,7 @@ func (a *AtomfsStorage) Mount(t *Target, mountpoint string) (func(), error) {
 }
 
 func (a *AtomfsStorage) MountWriteable(t *Target, mountpoint string) (func(), error) {
-	ropath, err := os.MkdirTemp(a.scratchPath, fmt.Sprintf("%s-scratch-readonly-", t.Name))
+	ropath, err := os.MkdirTemp(a.scratchPath, fmt.Sprintf("%s-scratch-readonly-", t.ServiceName))
 	if err != nil {
 		return func() {}, fmt.Errorf("Failed creating readonly mountpoint: %w", err)
 	}
@@ -116,14 +116,14 @@ func (a *AtomfsStorage) MountWriteable(t *Target, mountpoint string) (func(), er
 		return func() {}, fmt.Errorf("Failed creating readonly mount for %#v: %w", t, err)
 	}
 
-	workdir, err := os.MkdirTemp(a.scratchPath, fmt.Sprintf("%s-scratch-workdir-", t.Name))
+	workdir, err := os.MkdirTemp(a.scratchPath, fmt.Sprintf("%s-scratch-workdir-", t.ServiceName))
 	if err != nil {
 		roCleanup()
 		os.Remove(ropath)
 		return func() {}, fmt.Errorf("Failed creating workdir: %w", err)
 	}
 
-	upperdir, err := os.MkdirTemp(a.scratchPath, fmt.Sprintf("%s-scratch-upperdir-", t.Name))
+	upperdir, err := os.MkdirTemp(a.scratchPath, fmt.Sprintf("%s-scratch-upperdir-", t.ServiceName))
 	if err != nil {
 		roCleanup()
 		os.Remove(ropath)
@@ -184,13 +184,13 @@ func (a *AtomfsStorage) MountedByHash(target *Target) (string, error) {
 		return getHashFromOverlay("/proc/self/mountinfo", a.RootDir)
 	case "fs-only":
 		/* see SetupTargetRuntime() */
-		return getHashFromOverlay("/proc/self/mountinfo", filepath.Join(a.RootDir, "mnt/atom", target.Name))
+		return getHashFromOverlay("/proc/self/mountinfo", filepath.Join(a.RootDir, "mnt/atom", target.ServiceName))
 	case "container":
 		// container services are lxc containers, which may or may not
 		// have their rootfs visible in this mount namespace. let's
 		// look at the specific mountinfo for the container just to be
 		// sure.
-		out, rc := RunCommandWithRc("lxc-info", "-H", "-n", target.Name, "-s")
+		out, rc := RunCommandWithRc("lxc-info", "-H", "-n", target.ServiceName, "-s")
 		if rc != 0 {
 			/* if the service didn't previously exist, it's ok for lxc-ls to fail */
 			return "", nil
@@ -198,7 +198,7 @@ func (a *AtomfsStorage) MountedByHash(target *Target) (string, error) {
 		if strings.TrimSpace(string(out)) != "RUNNING" {
 			return "", nil
 		}
-		out, rc = RunCommandWithRc("lxc-info", "-H", "-n", target.Name, "-p")
+		out, rc = RunCommandWithRc("lxc-info", "-H", "-n", target.ServiceName, "-p")
 		if rc != 0 {
 			/* if the service didn't previously exist, it's ok for lxc-ls to fail */
 			return "", nil
@@ -210,12 +210,12 @@ func (a *AtomfsStorage) MountedByHash(target *Target) (string, error) {
 
 		return getHashFromOverlay(fmt.Sprintf("/proc/%d/mountinfo", pid), "/")
 	default:
-		return "", fmt.Errorf("couldn't determine mountpoint for %s (%s)", target.Name, target.ServiceType)
+		return "", fmt.Errorf("couldn't determine mountpoint for %s (%s)", target.ServiceName, target.ServiceType)
 	}
 }
 
 func (a *AtomfsStorage) SetupTarget(t *Target) error {
-	mp := filepath.Join(a.scratchPath, "roots", t.Name)
+	mp := filepath.Join(a.scratchPath, "roots", t.ServiceName)
 	mounted, err := IsMountpoint(mp)
 	if err != nil {
 		return fmt.Errorf("Failed checking whether %q is mounted: %w", mp, err)
@@ -243,7 +243,7 @@ func (a *AtomfsStorage) SetupTarget(t *Target) error {
 		_, err = a.Mount(t, mp)
 	}
 	if err != nil {
-		return fmt.Errorf("Failed mounting %s:%s to %q: %w", t.Name, t.Version, mp, err)
+		return fmt.Errorf("Failed mounting %s:%s to %q: %w", t.ServiceName, t.Version, mp, err)
 	}
 
 	return nil
@@ -254,7 +254,7 @@ func (a *AtomfsStorage) SetupTarget(t *Target) error {
 // fs-only service will simply want to do an overlay rw mount onto
 // /mnt/atom/$target
 func (a *AtomfsStorage) TargetMountdir(t *Target) (string, error) {
-	return filepath.Join(a.scratchPath, "roots", t.Name), nil
+	return filepath.Join(a.scratchPath, "roots", t.ServiceName), nil
 }
 
 func (a *AtomfsStorage) TearDownTarget(name string) error {

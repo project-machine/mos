@@ -50,7 +50,7 @@ func (mos *Mos) Update(filename string) error {
 
 	for _, t := range newIF.Targets {
 		newT := SysTarget{
-			Name:   t.Name,
+			Name:   t.ServiceName,
 			Source: mFile,
 			raw:    &t,
 		}
