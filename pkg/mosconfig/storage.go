@@ -1,15 +1,20 @@
 package mosconfig
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	ispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/apex/log"
+	"github.com/opencontainers/umoci"
 	"golang.org/x/sys/unix"
 	"stackerbuild.io/stacker/pkg/atomfs"
+	"stackerbuild.io/stacker/pkg/lib"
 	"stackerbuild.io/stacker/pkg/mount"
 )
 
@@ -30,6 +35,9 @@ type Storage interface {
 	TearDownTarget(name string) error
 	TargetMountdir(t *Target) (string, error)
 	SetupTarget(t *Target) error
+	VerifyTarget(t *Target) error
+
+	ImportTarget(srcDir string, target *Target) error
 }
 
 func NewStorage(opts MosOptions) (Storage, error) {
@@ -273,4 +281,105 @@ func (a *AtomfsStorage) TearDownTarget(name string) error {
 		return fmt.Errorf("atomfs umount of %q failed: %w", mp, err)
 	}
 	return err
+}
+
+func (a *AtomfsStorage) VerifyTarget(t *Target) error {
+	ociDir := filepath.Join(a.zotPath, t.ZotPath)
+
+	oci, err := umoci.OpenLayout(ociDir)
+	if err != nil {
+		return fmt.Errorf("Failed reading OCI manifest for %s: %w", t.ZotPath, err)
+	}
+	defer oci.Close()
+
+	descriptorPaths, err := oci.ResolveReference(context.Background(), t.Version)
+	if err != nil {
+		return err
+	}
+
+	if len(descriptorPaths) != 1 {
+		return fmt.Errorf("bad descriptor %s for %#v in %q", t.Version, t, ociDir)
+	}
+
+	blob, err := oci.FromDescriptor(context.Background(), descriptorPaths[0].Descriptor())
+	if err != nil {
+		return err
+	}
+	defer blob.Close()
+
+	if blob.Descriptor.MediaType != ispec.MediaTypeImageManifest {
+		return fmt.Errorf("descriptor does not point to a manifest: %s", blob.Descriptor.MediaType)
+	}
+
+	realsum := blob.Descriptor.Digest.Encoded()
+	if realsum != t.ManifestHash {
+		return fmt.Errorf("Hash is %q, should be %q", realsum, t.ManifestHash)
+	}
+
+	return nil
+}
+
+// Import a target's storage.  src is the install media base
+// directory, under which we expect either oci or zot.
+// src could also be a remote zot server, but that's not yet
+// implemented.
+func (a *AtomfsStorage) ImportTarget(src string, target *Target) error {
+	if src == "" {
+		return fmt.Errorf("remote zot copy not yet implemented")
+	}
+	zotDir := filepath.Join(src, "zot")
+	ociDir := filepath.Join(src, "oci")
+	var err error
+	switch {
+	case PathExists(ociDir):
+		err = a.copyLocalOci(ociDir, target)
+	case PathExists(zotDir):
+		err = a.copyLocalZot(zotDir, target)
+	default:
+		err = fmt.Errorf("no oci or zot storage found under %s", src)
+	}
+
+	if err != nil {
+		return fmt.Errorf("Error extracting target %#v: %w", target, err)
+	}
+
+	return nil
+}
+
+func (a *AtomfsStorage) copyLocalZot(zotSourceDir string, target *Target) error {
+	layerDir := filepath.Join(zotSourceDir, target.ZotPath)
+	src := fmt.Sprintf("oci:%s:%s", layerDir, target.Version)
+	tpath := filepath.Join(a.zotPath, target.ZotPath)
+	if err := EnsureDir(tpath); err != nil {
+		return fmt.Errorf("Failed creating local zot directory %q: %w", tpath, err)
+	}
+	dest := fmt.Sprintf("oci:%s:%s", tpath, target.Version)
+
+	log.Infof("copying %q:%s from local zot ('%s') into zot as '%s'", target.ZotPath, target.Version, src, dest)
+
+	copyOpts := lib.ImageCopyOpts{Src: src, Dest: dest, Progress: os.Stdout}
+	if err := lib.ImageCopy(copyOpts); err != nil {
+		return fmt.Errorf("failed copying layer %v: %w", target, err)
+	}
+
+	return nil
+}
+
+func (a *AtomfsStorage) copyLocalOci(ociDir string, target *Target) error {
+	src := fmt.Sprintf("oci:%s:%s", ociDir, target.ServiceName)
+	tpath := filepath.Join(a.zotPath, target.ZotPath)
+	err := EnsureDir(tpath)
+	if err != nil {
+		return fmt.Errorf("Failed creating local zot directory %q: %w", tpath, err)
+	}
+	dest := fmt.Sprintf("oci:%s:%s", tpath, target.Version)
+
+	log.Infof("copying %s from local oci ('%s') into zot as '%s'", target.ServiceName, src, dest)
+
+	copyOpts := lib.ImageCopyOpts{Src: src, Dest: dest, Progress: os.Stdout}
+	if err := lib.ImageCopy(copyOpts); err != nil {
+		return fmt.Errorf("failed copying layer %v: %w", target, err)
+	}
+
+	return nil
 }

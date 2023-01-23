@@ -50,10 +50,23 @@ function lxc_teardown {
 	common_teardown
 }
 
+function manifest_shasum_from {
+	target=$1
+	jsonindex=$2
+	shasum=$(jq '.manifests[] | select(.annotations == {"org.opencontainers.image.ref.name": "'"$target"'"}).digest' $jsonindex)
+	echo $shasum | cut -d ':' -f 2 | cut -d "\"" -f 1
+}
+
+function manifest_shasum {
+	target=$1
+	manifest_shasum_from $target zothub/index.json
+}
+
 function write_install_yaml {
 	spectype=$1
 	case "$spectype" in
 	  hostfsonly)
+	    sum=$(manifest_shasum busybox-squashfs)
 	    cat > $TMPD/install.yaml << EOF
 version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
@@ -62,6 +75,7 @@ targets:
   - service_name: hostfs
     zotpath: puzzleos/hostfs
     version: 1.0.0
+    manifest_hash: $sum
     service_type: hostfs
     nsgroup: ""
     network:
@@ -71,6 +85,7 @@ EOF
 	  ;;
 
 	  fsonly)
+	    sum=$(manifest_shasum busybox-squashfs)
 	    cat > $TMPD/install.yaml << EOF
 version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
@@ -79,6 +94,7 @@ targets:
   - service_name: hostfs
     zotpath: puzzleos/hostfs
     version: 1.0.0
+    manifest_hash: $sum
     service_type: hostfs
     nsgroup: ""
     network:
@@ -87,6 +103,7 @@ targets:
   - service_name: hostfstarget
     zotpath: puzzleos/hostfstarget
     version: 1.0.0
+    manifest_hash: $sum
     service_type: fs-only
     nsgroup: ""
     network:
@@ -96,6 +113,7 @@ EOF
 	    ;;
 
 	  containeronly)
+	    sum=$(manifest_shasum busybox-squashfs)
 	    cat > $TMPD/install.yaml << EOF
 version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
@@ -104,6 +122,7 @@ targets:
   - service_name: hostfs
     zotpath: puzzleos/hostfs
     version: 1.0.0
+    manifest_hash: $sum
     service_type: hostfs
     nsgroup: ""
     network:
@@ -112,6 +131,7 @@ targets:
   - service_name: hostfstarget
     zotpath: puzzleos/hostfstarget
     version: 1.0.0
+    manifest_hash: $sum
     service_type: container
     nsgroup: c1
     network:

@@ -1,11 +1,11 @@
 package mosconfig
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 	satomfs "stackerbuild.io/stacker/pkg/atomfs"
 )
 
@@ -58,21 +58,19 @@ func MountSOCI(ocidir, metalayer, capath, mountpoint string) error {
 		return errors.Errorf("bad SOCI layer")
 	}
 
-	err = VerifySignature(mPath, cPath, capath)
-	if err != nil {
-		return errors.Wrapf(err, "Verification of manifest on metalayer failed")
-	}
+	// Set up a temporary storage
+	opts := DefaultMosOptions()
+	opts.CaPath = capath
+	opts.StorageCache = ocidir
 
-	// Bit of TOCTOU here - TODO - VerifySignature should return the bytes it
-	// read while verifying!
-	bytes, err := os.ReadFile(mPath)
+	s, err := NewStorage(opts)
 	if err != nil {
-		return errors.Wrapf(err, "Failed reading manifest")
+		return err
 	}
-	var manifest InstallFile
-	err = yaml.Unmarshal(bytes, &manifest)
+	manifest, err := ReadVerifyManifest(mPath, cPath, capath, "", s)
 	if err != nil {
-		return errors.Wrapf(err, "Failed parsing manifest")
+		fmt.Printf("Failed verifying %q using %q and %q\n", mPath, cPath, capath)
+		return errors.Wrapf(err, "Verification of manifest on metalayer failed")
 	}
 
 	if len(manifest.Targets) != 1 {

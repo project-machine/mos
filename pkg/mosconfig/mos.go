@@ -79,12 +79,18 @@ func NewMos(configDir, storeDir string) (*Mos, error) {
 		NoHostCerts:      true,
 	}
 
+	s, err := NewStorage(opts)
+	if err != nil {
+		return nil, fmt.Errorf("Error initializing storage")
+	}
+
 	mos := &Mos{
 		opts:     opts,
 		lockfile: nil,
+		storage:  s,
 	}
-	err := mos.acquireLock()
-	if err != nil {
+
+	if err := mos.acquireLock(); err != nil {
 		return mos, err
 	}
 	return mos, nil
