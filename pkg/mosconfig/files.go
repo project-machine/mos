@@ -2,7 +2,7 @@ package mosconfig
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	ispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -86,12 +86,9 @@ type InstallFile struct {
 	Version     int            `yaml:"version"`
 	ImageType   ImageType      `yaml:"image_type"`
 	Product     string         `yaml:"product"`
-	Hooks       string         `yaml:"hooks"`
 	Targets     InstallTargets `yaml:"targets"`
 	UpdateType  UpdateType     `yaml:"update_type"`
 	StorageType StorageType    `yaml:"storage_type"`
-	// The original file contents, exactly what was signed
-	original string
 }
 
 // Note we only do combined uid+gid ranges, range 65536, and only starting at
@@ -127,41 +124,114 @@ type SysManifest struct {
 	SysTargets []SysTarget `yaml:"targets"`
 }
 
-func NewInstallFile(p string) (*InstallFile, error) {
-	content, err := ioutil.ReadFile(p)
-	if err != nil {
-		return nil, err
-	}
-
-	af := &InstallFile{original: string(content)}
-	if err := yaml.Unmarshal(content, af); err != nil {
-		return nil, err
-	}
-
+func (af *InstallFile) Verify() error {
 	if af.Product == "" {
-		return nil, fmt.Errorf("Must specify a product")
+		return fmt.Errorf("Must specify a product")
 	}
 
 	if af.Version > CurrentInstallFileVersion || af.Version < 1 {
-		return nil, fmt.Errorf("unsupported atomix file version: %d", af.Version)
+		return fmt.Errorf("unsupported atomix file version: %d", af.Version)
 	}
 
-	err = af.Targets.Validate()
-	if err != nil {
-		return nil, err
-	}
-
-	// Make all the paths relative to the location of atomix.yaml if
-	// they're relative.
-	if af.Hooks != "" && !filepath.IsAbs(af.Hooks) {
-		af.Hooks = filepath.Join(filepath.Dir(p), af.Hooks)
+	if err := af.Targets.Validate(); err != nil {
+		return err
 	}
 
 	if af.UpdateType == "" {
 		af.UpdateType = PartialUpdate
 	}
 
-	return af, nil
+	return nil
+}
+
+func simpleParseInstall(manifestPath string) (InstallFile, error) {
+	bytes, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return InstallFile{}, fmt.Errorf("Failed reading manifest: %w", err)
+	}
+	var manifest InstallFile
+	err = yaml.Unmarshal(bytes, &manifest)
+	if err != nil {
+		return InstallFile{}, fmt.Errorf("Failed parsing manifest: %w", err)
+	}
+
+	return manifest, nil
+}
+
+// Verify an install.yaml manifest.  Return the parsed manifest.
+// manifestPath is the source of the install.yaml.
+// certPath is the signing cert.  This comes from install media.
+// caPath is the CA cert to verify certPath.  This comes from signed initrd.
+// srcDir is only passed if we are in an install or update step.  In this
+//    case, we copy the layers from either srcDir/zot or srcDir/oci, into
+//    persistent storage.  If srcDir is "", then we are parsing an installed
+//    manifest and layers are already installed.
+// s is the storage driver, currently always an atomfs.
+func ReadVerifyManifest(manifestPath, certPath, caPath, srcDir string, s Storage) (InstallFile, error) {
+	xtract := []string{"openssl", "x509", "-in", certPath, "-pubkey", "-noout"}
+	cert, err := os.ReadFile(certPath)
+	if err != nil {
+		return InstallFile{}, fmt.Errorf("Failed reading manifest cert (%q): %w", certPath, err)
+	}
+	pubout, _, err := RunWithStdall(string(cert), xtract...)
+
+	tmpd, err := os.MkdirTemp("", "pubkey")
+	if err != nil {
+		return InstallFile{}, fmt.Errorf("Failed creating a tempdir: %w", err)
+	}
+	defer os.RemoveAll(tmpd)
+	keyPath := filepath.Join(tmpd, "pub.key")
+	err = os.WriteFile(keyPath, []byte(pubout), 0600)
+	if err != nil {
+		return InstallFile{}, fmt.Errorf("Failed writing out public key: %w", err)
+	}
+
+	err = VerifyCert(cert, caPath)
+	if err != nil {
+		return InstallFile{}, fmt.Errorf("Manifest certificate does not match the CA: %w", err)
+	}
+
+	bytes, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return InstallFile{}, fmt.Errorf("Failed reading manifest: %w", err)
+	}
+
+	sigPath := manifestPath + ".signed"
+	cmd := []string{"openssl", "dgst", "-sha256", "-verify", keyPath,
+		"-signature", sigPath}
+	// Pass the manifest text (whose signature we are verifying) in over
+	// stdin to avoid a TOCTTOU between manifest reads.
+	stdout, stderr, err := RunWithStdall(string(bytes), cmd...)
+	if err != nil {
+		errmsg := "Failed verifying manifest signature for %q\nStdout: %v\nStderr: %v\nError: %w"
+		return InstallFile{}, fmt.Errorf(errmsg, manifestPath, err, stdout, stderr)
+	}
+
+	var manifest InstallFile
+	err = yaml.Unmarshal(bytes, &manifest)
+	if err != nil {
+		return InstallFile{}, fmt.Errorf("Failed parsing manifest: %w", err)
+	}
+
+	// We've verified the install.yaml contents.  Now verify that the container
+	// image manifest files pointed to have not been altered.
+	for _, t := range manifest.Targets {
+		if srcDir != "" {
+			if err := s.ImportTarget(srcDir, &t); err != nil {
+				return InstallFile{}, err
+			}
+		}
+
+		if err := s.VerifyTarget(&t); err != nil {
+			return InstallFile{}, fmt.Errorf("Bad manifest hash for %q: %w", t.ServiceName, err)
+		}
+	}
+
+	if err := manifest.Verify(); err != nil {
+		return InstallFile{}, err
+	}
+
+	return manifest, nil
 }
 
 func (ts InstallTargets) Validate() error {

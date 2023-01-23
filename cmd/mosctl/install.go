@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
 
-	"github.com/apex/log"
 	"github.com/project-machine/mos/pkg/mosconfig"
 	"github.com/urfave/cli"
 )
@@ -44,15 +42,7 @@ func doInstall(ctx *cli.Context) error {
 		return fmt.Errorf("mos config directory not found")
 	}
 
-	cpath := ctx.String("file")
-	cf, err := mosconfig.NewInstallFile(cpath)
-	if err != nil {
-		return err
-	}
-	log.Infof("Installing: %#v\n", cf)
-
-	err = mosconfig.InitializeMos(cf, store, config, filepath.Dir(cpath))
-	if err != nil {
+	if err := mosconfig.InitializeMos(store, config, ctx.String("file")); err != nil {
 		return err
 	}
 

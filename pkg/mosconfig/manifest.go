@@ -72,41 +72,8 @@ func VerifyCert(cert []byte, caPath string) error {
 	return nil
 }
 
-func VerifySignature(manifestPath, certPath, caPath string) error {
-	xtract := []string{"openssl", "x509", "-in", certPath, "-pubkey", "-noout"}
-	cert, err := os.ReadFile(certPath)
-	if err != nil {
-		return errors.Wrapf(err, "Failed reading manifest cert (%q)", certPath)
-	}
-	pubout, _, err := RunWithStdall(string(cert), xtract...)
-
-	tmpd, err := os.MkdirTemp("", "pubkey")
-	if err != nil {
-		return fmt.Errorf("Failed creating a tempdir: %w", err)
-	}
-	defer os.RemoveAll(tmpd)
-	keyPath := filepath.Join(tmpd, "pub.key")
-	err = os.WriteFile(keyPath, []byte(pubout), 0600)
-	if err != nil {
-		return fmt.Errorf("Failed writing out public key: %w", err)
-	}
-
-	err = VerifyCert(cert, caPath)
-	if err != nil {
-		return fmt.Errorf("Manifest certificate does not match the CA: %w", err)
-	}
-
-	sigPath := manifestPath + ".signed"
-	cmd := []string{"openssl", "dgst", "-sha256", "-verify", keyPath,
-		"-signature", sigPath, manifestPath}
-	if err = LogCommand(cmd...); err != nil {
-		return fmt.Errorf("Failed verifying manifest signature: %w", err)
-	}
-	return nil
-}
-
 // Only used during first install.  Create a new $config/manifest.git/
-func initManifest(cf *InstallFile, manifestPath, manifestCert, manifestCA, configPath string) error {
+func (mos *Mos) initManifest(manifestPath, manifestCert, manifestCA, configPath string) error {
 	shaSum, err := ShaSum(manifestPath)
 	if err != nil {
 		return fmt.Errorf("Failed calculating shasum: %w", err)
@@ -127,7 +94,7 @@ func initManifest(cf *InstallFile, manifestPath, manifestCert, manifestCA, confi
 		return fmt.Errorf("Failed opening git worktree: %w", err)
 	}
 
-	err = VerifySignature(manifestPath, manifestCert, manifestCA)
+	cf, err := ReadVerifyManifest(manifestPath, manifestCert, manifestCA, "", mos.storage)
 	if err != nil {
 		return fmt.Errorf("Failed verifying signature on %s: %w", manifestPath, err)
 	}
@@ -330,24 +297,12 @@ func findTarget(cf InstallFile, name string) (*Target, bool) {
 	return &Target{}, false
 }
 
+// readInstallManifest is used while loading the current, active
+// install manifest.
 func (mos *Mos) readInstallManifest(gitdir string, l map[string]InstallFile, yName string) (InstallFile, error) {
 	r, ok := l[yName]
 	if ok {
 		return r, nil
-	}
-	f, err := os.Open(filepath.Join(gitdir, yName))
-	if err != nil {
-		return InstallFile{}, errors.Wrapf(err, "Error opening %q", yName)
-	}
-	defer f.Close()
-	contents, err := ioutil.ReadAll(f)
-	if err != nil {
-		return InstallFile{}, errors.Wrapf(err, "Error reading contents of %q", yName)
-	}
-	var ret InstallFile
-	err = yaml.Unmarshal(contents, &ret)
-	if err != nil {
-		return ret, errors.Wrapf(err, "Error parsing contents of install manifest")
 	}
 
 	pemName := strings.TrimSuffix(yName, ".yaml") + ".pem"
@@ -358,15 +313,18 @@ func (mos *Mos) readInstallManifest(gitdir string, l map[string]InstallFile, yNa
 	}
 	defer os.RemoveAll(tmpd)
 
-	err = VerifySignature(
+	manifest, err := ReadVerifyManifest (
 		filepath.Join(gitdir, yName),
 		filepath.Join(gitdir, pemName),
-		mos.opts.CaPath)
+		mos.opts.CaPath,
+		"",
+		mos.storage)
 	if err != nil {
-		return ret, errors.Wrapf(err, "Failed verifying signature for target %q", yName)
+		return InstallFile{}, errors.Wrapf(err, "Failed verifying signature for target %q", yName)
 	}
-	l[yName] = ret
-	return ret, nil
+
+	l[yName] = manifest
+	return manifest, nil
 }
 
 func (mos *Mos) UpdateManifest(manifest *SysManifest, newmanifest *SysManifest, newdir string) error {

@@ -9,6 +9,7 @@ function teardown() {
 }
 
 @test "simple mos update from local zot" {
+	sum=$(manifest_shasum busybox-squashfs)
 	cat > $TMPD/install.yaml << EOF
 version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
@@ -17,12 +18,14 @@ targets:
   - service_name: hostfs
     zotpath: puzzleos/hostfs
     version: 1.0.0
+    manifest_hash: $sum
     service_type: hostfs
     nsgroup: ""
     network:
       type: host
     mounts: []
 EOF
+	cat $TMPD/install.yaml
 	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
 		-out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
 	mkdir -p $TMPD/zot/c3
@@ -30,6 +33,7 @@ EOF
 	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
 	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml
 	[ -f $TMPD/atomfs-store/puzzleos/hostfs/index.json ]
+	sum=$(manifest_shasum busyboxu1-squashfs)
 	cat > $TMPUD/install.yaml << EOF
 version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
@@ -38,12 +42,14 @@ targets:
   - service_name: hostfs
     zotpath: puzzleos/hostfs
     version: 1.0.2
+    manifest_hash: $sum
     service_type: hostfs
     nsgroup: ""
     network:
       type: host
     mounts: []
 EOF
+	cat $TMPUD/install.yaml
 	skopeo copy oci:zothub:busyboxu1-squashfs oci:$TMPUD/oci:hostfs
 	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
 		-out "$TMPUD/install.yaml.signed" "$TMPUD/install.yaml"
@@ -56,6 +62,7 @@ EOF
 
 @test "update of fs-only layer" {
 	# Simple install
+	sum=$(manifest_shasum busybox-squashfs)
 	cat > $TMPD/install.yaml << EOF
 version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
@@ -64,6 +71,7 @@ targets:
   - service_name: hostfs
     zotpath: puzzleos/hostfs
     version: 1.0.0
+    manifest_hash: $sum
     service_type: hostfs
     nsgroup: ""
     network:
@@ -72,6 +80,7 @@ targets:
   - service_name: hostfstarget
     zotpath: puzzleos/hostfstarget
     version: 1.0.0
+    manifest_hash: $sum
     service_type: fs-only
     nsgroup: ""
     network:
@@ -99,6 +108,7 @@ XXX
 EOF
 
 	# Now upgrade
+	sum=$(manifest_shasum busyboxu1-squashfs)
 	cat > $TMPUD/install.yaml << EOF
 version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
@@ -107,6 +117,7 @@ targets:
   - service_name: hostfs
     zotpath: puzzleos/hostfs
     version: 1.0.2
+    manifest_hash: $sum
     service_type: hostfs
     nsgroup: ""
     network:
@@ -115,6 +126,7 @@ targets:
   - service_name: hostfstarget
     zotpath: puzzleos/hostfstarget
     version: 1.0.2
+    manifest_hash: $sum
     service_type: fs-only
     nsgroup: ""
     network:
@@ -154,6 +166,7 @@ EOF
 
 @test "test partial update" {
 	# Simple install
+	sum=$(manifest_shasum busybox-squashfs)
 	cat > $TMPD/install.yaml << EOF
 version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
@@ -162,6 +175,7 @@ targets:
   - service_name: hostfs
     zotpath: puzzleos/hostfs
     version: 1.0.0
+    manifest_hash: $sum
     service_type: hostfs
     nsgroup: ""
     network:
@@ -176,6 +190,7 @@ EOF
 	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml
 
 	# Now do a partial upgrade to install hostfstarget
+	sum=$(manifest_shasum busyboxu1-squashfs)
 	cat > $TMPUD/install.yaml << EOF
 version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
@@ -184,6 +199,7 @@ targets:
   - service_name: hostfstarget
     zotpath: puzzleos/hostfstarget
     version: 1.0.2
+    manifest_hash: $sum
     service_type: fs-only
     nsgroup: ""
     network:

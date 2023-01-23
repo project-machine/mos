@@ -30,14 +30,9 @@ func (mos *Mos) Update(filename string) error {
 		return fmt.Errorf("Failed calculating shasum: %w", err)
 	}
 
-	err = VerifySignature(filename, cPath, mos.opts.CaPath)
+	newIF, err := ReadVerifyManifest(filename, cPath, mos.opts.CaPath, baseDir, mos.storage)
 	if err != nil {
 		return fmt.Errorf("Failed verifying signature on %s: %w", filename, err)
-	}
-
-	newIF, err := NewInstallFile(filename)
-	if err != nil {
-		return err
 	}
 
 	// The shasum-named install.yaml which we'll place in
@@ -55,7 +50,7 @@ func (mos *Mos) Update(filename string) error {
 			raw:    &t,
 		}
 		newtargets = append(newtargets, newT)
-		if err := mos.ExtractTarget(baseDir, &t); err != nil {
+		if err := mos.storage.ImportTarget(baseDir, &t); err != nil {
 			return fmt.Errorf("Failed copying %s: %w", newT.Name, err)
 		}
 	}
