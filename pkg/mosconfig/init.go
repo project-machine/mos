@@ -54,11 +54,11 @@ WantedBy=shutdown.target
 `
 
 func (mos *Mos) writeContainerService(t *Target) error {
-	unitName := fmt.Sprintf("%s.service", t.Name)
+	unitName := fmt.Sprintf("%s.service", t.ServiceName)
 	dest := filepath.Join(mos.opts.RootDir, "/etc", "systemd", "system", unitName)
 	log.Infof("Writing container service at %q", dest)
 	os.Remove(dest)
-	content := []byte(fmt.Sprintf(execServiceTemplate, t.Name, t.Name, t.Name))
+	content := []byte(fmt.Sprintf(execServiceTemplate, t.ServiceName, t.ServiceName, t.ServiceName))
 	if err := os.WriteFile(dest, content, 0644); err != nil {
 		return fmt.Errorf("Failed writing systemd.service file for %q: %w", unitName, err)
 	}
@@ -67,7 +67,7 @@ func (mos *Mos) writeContainerService(t *Target) error {
 }
 
 func (mos *Mos) startInit(t *Target) error {
-	unitName := fmt.Sprintf("%s.service", t.Name)
+	unitName := fmt.Sprintf("%s.service", t.ServiceName)
 	if err := systemdStart(unitName); err != nil {
 		return err
 	}

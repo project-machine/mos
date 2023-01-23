@@ -171,7 +171,7 @@ func initManifest(cf *InstallFile, manifestPath, manifestCert, manifestCA, confi
 
 	for _, t := range cf.Targets {
 		newT := SysTarget{
-			Name:   t.Name,
+			Name:   t.ServiceName,
 			Source: mFile,
 		}
 		targets = append(targets, newT)
@@ -220,10 +220,10 @@ func defaultSignature() *object.Signature {
 func (mos *Mos) ReadTargetManifest(t *Target) (ispec.Manifest, ispec.Image, error) {
 	emptyM := ispec.Manifest{}
 	emptyC := ispec.Image{}
-	ociDir := filepath.Join(mos.opts.StorageCache, t.Fullname)
+	ociDir := filepath.Join(mos.opts.StorageCache, t.ZotPath)
 	oci, err := umoci.OpenLayout(ociDir)
 	if err != nil {
-		return emptyM, emptyC, fmt.Errorf("Failed reading OCI manifest for %s: %w", t.Fullname, err)
+		return emptyM, emptyC, fmt.Errorf("Failed reading OCI manifest for %s: %w", t.ZotPath, err)
 	}
 	defer oci.Close()
 
@@ -323,7 +323,7 @@ func (mos *Mos) CurrentManifest() (*SysManifest, error) {
 
 func findTarget(cf InstallFile, name string) (*Target, bool) {
 	for _, t := range cf.Targets {
-		if t.Name == name {
+		if t.ServiceName == name {
 			return &t, true
 		}
 	}

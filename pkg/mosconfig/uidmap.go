@@ -113,7 +113,7 @@ func (mos *Mos) GetUIDMapStr(t *Target) (idmap.IdmapSet, []string, error) {
 		}
 	}
 
-	return empty, []string{}, fmt.Errorf("Error finding UID Mapping for %s", t.Name)
+	return empty, []string{}, fmt.Errorf("Error finding UID Mapping for %s", t.ServiceName)
 }
 
 func addUidMapping(set idmap.IdmapSet) error {

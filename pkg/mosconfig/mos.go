@@ -189,12 +189,12 @@ func (mos *Mos) Activate(name string) error {
 	}
 
 	if v != "" {
-		log.Infof("Stopping target %q", t.Name)
+		log.Infof("Stopping target %q", t.ServiceName)
 		err = mos.StopTarget(t)
 		if err != nil {
 			return fmt.Errorf("Failed stopping service %s for update: %w", name, err)
 		}
-		log.Infof("Stopped target %q", t.Name)
+		log.Infof("Stopped target %q", t.ServiceName)
 	}
 
 	err = mos.SetupTargetRuntime(t)
@@ -215,10 +215,10 @@ func (mos *Mos) Activate(name string) error {
 }
 
 func (mos *Mos) SetupTargetRuntime(t *Target) error {
-	log.Debugf("Setting up target %s", t.Name)
+	log.Debugf("Setting up target %s", t.ServiceName)
 	err := mos.storage.SetupTarget(t)
 	if err != nil {
-		return fmt.Errorf("Failed setting up storage for %s:%s: %w", t.Name, t.Version, err)
+		return fmt.Errorf("Failed setting up storage for %s:%s: %w", t.ServiceName, t.Version, err)
 	}
 
 	switch t.ServiceType {
@@ -239,12 +239,12 @@ func (mos *Mos) GetSystarget(t *Target) (*SysTarget, error) {
 		return &SysTarget{}, err
 	}
 	for _, e := range manifest.SysTargets {
-		if e.Name == t.Name {
+		if e.Name == t.ServiceName {
 			return &e, nil
 		}
 	}
 
-	return &SysTarget{}, fmt.Errorf("No system target found for %s!", t.Fullname)
+	return &SysTarget{}, fmt.Errorf("No system target found for %s!", t.ZotPath)
 }
 
 func (mos *Mos) startFsOnly(t *Target) error {
@@ -252,7 +252,7 @@ func (mos *Mos) startFsOnly(t *Target) error {
 	if err != nil {
 		return err
 	}
-	dest := filepath.Join(mos.opts.RootDir, "/mnt/atom", t.Name)
+	dest := filepath.Join(mos.opts.RootDir, "/mnt/atom", t.ServiceName)
 	if err := EnsureDir(dest); err != nil {
 		return fmt.Errorf("Unable to create directory %s: %w", dest, err)
 	}
@@ -291,10 +291,10 @@ func (mos *Mos) writeLxcConfig(t *Target) error {
 	// We are guaranteed to have stopped the container before reaching
 	// here
 	lxcStateDir := filepath.Join(mos.opts.RootDir, "var/lib/lxc")
-	lxcconfigDir := filepath.Join(lxcStateDir, t.Name)
+	lxcconfigDir := filepath.Join(lxcStateDir, t.ServiceName)
 	lxclogDir := filepath.Join(mos.opts.RootDir, "/var/log/lxc")
 	if err := os.RemoveAll(lxcconfigDir); err != nil {
-		return fmt.Errorf("Failed removing pre-existing container config for %q: %w", t.Name, err)
+		return fmt.Errorf("Failed removing pre-existing container config for %q: %w", t.ServiceName, err)
 	}
 	if err := EnsureDir(lxcconfigDir); err != nil {
 		return fmt.Errorf("Failed creating container config dir: %w", err)
@@ -328,7 +328,7 @@ func (mos *Mos) writeLxcConfig(t *Target) error {
 	}
 
 	if len(syst.OCIConfig.Config.Entrypoint) == 0 || syst.OCIConfig.Config.Entrypoint[0] == "" {
-		return fmt.Errorf("No entrypoint defined for %q", t.Name)
+		return fmt.Errorf("No entrypoint defined for %q", t.ServiceName)
 	}
 	cmd := append(syst.OCIConfig.Config.Entrypoint, syst.OCIConfig.Config.Cmd...)
 	for i, c := range cmd {
@@ -374,7 +374,7 @@ func (mos *Mos) writeLxcConfig(t *Target) error {
 	}
 	lxcConf = append(lxcConf, netconf...)
 
-	lxcConf = append(lxcConf, fmt.Sprintf("lxc.uts.name = %s", t.Name))
+	lxcConf = append(lxcConf, fmt.Sprintf("lxc.uts.name = %s", t.ServiceName))
 
 	lxcConf = append(lxcConf, fmt.Sprintf("lxc.execute.cmd = %s", strings.Join(cmd, " ")))
 	lxcConf = append(lxcConf, "lxc.mount.auto = proc:mixed")
@@ -382,7 +382,7 @@ func (mos *Mos) writeLxcConfig(t *Target) error {
 	// XXX TODO the apparmor profile should only be unset if we
 	// are running in a confined, nested parent container (for testing).
 	lxcConf = append(lxcConf, "lxc.apparmor.profile = unchanged")
-	lxcConf = append(lxcConf, fmt.Sprintf("lxc.log.file = %s/%s.log", lxclogDir, t.Name))
+	lxcConf = append(lxcConf, fmt.Sprintf("lxc.log.file = %s/%s.log", lxclogDir, t.ServiceName))
 
 	for _, env := range syst.OCIConfig.Config.Env {
 		lxcConf = append(lxcConf, fmt.Sprintf("lxc.environment = %s", env))
@@ -414,24 +414,24 @@ func (mos *Mos) RunningVersion(t *Target) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	log.Infof("RunningVersion: %s has version %q", t.Name, hash)
+	log.Infof("RunningVersion: %s has version %q", t.ServiceName, hash)
 
 	return hash, nil
 }
 
 func (mos *Mos) StopTarget(t *Target) error {
-	unitName := fmt.Sprintf("%s.service", t.Name)
+	unitName := fmt.Sprintf("%s.service", t.ServiceName)
 	switch t.ServiceType {
 	case ContainerService:
 		out, rc := RunCommandWithRc("systemctl", "stop", unitName)
 		outs := string(out)
 		if rc != 0 && !strings.HasSuffix(outs, "not loaded.\n") {
-			return fmt.Errorf("Failed to stop service %s: %s", t.Name, outs)
+			return fmt.Errorf("Failed to stop service %s: %s", t.ServiceName, outs)
 		}
 	case HostfsService:
 		return fmt.Errorf("Stopping hostfs is not yet supported.  Please poweroff")
 	case FsService:
-		mp := filepath.Join(mos.opts.RootDir, "/mnt/atom", t.Name)
+		mp := filepath.Join(mos.opts.RootDir, "/mnt/atom", t.ServiceName)
 		err := unix.Unmount(mp, 0)
 		if err != nil {
 			return err
@@ -441,9 +441,9 @@ func (mos *Mos) StopTarget(t *Target) error {
 		return fmt.Errorf("Unhandled service type: %s", t.ServiceType)
 	}
 
-	err := mos.storage.TearDownTarget(t.Name)
+	err := mos.storage.TearDownTarget(t.ServiceName)
 	if err != nil {
-		return fmt.Errorf("Failed shutting down storage for %s: %w", t.Name, err)
+		return fmt.Errorf("Failed shutting down storage for %s: %w", t.ServiceName, err)
 	}
 
 	return nil

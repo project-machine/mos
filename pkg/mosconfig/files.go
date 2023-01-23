@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
-	"strings"
 
 	ispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gopkg.in/yaml.v2"
@@ -67,10 +66,9 @@ const (
 )
 
 type Target struct {
-	SourceLayer  string        `yaml:"layer"`
-	Name         string        `yaml:"name"`     // name of target
-	Fullname     string        `yaml:"fullname"` // full zot path
-	Version      string        `yaml:"version"`  // docker or oci version tag
+	ServiceName  string        `yaml:"service_name"` // name of target
+	ZotPath      string        `yaml:"zotpath"`      // full zot path
+	Version      string        `yaml:"version"`      // docker or oci version tag
 	ServiceType  ServiceType   `yaml:"service_type"`
 	Network      TargetNetwork `yaml:"network"`
 	NSGroup      string        `yaml:"nsgroup"`
@@ -168,20 +166,16 @@ func NewInstallFile(p string) (*InstallFile, error) {
 
 func (ts InstallTargets) Validate() error {
 	for _, t := range ts {
-		if len(strings.Split(t.SourceLayer, ":")) < 2 {
-			return fmt.Errorf("invalid source format: %s", t.SourceLayer)
-		}
-
-		if t.Name == "" {
+		if t.ServiceName == "" {
 			return fmt.Errorf("Target field 'name' cannot be empty: %#v", t)
 		}
 
 		if t.Version == "" {
-			return fmt.Errorf("Target %s cannot have empty version", t.Name)
+			return fmt.Errorf("Target %s cannot have empty version", t.ServiceName)
 		}
 
 		if !t.ValidateNetwork() {
-			return fmt.Errorf("Target %s has bad network: %#v", t.Name, t.Network)
+			return fmt.Errorf("Target %s has bad network: %#v", t.ServiceName, t.Network)
 		}
 	}
 

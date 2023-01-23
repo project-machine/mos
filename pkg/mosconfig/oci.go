@@ -80,9 +80,9 @@ func MountSOCI(ocidir, metalayer, capath, mountpoint string) error {
 	}
 	t := manifest.Targets[0]
 
-	_, err = MountOCILayer(ocidir, t.Name, mountpoint)
+	_, err = MountOCILayer(ocidir, t.ServiceName, mountpoint)
 	if err != nil {
-		return errors.Wrapf(err, "Failed mounting %s", t.Name)
+		return errors.Wrapf(err, "Failed mounting %s", t.ServiceName)
 	}
 
 	return nil
