@@ -16,8 +16,6 @@ function common_setup {
 	export TMPD=$(mktemp -d "${PWD}/batstest-XXXXX")
 	export TMPUD=$(mktemp -d "${PWD}/batstest-XXXXX")
 	mkdir -p "$TMPD/config" "$TMPD/atomfs-store" "$TMPD/scratch-writes"
-	# TODO I'm using the ca cert bc we don't have a sample manifest signing cert yet.
-	# switch that over when it's available.
 	cp "${KEYS_DIR}/manifest/cert.pem" "$TMPD/manifestCert.pem"
 	cp "${KEYS_DIR}/manifest/cert.pem" "$TMPUD/manifestCert.pem"
 }
