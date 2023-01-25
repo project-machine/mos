@@ -2,7 +2,6 @@ package mosconfig
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -154,23 +153,6 @@ func LogCommandWithFunc(logf func(string, ...interface{}), args ...string) error
 
 	logf("|%d-exit | rc=%d", pid, GetCommandErrorRC(err))
 	return err
-}
-
-func RunWithStdall(stdinString string, args ...string) (string, string, error) {
-	cmd := exec.Command(args[0], args[1:]...)
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return "", "", fmt.Errorf("Failed getting stdin pipe %v: %w", args, err)
-	}
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	go func() {
-		defer stdin.Close()
-		io.WriteString(stdin, stdinString)
-	}()
-	err = cmd.Run()
-	return stdout.String(), stderr.String(), err
 }
 
 func ShaSum(fpath string) (string, error) {

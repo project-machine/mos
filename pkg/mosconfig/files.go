@@ -3,9 +3,9 @@ package mosconfig
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	ispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/project-machine/trust/pkg/trust"
 	"gopkg.in/yaml.v2"
 )
 
@@ -124,7 +124,7 @@ type SysManifest struct {
 	SysTargets []SysTarget `yaml:"targets"`
 }
 
-func (af *InstallFile) Verify() error {
+func (af *InstallFile) Validate() error {
 	if af.Product == "" {
 		return fmt.Errorf("Must specify a product")
 	}
@@ -168,43 +168,14 @@ func simpleParseInstall(manifestPath string) (InstallFile, error) {
 //    manifest and layers are already installed.
 // s is the storage driver, currently always an atomfs.
 func ReadVerifyManifest(manifestPath, certPath, caPath, srcDir string, s Storage) (InstallFile, error) {
-	xtract := []string{"openssl", "x509", "-in", certPath, "-pubkey", "-noout"}
-	cert, err := os.ReadFile(certPath)
-	if err != nil {
-		return InstallFile{}, fmt.Errorf("Failed reading manifest cert (%q): %w", certPath, err)
-	}
-	pubout, _, err := RunWithStdall(string(cert), xtract...)
-
-	tmpd, err := os.MkdirTemp("", "pubkey")
-	if err != nil {
-		return InstallFile{}, fmt.Errorf("Failed creating a tempdir: %w", err)
-	}
-	defer os.RemoveAll(tmpd)
-	keyPath := filepath.Join(tmpd, "pub.key")
-	err = os.WriteFile(keyPath, []byte(pubout), 0600)
-	if err != nil {
-		return InstallFile{}, fmt.Errorf("Failed writing out public key: %w", err)
-	}
-
-	err = VerifyCert(cert, caPath)
-	if err != nil {
-		return InstallFile{}, fmt.Errorf("Manifest certificate does not match the CA: %w", err)
-	}
-
 	bytes, err := os.ReadFile(manifestPath)
 	if err != nil {
 		return InstallFile{}, fmt.Errorf("Failed reading manifest: %w", err)
 	}
-
 	sigPath := manifestPath + ".signed"
-	cmd := []string{"openssl", "dgst", "-sha256", "-verify", keyPath,
-		"-signature", sigPath}
-	// Pass the manifest text (whose signature we are verifying) in over
-	// stdin to avoid a TOCTTOU between manifest reads.
-	stdout, stderr, err := RunWithStdall(string(bytes), cmd...)
-	if err != nil {
-		errmsg := "Failed verifying manifest signature for %q\nStdout: %v\nStderr: %v\nError: %w"
-		return InstallFile{}, fmt.Errorf(errmsg, manifestPath, err, stdout, stderr)
+
+	if err := trust.VerifyManifest(bytes, sigPath, certPath, caPath); err != nil {
+		return InstallFile{}, err
 	}
 
 	var manifest InstallFile
@@ -217,6 +188,11 @@ func ReadVerifyManifest(manifestPath, certPath, caPath, srcDir string, s Storage
 	// image manifest files pointed to have not been altered.
 	for _, t := range manifest.Targets {
 		if srcDir != "" {
+			// Import the layer into our zot store.
+			// We could consider deleting the layer if VerifyTarget fails below.
+			// This is not terribly important as nothing will use it,
+			// unless there's a manifest which is properly signed which refers
+			// to it, in which case we'll regret having deleted it...
 			if err := s.ImportTarget(srcDir, &t); err != nil {
 				return InstallFile{}, err
 			}
@@ -227,7 +203,7 @@ func ReadVerifyManifest(manifestPath, certPath, caPath, srcDir string, s Storage
 		}
 	}
 
-	if err := manifest.Verify(); err != nil {
+	if err := manifest.Validate(); err != nil {
 		return InstallFile{}, err
 	}
 

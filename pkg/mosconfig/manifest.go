@@ -1,10 +1,7 @@
 package mosconfig
 
 import (
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,57 +17,6 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
-
-// Check that the product cert was signed by the global puzzleos cert
-// This version can be used by outside callers, like atomix extract-soci
-// Note that this version does not verify product pid.
-func VerifyCert(cert []byte, caPath string) error {
-	paths := []string{
-		"/factory/secure/manifestCA.pem",
-		"/factory/secure/layerCA.pem",
-		"/manifestCA.pem",
-		"/layerCA.pem",
-	}
-	if caPath != "" {
-		paths = append(paths, caPath)
-	}
-
-	var rootBytes []byte
-	var err error
-	for _, p := range paths {
-		rootBytes, err = os.ReadFile(p)
-		if err == nil || !os.IsNotExist(err) {
-			break
-		}
-
-	}
-	if err != nil {
-		return fmt.Errorf("Failed reading OCI signing CA: %w", err)
-	}
-	pool := x509.NewCertPool()
-	if !pool.AppendCertsFromPEM(rootBytes) {
-		return fmt.Errorf("Failed adding cert from OCI signing CA")
-	}
-
-	block, _ := pem.Decode(cert)
-	if block == nil {
-		return fmt.Errorf("Failed to parse manifest-signing certificate PEM: %w", err)
-	}
-	parsedCert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return fmt.Errorf("Failed reading certificate from manifest: %w", err)
-	}
-
-	opts := x509.VerifyOptions{
-		Roots:     pool,
-		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
-	}
-	_, err = parsedCert.Verify(opts)
-	if err != nil {
-		return fmt.Errorf("OCI signing certificate verification failed: %w", err)
-	}
-	return nil
-}
 
 // Only used during first install.  Create a new $config/manifest.git/
 func (mos *Mos) initManifest(manifestPath, manifestCert, manifestCA, configPath string) error {
@@ -245,15 +191,11 @@ func (mos *Mos) CurrentManifest() (*SysManifest, error) {
 		return nil, fmt.Errorf("Git checkout failed: %w", err)
 	}
 
-	f, err := os.Open(filepath.Join(clonedir, "manifest.yaml"))
+	contents, err := os.ReadFile(filepath.Join(clonedir, "manifest.yaml"))
 	if err != nil {
 		return nil, fmt.Errorf("Error opening manifest: %w", err)
 	}
-	defer f.Close()
-	contents, err := ioutil.ReadAll(f)
-	if err != nil {
-		return nil, fmt.Errorf("Failed reading manifest: %w", err)
-	}
+
 	var sysmanifest SysManifest
 	err = yaml.Unmarshal(contents, &sysmanifest)
 	if err != nil {
