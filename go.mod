@@ -8,6 +8,7 @@ require (
 	github.com/opencontainers/image-spec v1.0.3-0.20220303224323-02efb9a75ee1
 	github.com/opencontainers/umoci v0.4.8-0.20220412065115-12453f247749
 	github.com/pkg/errors v0.9.1
+	github.com/project-machine/trust v0.0.0-20230125232253-03cd08bc827d
 	github.com/urfave/cli v1.22.11
 	golang.org/x/sys v0.4.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -22,8 +23,11 @@ require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
+	github.com/anuvu/disko v0.0.11 // indirect
 	github.com/anuvu/squashfs v0.0.0-20220228153512-67c8ca12cbf4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/canonical/go-sp800.108-kdf v0.0.0-20210314145419-a3359f2d21b9 // indirect
+	github.com/canonical/go-tpm2 v0.0.0-20220823192114-7a7993f0fa1f // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/containers/image/v5 v5.16.1 // indirect
 	github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a // indirect
@@ -52,6 +56,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
+	github.com/jsipprell/keyctl v1.0.4 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kevinburke/ssh_config v0.0.0-20201106050909-4977a11b4351 // indirect
 	github.com/klauspost/compress v1.15.14 // indirect
@@ -68,16 +73,21 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/runc v1.1.3 // indirect
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417 // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pkg/xattr v0.4.9 // indirect
+	github.com/plus3it/gorecurcopy v0.0.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
+	github.com/rekby/gpt v0.0.0-20200219180433-a930afbc6edc // indirect
+	github.com/rekby/mbr v0.0.0-20190325193910-2b19b9cdeebc // indirect
 	github.com/rivo/uniseg v0.4.3 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rootless-containers/proto/go-proto v0.0.0-20210921234734-69430b6543fb // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
+	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/stefanberger/go-pkcs11uri v0.0.0-20201008174630-78d3cae3a980 // indirect
@@ -96,6 +106,7 @@ require (
 	golang.org/x/term v0.4.0 // indirect
 	golang.org/x/text v0.6.0 // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/genproto v0.0.0-20230109162033-3c3c17ce83e6 // indirect
 	google.golang.org/grpc v1.51.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
@@ -104,3 +115,5 @@ require (
 )
 
 go 1.19
+
+replace github.com/jsipprell/keyctl => github.com/hallyn/keyctl v1.0.4-0.20211206210026-67b989e45620
