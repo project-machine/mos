@@ -25,34 +25,21 @@ EOF
 	  --layer-type squashfs
 	umoci tag --image ${TMPD}/oci:hostfs-squashfs hostfs
 
-	sum=$(manifest_shasum_from hostfs $TMPD/oci/index.json)
-	cat > $TMPD/install.yaml << EOF
-version: 1
-product: de6c82c5-2e01-4c92-949b-a6545d30fc06
-update_type: complete
-targets:
-  - service_name: hostfs
-    zotpath: puzzleos/hostfs
-    version: 1.0.0
-    manifest_hash: $sum
-    service_type: hostfs
-    nsgroup: ""
-    network:
-      type: host
-    mounts: []
-EOF
-	cat $TMPD/install.yaml
-	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
-		-out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
-	mkdir -p $TMPD/oci/puzzleos/hostfs
 	# the referenced sOCI layer must be in zot, not simple oci layout
+	mkdir -p $TMPD/oci/puzzleos/hostfs
 	skopeo copy oci:${TMPD}/oci:hostfs oci:$TMPD/oci/puzzleos/hostfs:1.0.0
+	cat $TMPD/oci/puzzleos/hostfs/index.json | jq "."
 
-	./tests/make-soci-layer.bash $TMPD/oci $TMPD/install.yaml \
-		$TMPD/install.yaml.signed \
-		$TMPD/manifestCert.pem \
-		hostfs-meta
-	umoci ls --layout $TMPD/oci | grep hostfs-meta
+	# This is whacky in testing:  'mosctl soci mount' will use the
+	# zotpath relative to the configured storage cache.
+	# The skopeo above, to oci:$TMPD/oci/puzzleos/hostfs:1.0.0 , means
+	# that below we must specify version 1.0.0 and zotpath puzzleos/hostfs.
+	./mosb soci build --key "${KEYS_DIR}/manifest/privkey.pem" \
+		--cert "${KEYS_DIR}/manifest/cert.pem" \
+		--zot-path puzzleos/hostfs \
+		--oci-layer oci:${TMPD}/oci/puzzleos/hostfs:1.0.0 \
+		--version 1.0.0 \
+		--soci-layer oci:${TMPD}/oci:hostfs-meta-squashfs
 
 	mkdir ${TMPD}/mnt
 	export TMPD
@@ -86,7 +73,12 @@ EOF
 	  --layer-type squashfs
 	umoci tag --image ${TMPD}/oci:hostfs-squashfs hostfs
 
+	# Manually create the soci layer so that we can set a bad
+	# shasum in the manifest.yaml.  (Also shows better, for those
+	# who like shell, what exactly is involved)
 	sum=$(manifest_shasum_from hostfs $TMPD/oci/index.json)
+	# get the shasum of the shasum of the manifest to make
+	# sure it's bad
 	sum=$(echo $sum | sha256sum | cut -f 1 -d \ )
 	cat > $TMPD/install.yaml << EOF
 version: 1

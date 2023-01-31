@@ -70,6 +70,9 @@ func CopyFileBits(src, dest string) error {
 	}
 	defer in.Close()
 
+	if err := EnsureDir(filepath.Dir(dest)); err != nil {
+		return err
+	}
 	out, err := os.OpenFile(dest, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
