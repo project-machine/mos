@@ -8,7 +8,7 @@ require (
 	github.com/opencontainers/image-spec v1.0.3-0.20220303224323-02efb9a75ee1
 	github.com/opencontainers/umoci v0.4.8-0.20220412065115-12453f247749
 	github.com/pkg/errors v0.9.1
-	github.com/project-machine/trust v0.0.0-20230125232253-03cd08bc827d
+	github.com/project-machine/trust v0.0.0-20230131225948-2affc53389e5
 	github.com/urfave/cli v1.22.11
 	golang.org/x/sys v0.4.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -23,6 +23,7 @@ require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
+	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/anuvu/disko v0.0.11 // indirect
 	github.com/anuvu/squashfs v0.0.0-20220228153512-67c8ca12cbf4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
