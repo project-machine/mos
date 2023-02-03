@@ -71,7 +71,7 @@ product: de6c82c5-2e01-4c92-949b-a6545d30fc06
 update_type: complete
 targets:
   - service_name: hostfs
-    zotpath: puzzleos/hostfs
+    imagepath: puzzleos/hostfs
     version: 1.0.0
     manifest_hash: $sum
     service_type: hostfs
@@ -90,7 +90,7 @@ product: de6c82c5-2e01-4c92-949b-a6545d30fc06
 update_type: complete
 targets:
   - service_name: hostfs
-    zotpath: puzzleos/hostfs
+    imagepath: puzzleos/hostfs
     version: 1.0.0
     manifest_hash: $sum
     service_type: hostfs
@@ -99,7 +99,7 @@ targets:
       type: host
     mounts: []
   - service_name: hostfstarget
-    zotpath: puzzleos/hostfstarget
+    imagepath: puzzleos/hostfstarget
     version: 1.0.0
     manifest_hash: $sum
     service_type: fs-only
@@ -118,7 +118,7 @@ product: de6c82c5-2e01-4c92-949b-a6545d30fc06
 update_type: complete
 targets:
   - service_name: hostfs
-    zotpath: puzzleos/hostfs
+    imagepath: puzzleos/hostfs
     version: 1.0.0
     manifest_hash: $sum
     service_type: hostfs
@@ -127,7 +127,7 @@ targets:
       type: host
     mounts: []
   - service_name: hostfstarget
-    zotpath: puzzleos/hostfstarget
+    imagepath: puzzleos/hostfstarget
     version: 1.0.0
     manifest_hash: $sum
     service_type: container

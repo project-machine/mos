@@ -121,7 +121,7 @@ func mergeUpdateTargets(old *SysManifest, updated SysTargets, updateType UpdateT
 	}
 
 	return SysManifest{
-		UidMaps: uidmaps,
+		UidMaps:    uidmaps,
 		SysTargets: newtargets,
 	}, nil
 }

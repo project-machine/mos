@@ -33,10 +33,10 @@ EOF
 	# This is whacky in testing:  'mosctl soci mount' will use the
 	# zotpath relative to the configured storage cache.
 	# The skopeo above, to oci:$TMPD/oci/puzzleos/hostfs:1.0.0 , means
-	# that below we must specify version 1.0.0 and zotpath puzzleos/hostfs.
+	# that below we must specify version 1.0.0 and image path puzzleos/hostfs.
 	./mosb soci build --key "${KEYS_DIR}/manifest/privkey.pem" \
 		--cert "${KEYS_DIR}/manifest/cert.pem" \
-		--zot-path puzzleos/hostfs \
+		--image-path puzzleos/hostfs \
 		--oci-layer oci:${TMPD}/oci/puzzleos/hostfs:1.0.0 \
 		--version 1.0.0 \
 		--soci-layer oci:${TMPD}/oci:hostfs-meta-squashfs
@@ -86,7 +86,7 @@ product: de6c82c5-2e01-4c92-949b-a6545d30fc06
 update_type: complete
 targets:
   - service_name: hostfs
-    zotpath: puzzleos/hostfs
+    imagepath: puzzleos/hostfs
     version: 1.0.0
     manifest_hash: $sum
     service_type: hostfs

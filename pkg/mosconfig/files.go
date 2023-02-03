@@ -67,7 +67,7 @@ const (
 
 type Target struct {
 	ServiceName  string        `yaml:"service_name"` // name of target
-	ZotPath      string        `yaml:"zotpath"`      // full zot path
+	ImagePath    string        `yaml:"imagepath"`    // full image repository path
 	Version      string        `yaml:"version"`      // docker or oci version tag
 	ServiceType  ServiceType   `yaml:"service_type"`
 	Network      TargetNetwork `yaml:"network"`
@@ -110,7 +110,7 @@ type SysTarget struct {
 }
 type SysTargets []SysTarget
 
-func (s *SysTargets) Contains (needle SysTarget) (SysTarget, bool) {
+func (s *SysTargets) Contains(needle SysTarget) (SysTarget, bool) {
 	for _, t := range *s {
 		if t.Name == needle.Name {
 			return t, true
@@ -163,9 +163,11 @@ func simpleParseInstall(manifestPath string) (InstallFile, error) {
 // certPath is the signing cert.  This comes from install media.
 // caPath is the CA cert to verify certPath.  This comes from signed initrd.
 // srcDir is only passed if we are in an install or update step.  In this
-//    case, we copy the layers from either srcDir/zot or srcDir/oci, into
-//    persistent storage.  If srcDir is "", then we are parsing an installed
-//    manifest and layers are already installed.
+//
+//	case, we copy the layers from either srcDir/zot or srcDir/oci, into
+//	persistent storage.  If srcDir is "", then we are parsing an installed
+//	manifest and layers are already installed.
+//
 // s is the storage driver, currently always an atomfs.
 func ReadVerifyManifest(manifestPath, certPath, caPath, srcDir string, s Storage) (InstallFile, error) {
 	bytes, err := os.ReadFile(manifestPath)

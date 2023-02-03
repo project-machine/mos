@@ -133,10 +133,10 @@ func defaultSignature() *object.Signature {
 func (mos *Mos) ReadTargetManifest(t *Target) (ispec.Manifest, ispec.Image, error) {
 	emptyM := ispec.Manifest{}
 	emptyC := ispec.Image{}
-	ociDir := filepath.Join(mos.opts.StorageCache, t.ZotPath)
+	ociDir := filepath.Join(mos.opts.StorageCache, t.ImagePath)
 	oci, err := umoci.OpenLayout(ociDir)
 	if err != nil {
-		return emptyM, emptyC, fmt.Errorf("Failed reading OCI manifest for %s: %w", t.ZotPath, err)
+		return emptyM, emptyC, fmt.Errorf("Failed reading OCI manifest for %s: %w", t.ImagePath, err)
 	}
 	defer oci.Close()
 
@@ -255,7 +255,7 @@ func (mos *Mos) readInstallManifest(gitdir string, l map[string]InstallFile, yNa
 	}
 	defer os.RemoveAll(tmpd)
 
-	manifest, err := ReadVerifyManifest (
+	manifest, err := ReadVerifyManifest(
 		filepath.Join(gitdir, yName),
 		filepath.Join(gitdir, pemName),
 		mos.opts.CaPath,

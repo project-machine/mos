@@ -21,8 +21,8 @@ var sociCmd = cli.Command{
 					Value: "",
 				},
 				cli.StringFlag{
-					Name:  "zot-path",
-					Usage: "Zot path on host",
+					Name:  "image-path",
+					Usage: "image path to use in installed repository",
 					Value: "",
 				},
 				cli.StringFlag{
@@ -66,9 +66,9 @@ func doBuildSOCI(ctx *cli.Context) error {
 		return fmt.Errorf("Key filename is required")
 	}
 
-	zotpath := ctx.String("zot-path")
-	if zotpath == "" {
-		return fmt.Errorf("Zot path is required")
+	imagepath := ctx.String("image-path")
+	if imagepath == "" {
+		return fmt.Errorf("--image-path is required")
 	}
 
 	layer := ctx.String("oci-layer")
@@ -78,7 +78,7 @@ func doBuildSOCI(ctx *cli.Context) error {
 
 	soci := mosconfig.SOCI{
 		Layer:       layer,
-		ZotPath:     zotpath,
+		ImagePath:   imagepath,
 		ServiceName: targetname,
 		Version:     version,
 		Meta:        meta,
