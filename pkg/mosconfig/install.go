@@ -57,22 +57,22 @@ func fullnameFromUrl(url string) (string, string, error) {
 	prefix := "docker://"
 	prefixLen := len(prefix)
 	if !strings.HasPrefix(url, prefix) {
-		return "", "", fmt.Errorf("Bad zot URL: bad prefix")
+		return "", "", fmt.Errorf("Bad image URL: bad prefix")
 	}
 	url = url[prefixLen:]
 	addrsplit := strings.SplitN(url, "/", 2)
 	if len(addrsplit) < 2 {
-		return "", "", fmt.Errorf("Bad zot URL: no address")
+		return "", "", fmt.Errorf("Bad image URL: no address")
 	}
 	tagname := addrsplit[1]
 	idx := strings.LastIndex(tagname, ":")
 	if idx == -1 {
-		return "", "", fmt.Errorf("Bad zot URL: no tag")
+		return "", "", fmt.Errorf("Bad image URL: no tag")
 	}
 	name := tagname[:idx]
 	version := tagname[idx+1:]
 	if len(name) < 1 || len(version) < 1 {
-		return "", "", fmt.Errorf("Bad zot URL: short name or tag")
+		return "", "", fmt.Errorf("Bad image URL: short name or tag")
 	}
 	return name, version, nil
 }

@@ -85,7 +85,7 @@ func (a *AtomfsStorage) Mount(t *Target, mountpoint string) (func(), error) {
 	}
 
 	opts := atomfs.MountOCIOpts{
-		OCIDir:       filepath.Join(a.zotPath, t.ZotPath),
+		OCIDir:       filepath.Join(a.zotPath, t.ImagePath),
 		MetadataPath: a.metadataPath(),
 		Tag:          t.Version,
 		Target:       mountpoint,
@@ -284,11 +284,11 @@ func (a *AtomfsStorage) TearDownTarget(name string) error {
 }
 
 func (a *AtomfsStorage) VerifyTarget(t *Target) error {
-	ociDir := filepath.Join(a.zotPath, t.ZotPath)
+	ociDir := filepath.Join(a.zotPath, t.ImagePath)
 
 	oci, err := umoci.OpenLayout(ociDir)
 	if err != nil {
-		return fmt.Errorf("Failed reading OCI manifest for %s: %w", t.ZotPath, err)
+		return fmt.Errorf("Failed reading OCI manifest for %s: %w", t.ImagePath, err)
 	}
 	defer oci.Close()
 
@@ -325,7 +325,7 @@ func (a *AtomfsStorage) VerifyTarget(t *Target) error {
 // implemented.
 func (a *AtomfsStorage) ImportTarget(src string, target *Target) error {
 	if src == "" {
-		return fmt.Errorf("remote zot copy not yet implemented")
+		return fmt.Errorf("remote image copy not yet implemented")
 	}
 	zotDir := filepath.Join(src, "zot")
 	ociDir := filepath.Join(src, "oci")
@@ -347,15 +347,15 @@ func (a *AtomfsStorage) ImportTarget(src string, target *Target) error {
 }
 
 func (a *AtomfsStorage) copyLocalZot(zotSourceDir string, target *Target) error {
-	layerDir := filepath.Join(zotSourceDir, target.ZotPath)
+	layerDir := filepath.Join(zotSourceDir, target.ImagePath)
 	src := fmt.Sprintf("oci:%s:%s", layerDir, target.Version)
-	tpath := filepath.Join(a.zotPath, target.ZotPath)
+	tpath := filepath.Join(a.zotPath, target.ImagePath)
 	if err := EnsureDir(tpath); err != nil {
 		return fmt.Errorf("Failed creating local zot directory %q: %w", tpath, err)
 	}
 	dest := fmt.Sprintf("oci:%s:%s", tpath, target.Version)
 
-	log.Infof("copying %q:%s from local zot ('%s') into zot as '%s'", target.ZotPath, target.Version, src, dest)
+	log.Infof("copying %q:%s from local zot ('%s') into zot as '%s'", target.ImagePath, target.Version, src, dest)
 
 	copyOpts := lib.ImageCopyOpts{Src: src, Dest: dest, Progress: os.Stdout}
 	if err := lib.ImageCopy(copyOpts); err != nil {
@@ -367,7 +367,7 @@ func (a *AtomfsStorage) copyLocalZot(zotSourceDir string, target *Target) error 
 
 func (a *AtomfsStorage) copyLocalOci(ociDir string, target *Target) error {
 	src := fmt.Sprintf("oci:%s:%s", ociDir, target.ServiceName)
-	tpath := filepath.Join(a.zotPath, target.ZotPath)
+	tpath := filepath.Join(a.zotPath, target.ImagePath)
 	err := EnsureDir(tpath)
 	if err != nil {
 		return fmt.Errorf("Failed creating local zot directory %q: %w", tpath, err)

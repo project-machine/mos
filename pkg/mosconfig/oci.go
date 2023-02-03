@@ -113,7 +113,7 @@ type SOCI struct {
 	ServiceName string
 
 	// Path under which the layer is found on the host
-	ZotPath string
+	ImagePath string
 
 	// Version to call the service.
 	Version string
@@ -212,7 +212,7 @@ func (soci *SOCI) Generate() error {
 
 	t := Target{
 		ServiceName:  soci.ServiceName,
-		ZotPath:      soci.ZotPath,
+		ImagePath:    soci.ImagePath,
 		Version:      soci.Version,
 		ServiceType:  HostfsService,
 		NSGroup:      "",

@@ -250,7 +250,7 @@ func (mos *Mos) GetSystarget(t *Target) (*SysTarget, error) {
 		}
 	}
 
-	return &SysTarget{}, fmt.Errorf("No system target found for %s!", t.ZotPath)
+	return &SysTarget{}, fmt.Errorf("No system target found for %s!", t.ImagePath)
 }
 
 func (mos *Mos) startFsOnly(t *Target) error {

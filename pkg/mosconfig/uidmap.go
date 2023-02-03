@@ -75,7 +75,6 @@ func addUIDMap(old []IdmapSet, uidmaps []IdmapSet, t Target) []IdmapSet {
 		}
 	}
 
-
 	// Create a new idmap range
 	uidmap := IdmapSet{
 		Name:   t.NSGroup,
