@@ -11,6 +11,10 @@ func InitializeMos(storeDir, configDir, configFile string) error {
 	baseDir := filepath.Dir(configFile)
 	cPath := filepath.Join(baseDir, "manifestCert.pem")
 	sPath := filepath.Join(baseDir, "install.yaml.signed")
+	// TODO - the next line is not quite right.  The manifestCA.pem
+	// should simply be in / in the signed initrd.  Since we're not
+	// there yet with iso-bootkit, use it from the isodir for
+	// testing.
 	caPath := filepath.Join(baseDir, "manifestCA.pem")
 	if !PathExists(configFile) || !PathExists(cPath) || !PathExists(sPath) || !PathExists(caPath) {
 		return fmt.Errorf("Install manifest or certificate missing")
