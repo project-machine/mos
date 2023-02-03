@@ -10,7 +10,8 @@ function teardown() {
 
 @test "simple mos install from local oci" {
 	good_install hostfsonly
-	[ -f $TMPD/atomfs-store/puzzleos/hostfs/index.json ]
+	cat $TMPD/install.yaml
+	[ -f $TMPD/atomfs-store/busybox-squashfs/index.json ]
 	[ -f $TMPD/config/manifest.git/manifest.yaml ]
 }
 
