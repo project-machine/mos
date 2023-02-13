@@ -283,22 +283,45 @@ func (a *AtomfsStorage) TearDownTarget(name string) error {
 	return err
 }
 
-func (a *AtomfsStorage) VerifyTarget(t *Target) error {
-	ociDir := filepath.Join(a.zotPath, t.ImagePath)
+func pickOciOrZot(inDir, inName, inVersion string) (ocidir, name string, err error) {
+	err = nil
+	if PathExists(filepath.Join(inDir, "index.json")) {
+		// simple oci layout
+		ocidir = inDir
+		name = inName
+		if inVersion != "" {
+			name = name + ":" + inVersion
+		}
+		return
+	}
+	// local zot layout
+	ocidir = filepath.Join(inDir, inName)
+	name = inVersion
+	if !PathExists(filepath.Join(ocidir, "index.json")) {
+		err = fmt.Errorf("No image %q:%q under %q", inName, inVersion, inDir)
+	}
+	return
+}
 
-	oci, err := umoci.OpenLayout(ociDir)
+func (a *AtomfsStorage) VerifyTarget(t *Target) error {
+	ocidir, name, err := pickOciOrZot(a.zotPath, t.ImagePath, t.Version)
+	if err != nil {
+		return err
+	}
+
+	oci, err := umoci.OpenLayout(ocidir)
 	if err != nil {
 		return fmt.Errorf("Failed reading OCI manifest for %s: %w", t.ImagePath, err)
 	}
 	defer oci.Close()
 
-	descriptorPaths, err := oci.ResolveReference(context.Background(), t.Version)
+	descriptorPaths, err := oci.ResolveReference(context.Background(), name)
 	if err != nil {
 		return err
 	}
 
 	if len(descriptorPaths) != 1 {
-		return fmt.Errorf("bad descriptor %s for %#v in %q", t.Version, t, ociDir)
+		return fmt.Errorf("bad descriptor %s for %#v in %q", t.Version, t, ocidir)
 	}
 
 	blob, err := oci.FromDescriptor(context.Background(), descriptorPaths[0].Descriptor())

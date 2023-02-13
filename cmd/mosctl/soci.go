@@ -17,9 +17,9 @@ var sociCmd = cli.Command{
 			Action: mountSOci,
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "ocidir",
-					Usage: "OCI directory",
-					Value: "oci",
+					Name:  "repo-base",
+					Usage: "OCI repository to use as layer base [oci:dir, docker://repo, or zot://zotdir]",
+					Value: "oci:/oci",
 				},
 				cli.StringFlag{
 					Name:  "meta, metalayer, zaplayer",
@@ -48,9 +48,9 @@ func mountSOci(ctx *cli.Context) error {
 	if !mosconfig.PathExists(mp) {
 		return errors.Errorf("mountpoint does not exist")
 	}
-	ocidir := ctx.String("ocidir")
+	repobase := ctx.String("repo-base")
 	metalayer := ctx.String("meta")
 	capath := ctx.String("ca")
 
-	return mosconfig.MountSOCI(ocidir, metalayer, capath, mp)
+	return mosconfig.MountSOCI(repobase, metalayer, capath, mp)
 }
