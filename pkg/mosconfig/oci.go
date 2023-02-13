@@ -30,6 +30,21 @@ func MountOCILayer(ocidir, name, dest string) (func(), error) {
 	}
 
 	cleanup := func() { os.RemoveAll(metadir) }
+
+	// If $ocidir/index.json exists, then it's a simple oci layout.
+	// If not, then it's a local zot layout.
+	// For image atomix/baseos:1.0.0, if it's OCI layout then the
+	// image will be called "atomix/baseos:1.0.0" in $ocidir/index.json.
+	// Otherwise, it will be called "1.0.0" in
+	// $ocidir/atomix/baseos/index.json.
+	if !PathExists(filepath.Join(ocidir, "index.json")) {
+		idx := strings.LastIndex(name, ":")
+		if idx == -1 {
+			return func() {}, fmt.Errorf("A version must be specified for zot layout")
+		}
+		ocidir = filepath.Join(ocidir, name[:idx])
+		name = name[idx+1:]
+	}
 	opts := satomfs.MountOCIOpts{
 		OCIDir:       ocidir,
 		MetadataPath: metadir,
@@ -53,17 +68,48 @@ func MountOCILayer(ocidir, name, dest string) (func(), error) {
 	return cleanup, nil
 }
 
-func MountSOCI(ocidir, metalayer, capath, mountpoint string) error {
+// MountRepoLayer mounts an image path @name at directory @dest.
+// @repobase is the repository base to prepend to @name to find the
+// layer.  If it starts with 'oci:', then it is a simple oci layout
+// base.  If it starts with 'zot:', then it is the top level zot
+// directory (under which the oci images will be in oci layouts at
+// subdirectories mirroring the image name, for instance ubuntu/amd64.
+// For 'docker:', it will be a directory to which we will sync the
+// remote images in zot layout.
+func MountRepoLayer(repobase, name, dest string) (string, func(), error) {
+	s := strings.SplitN(repobase, ":", 2)
+	if len(s) != 2 {
+		return "", func() {}, fmt.Errorf("Repo-base type not specified")
+	}
+	repotype := s[0]
+	rest := s[1]
+
+	switch repotype {
+	case "docker":
+		return "", func() {}, fmt.Errorf("Docker repo bases not yet handed")
+	case "oci":
+		cachedir := rest
+		cleanup, err := MountOCILayer(rest, name, dest)
+		return cachedir, cleanup, err
+	default:
+		return "", func() {}, fmt.Errorf("Unknown repo base type: %q", repotype)
+	}
+}
+
+func MountSOCI(repobase, metalayer, capath, mountpoint string) error {
 	tmpd, err := os.MkdirTemp("", "extract")
 	if err != nil {
 		return errors.Wrapf(err, "Failed creating tempdir")
 	}
 
-	cleanup, err := MountOCILayer(ocidir, metalayer, tmpd)
+	fmt.Printf("XXX - mounting meta layer %q %q at %q\n", repobase, metalayer, tmpd)
+	storagecache, cleanup, err := MountRepoLayer(repobase, metalayer, tmpd)
 	if err != nil {
 		return errors.Wrapf(err, "Failed unpacking SOCI metalayer layer")
 	}
 	defer cleanup()
+
+	fmt.Printf("XXX - successfully mounted the repo layer\n")
 
 	mPath := filepath.Join(tmpd, "manifest.yaml")
 	sPath := mPath + ".signed"
@@ -75,7 +121,8 @@ func MountSOCI(ocidir, metalayer, capath, mountpoint string) error {
 	// Set up a temporary storage
 	opts := DefaultMosOptions()
 	opts.CaPath = capath
-	opts.StorageCache = ocidir
+
+	opts.StorageCache = storagecache
 
 	s, err := NewStorage(opts)
 	if err != nil {
@@ -92,9 +139,13 @@ func MountSOCI(ocidir, metalayer, capath, mountpoint string) error {
 	}
 	t := manifest.Targets[0]
 
-	_, err = MountOCILayer(ocidir, t.ServiceName, mountpoint)
+	name := t.ImagePath
+	if t.Version != "" {
+		name = name + ":" + t.Version
+	}
+	_, _, err = MountRepoLayer(repobase, name, mountpoint)
 	if err != nil {
-		return errors.Wrapf(err, "Failed mounting %s", t.ServiceName)
+		return errors.Wrapf(err, "Failed mounting %s (%s %s)", t.ServiceName, repobase, name)
 	}
 
 	return nil
