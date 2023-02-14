@@ -118,4 +118,3 @@ require (
 go 1.19
 
 replace github.com/jsipprell/keyctl => github.com/hallyn/keyctl v1.0.4-0.20211206210026-67b989e45620
-replace github.com/project-machine/trust => github.com/joylatten/trust v0.0.0-20230209224722-b3ae69249664
