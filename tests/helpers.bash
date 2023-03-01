@@ -36,6 +36,8 @@ function lxc_setup {
 		lxc-destroy -n mos-test-1 -f
 	}
 	lxc-copy -n mos-test -N mos-test-1
+	lxc-start -n mos-test-1 -l trace -o xxx || true
+	cat xxx
 	lxc-start -n mos-test-1
 	lxc-wait --timeout=60 -n mos-test-1 -s RUNNING
 }
