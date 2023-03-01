@@ -26,7 +26,29 @@ jobs:
             libdevmapper-dev liblxc-dev libpam0g-dev \
             libseccomp-dev libsquashfs-dev lxc lxc-dev \
             make openssl squashfuse uidmap umoci
+      - name: setup lxc
+        run: |
           cat /etc/subuid /etc/subgid
+          u=$(id -un) && g=$(id -gn)
+          echo "u=$u g=$g"
+          uidmap=$(awk -F: '$1 == u { print $2, $3 }' "u=$u" /etc/subuid)
+          gidmap=$(awk -F: '$1 == g { print $2, $3 }' "g=$g" /etc/subgid)
+          if [ "$u" = "runner" ] && [ -z "$gidmap" ]; then
+            # 'id -gn' shows docker, but 'runner' is in subgid
+            g="runner"
+            gidmap=$(awk -F: '$1 == g { print $2, $3 }' "g=$g" /etc/subgid)
+          fi
+          echo "uidmap=$uidmap."
+          echo "gidmap=$gidmap."
+          [ -n "$uidmap" ] && [ -n "$gidmap" ] ||
+              { echo "did not get uidmap or gidmap for u=$u g=$g"; exit 1; }
+          mkdir -p ~/.config/lxc/
+          echo "writing .config/lxc/default.conf"
+          tee ~/.config/lxc/default.conf <<EOF
+          lxc.include = /etc/lxc/default.conf
+          lxc.idmap = u 0 $uidmap
+          lxc.idmap = g 0 $gidmap
+          EOF
       - name: install stacker
         run: |
           wget -O ~/bin/stacker --progress=dot:mega https://github.com/project-stacker/stacker/releases/download/v1.0.0-rc2/stacker
