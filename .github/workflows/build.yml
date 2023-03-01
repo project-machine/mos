@@ -7,10 +7,12 @@ jobs:
     name: build
     runs-on: ubuntu-22.04
     steps:
+      - name: Set up environment
+        run: |
+          mkdir ~/bin
+          echo "PATH=$HOME/bin:$PATH" >> $GITHUB_ENV
       - name: Check out git
         uses: actions/checkout@v3
-        with:
-          ref: main
       - name: Set up golang
         uses: actions/setup-go@v3
         with:
@@ -18,26 +20,28 @@ jobs:
       - name: install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install bats cryptsetup-bin golang libacl1-dev libcryptsetup-dev libgpgme-dev libcap-dev libdevmapper-dev liblxc-dev libpam0g-dev libseccomp-dev libsquashfs-dev lxc lxc-dev make openssl uidmap
-          which newuidmap
-          which newgidmap
+          sudo apt-get install \
+            bats cryptsetup-bin libacl1-dev libarchive-tools \
+            libcryptsetup-dev libgpgme-dev libcap-dev \
+            libdevmapper-dev liblxc-dev libpam0g-dev \
+            libseccomp-dev libsquashfs-dev lxc lxc-dev \
+            make openssl squashfuse uidmap umoci
           cat /etc/subuid /etc/subgid
-          sudo snap install --devmode --edge skopeo
       - name: install stacker
         run: |
-          mkdir -p ~/bin
-          wget -O ~/bin/stacker https://github.com/project-stacker/stacker/releases/download/v1.0.0-rc2/stacker
+          wget -O ~/bin/stacker --progress=dot:mega https://github.com/project-stacker/stacker/releases/download/v1.0.0-rc2/stacker
           chmod 755 ~/bin/stacker
+      - name: install skopeo
+        run: |
+          wget -O ~/bin/skopeo --progress=dot:mega https://github.com/project-machine/tools/releases/download/v0.0.1/skopeo
+          chmod 755 ~/bin/skopeo
       - name: make
         run: |
-          pwd
-          find .
           go get -v ./...
           make
       - name: test
         run: |
-          export PATH=~/bin:$PATH
-          make test || true # ignore odd newgidmap $PATH breakage
+          make test
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
