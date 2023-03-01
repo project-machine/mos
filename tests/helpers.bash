@@ -37,7 +37,7 @@ function lxc_setup {
 	}
 	lxc-copy -n mos-test -N mos-test-1
 	lxc-start -n mos-test-1
-	lxc-wait -n mos-test-1 -s RUNNING
+	lxc-wait --timeout=60 -n mos-test-1 -s RUNNING
 }
 
 function zot_setup {
