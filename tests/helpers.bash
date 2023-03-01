@@ -33,6 +33,31 @@ function lxc_setup {
 	lxc-wait -n mos-test-1 -s RUNNING
 }
 
+function zot_setup {
+  export ZOT_HOST=127.0.0.1
+  export ZOT_PORT=5000
+  cat > $TMPD/zot-config.json << EOF
+{
+  "distSpecVersion": "1.0.1-dev",
+  "storage": {
+    "rootDirectory": "$TMPD/zot",
+    "gc": false
+  },
+  "http": {
+    "address": "$ZOT_HOST",
+    "port": "$ZOT_PORT"
+  },
+  "log": {
+    "level": "error"
+  }
+}
+EOF
+  # start as a background task
+  zot serve $TMPD/zot-config.json &
+  # wait until service is up
+  while true; do x=0; curl -f http://$ZOT_HOST:$ZOT_PORT/v2/ || x=1; if [ $x -eq 0 ]; then break; fi; sleep 1; done
+}
+
 function common_teardown {
 	echo "Deleting $TMPD and $TMPUD"
 	if [ -n $TMPD ]; then
@@ -46,6 +71,11 @@ function common_teardown {
 function lxc_teardown {
 	#lxc-destroy -n mos-test-1 -f
 	common_teardown
+}
+
+function zot_teardown {
+  killall zot
+  rm -f $TMPD/zot-config.json
 }
 
 function manifest_shasum_from {
