@@ -55,6 +55,7 @@ EOF
 	pushd "${TMPD}/config/manifest.git"
 	sed -i 's/^targets:/\n\0/' *.yaml
 	git add *.yaml
+	me="test-user <test-user@example.com>"
 	git commit -m "corrupt"
 	popd
 
