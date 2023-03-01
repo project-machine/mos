@@ -23,6 +23,9 @@ jobs:
           which newgidmap
           cat /etc/subuid /etc/subgid
           sudo snap install --devmode --edge skopeo
+          sudo chmod 755 /usr/bin/newuidmap /usr/bin/newgidmap
+          sudo setcap cap_setuid+ep /usr/bin/newuidmap
+          sudo setcap cap_setgid+ep /usr/bin/newgidmap
       - name: make
         run: |
           pwd
@@ -45,7 +48,7 @@ jobs:
       - name: test
         run: |
           export PATH=~/bin:$PATH
-          make test || true # ignore odd newgidmap $PATH breakage
+          make test
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
