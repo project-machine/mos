@@ -49,6 +49,10 @@ jobs:
           lxc.idmap = u 0 $uidmap
           lxc.idmap = g 0 $gidmap
           EOF
+          chmod go+x ~ ~/.config ~/.config/lxc
+          mkdir -p ~/.local/share/lxc
+          chmod go+x ~/.local ~/.local/share ~/.local/share/lxc
+          echo "$(whoami) veth lxcbr0 10" | sudo tee -a /etc/lxc/lxc-usernet
       - name: install stacker
         run: |
           wget -O ~/bin/stacker --progress=dot:mega https://github.com/project-stacker/stacker/releases/download/v1.0.0-rc2/stacker
