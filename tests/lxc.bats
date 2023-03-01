@@ -13,6 +13,7 @@ function teardown() {
 # This is to test the test infrastructure itself.  If this fails,
 # then lxc is not set up correctly.
 @test "install of simple system in an lxc container" {
+	false
 	lxc_install hostfsonly
 }
 
