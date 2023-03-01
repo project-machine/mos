@@ -1,10 +1,12 @@
+BUILD_TAGS = containers_image_openpgp
+
 all: mosctl mosb
 
 mosctl: cmd/mosctl/*.go pkg/mosconfig/*.go
-	go build ./cmd/mosctl
+	go build -tags "$(BUILD_TAGS)" ./cmd/mosctl
 
 mosb: cmd/mosb/*.go pkg/mosconfig/*.go
-	go build ./cmd/mosb
+	go build -tags "$(BUILD_TAGS)" ./cmd/mosb
 
 .PHONY: test
 test: mosctl
