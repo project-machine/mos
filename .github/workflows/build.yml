@@ -41,7 +41,7 @@ jobs:
           make
       - name: test
         run: |
-          make test ||
+          timeout 20m make test ||
               echo "Ignoring error in 'make test' [exit code $?]"
       - name: Release
         uses: softprops/action-gh-release@v1
