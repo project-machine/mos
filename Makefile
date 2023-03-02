@@ -8,6 +8,14 @@ ZOT_VERSION := 1.4.3
 ORAS := $(TOOLSDIR)/bin/oras
 ORAS_VERSION := 1.0.0-rc.1
 
+all: mosctl mosb $(ZOT) $(ORAS)
+
+mosctl: cmd/mosctl/*.go pkg/mosconfig/*.go
+	go build -tags "$(BUILD_TAGS)" ./cmd/mosctl
+
+mosb: cmd/mosb/*.go pkg/mosconfig/*.go
+	go build -tags "$(BUILD_TAGS)" ./cmd/mosb
+
 $(ZOT):
 	mkdir -p $(TOOLSDIR)/bin
 	curl -Lo $(ZOT) https://github.com/project-zot/zot/releases/download/v$(ZOT_VERSION)/zot-linux-amd64-minimal
@@ -18,14 +26,6 @@ $(ORAS):
 	curl -Lo oras.tar.gz https://github.com/oras-project/oras/releases/download/v$(ORAS_VERSION)/oras_$(ORAS_VERSION)_linux_amd64.tar.gz
 	tar xvzf oras.tar.gz -C $(TOOLSDIR)/bin oras
 	rm oras.tar.gz
-
-all: mosctl mosb
-
-mosctl: cmd/mosctl/*.go pkg/mosconfig/*.go
-	go build -tags "$(BUILD_TAGS)" ./cmd/mosctl
-
-mosb: cmd/mosb/*.go pkg/mosconfig/*.go
-	go build -tags "$(BUILD_TAGS)" ./cmd/mosb
 
 .PHONY: test
 test: mosctl $(ORAS) $(ZOT)
