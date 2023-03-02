@@ -30,7 +30,10 @@ function common_setup {
 function lxc_setup {
 	common_setup
 	lxc-info -q -n mos-test || {
-		./tests/create-test-container.bash
+		./tests/create-test-container.bash || {
+			echo "Failed creating mos-test container"
+			exit 1
+		}
 	}
 	lxcname=mos-test-1
 	lxc-info -q -n $lxcname && {

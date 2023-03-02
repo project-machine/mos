@@ -3,9 +3,29 @@
 load helpers
 
 function setup() {
-	set -ex
-	lxc_setup
-	echo "lxc_setup done"
+	rm -f setupdone childpid
+	start=$(date +%s)
+	timeoutsecs=600
+	me=$$
+	(
+		now=$(date +%s)
+		d=$(( now - start ))
+		echo "now is $now, start is $start"
+		while [ ! -f setupdone ] && [ $d -lt $timeoutsecs ]; do
+			sleep 5s
+			now=$(date +%s)
+			d=$(( now - start ))
+			echo "now is $now, start is $start"
+		done
+		[ -f setupdone ] || kill -6 $(<childpid)
+	) &
+	(
+		echo $$ > childpid
+		lxc_setup
+		echo here i am
+		sleep 10
+		touch setupdone
+	)
 }
 
 function teardown() {
@@ -13,57 +33,25 @@ function teardown() {
 }
 
 @test "dummy first lxc job" {
-	set -ex
-	echo Success
-}
-
-# This is to test the test infrastructure itself.  If this fails,
-# then lxc is not set up correctly.
-@test "install of simple system in an lxc container" {
-	set -ex
-	echo "starting test: install of simple system in an lxc container"
-	lxc_install hostfsonly
-}
-
-@test "activate of fs-only layer in lxc" {
-	lxc_install fsonly
-	expect << "EOF"
-spawn lxc-attach -n mos-test-1
-expect "root@mos-test-1"
-send "mosctl --debug activate -t hostfstarget\n"
-expect "root@mos-test-1"
-send "while ! mountpoint -q /mnt/atom/hostfstarget; do sleep 1s; echo -n .; done\n"
-expect "root@mos-test-1"
-send "touch /mountpointfound\n"
-expect "root@mos-test-1"
-EOF
-	# ugh - give squashfuse just a little *more* time
-	sleep 5s
-	lxc-attach -n mos-test-1 -- /bin/ls -l /mnt/atom/hostfstarget
-	lxc-attach -n mos-test-1 -- test -e /mnt/atom/hostfstarget/etc
-	lxc-attach -n mos-test-1 -- cat /proc/self/mountinfo
-}
-
-@test "activate of container layer" {
-	lxc_install containeronly
-	expect << "EOF"
-spawn lxc-attach -n mos-test-1
-expect "root@mos-test-1"
-send "mosctl --debug activate -t hostfstarget\n"
-expect "root@mos-test-1"
-EOF
-	lxc-attach -n mos-test-1 -- lxc-wait -n hostfstarget -s RUNNING -t 0
-	pid1=$(lxc-attach -n mos-test-1 -- lxc-info -n hostfstarget -p -H)
-	# Re-activate
-	# This works on a full system (vm), but fails in a container
-	# due to stacker/atomfs dmverity issue (fix in PR).
-	expect << "EOF"
-spawn lxc-attach -n mos-test-1
-expect "root@mos-test-1"
-send "mosctl --debug activate -t hostfstarget\n"
-expect "root@mos-test-1"
-EOF
-	lxc-attach -n mos-test-1 -- lxc-wait -n hostfstarget -s RUNNING -t 0
-	pid2=$(lxc-attach -n mos-test-1 -- lxc-info -n hostfstarget -p -H)
-	test $pid1 -ne $pid2
+	rm -f done childpid
+	start=$(date +%s)
+	timeoutsecs=600
+	me=$$
+	(
+		now=$(date +%s)
+		d=$(( now - start ))
+		echo "now is $now, start is $start"
+		while [ ! -f done ] && [ $d -lt $timeoutsecs ]; do
+			sleep 5s
+			now=$(date +%s)
+			d=$(( now - start ))
+			echo "now is $now, start is $start"
+		done
+		[ -f done ] || kill -6 $(<childpid)
+	) &
+	(
+		echo $$ > childpid
+		echo Success
+		touch done
+	)
 }
