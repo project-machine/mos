@@ -32,12 +32,23 @@ function lxc_setup {
 	lxc-info -q -n mos-test || {
 		./tests/create-test-container.bash
 	}
-	lxc-info -q -n mos-test-1 && {
-		lxc-destroy -n mos-test-1 -f
+	lxcname=mos-test-1
+	lxc-info -q -n $lxcname && {
+		lxc-destroy -n $lxcname -f
 	}
-	lxc-copy -n mos-test -N mos-test-1
-	lxc-start -n mos-test-1
-	lxc-wait --timeout=60 -n mos-test-1 -s RUNNING
+	lxc-copy -n mos-test -N $lxcname
+	lxc-start -n $lxcname -l trace -o lxc-log.1.$$ || {
+		echo "Failed starting $lxcname"
+		cat lxc-log.1.$$
+		exit 1
+	}
+	lxc-wait --timeout=60 -n $lxcname -s RUNNING || {
+		echo "Timed out waiting for $lxcname to enter RUNNING state"
+		cat lxc-log.1.$$
+		exit 1
+	}
+	echo "$lxcname is running"
+	lxc-ls -f
 }
 
 function zot_setup {

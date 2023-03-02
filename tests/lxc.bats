@@ -3,6 +3,7 @@
 load helpers
 
 function setup() {
+	set -e
 	lxc_setup
 }
 
