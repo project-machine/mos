@@ -8,6 +8,7 @@ echo "lxc.apparmor.allow_nesting = 1" >>   ~/.local/share/lxc/mos-test/config
 lxc-start -n mos-test -l trace -o lxc-log.$$
 cat lxc-log.$$
 lxc-wait --timeout=60 -n mos-test -s RUNNING
+sleep 1
 lxc-attach -n mos-test -- apt-get update
 lxc-attach -n mos-test -- apt-get -y dist-upgrade
 lxc-attach -n mos-test -- apt-get -y install software-properties-common
