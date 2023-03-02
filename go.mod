@@ -8,7 +8,7 @@ require (
 	github.com/opencontainers/image-spec v1.0.3-0.20220303224323-02efb9a75ee1
 	github.com/opencontainers/umoci v0.4.8-0.20220412065115-12453f247749
 	github.com/pkg/errors v0.9.1
-	github.com/project-machine/trust v0.0.0-20230131225948-2affc53389e5
+	github.com/project-machine/trust v0.0.0-20230211191735-904036e9aeeb
 	github.com/urfave/cli v1.22.11
 	golang.org/x/sys v0.5.0
 	gopkg.in/yaml.v2 v2.4.0
