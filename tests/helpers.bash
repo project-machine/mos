@@ -7,6 +7,13 @@ function common_setup {
 		stacker --oci-dir zothub build --layer-type squashfs
 	fi
 
+	local name="test-user" email="test-user@example.com"
+	export \
+        GIT_AUTHOR_NAME="$name" \
+        GIT_AUTHOR_EMAIL="$email" \
+        GIT_COMMITTER_NAME="$name" \
+        GIT_COMMITTER_EMAIL="$email"
+
 	if [ -z "${KEYS_DIR}" ]; then
 		export KEYS_DIR="${PWD}/keys"
 		if [ ! -d "${KEYS_DIR}" ]; then
@@ -30,7 +37,7 @@ function lxc_setup {
 	}
 	lxc-copy -n mos-test -N mos-test-1
 	lxc-start -n mos-test-1
-	lxc-wait -n mos-test-1 -s RUNNING
+	lxc-wait --timeout=60 -n mos-test-1 -s RUNNING
 }
 
 function zot_setup {
