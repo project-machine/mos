@@ -87,7 +87,7 @@ function common_teardown {
 }
 
 function lxc_teardown {
-	#lxc-destroy -n mos-test-1 -f
+	lxc-destroy -n mos-test-1 -f
 	common_teardown
 }
 
@@ -226,6 +226,8 @@ function lxc_install {
 	# set up the file we need under TMPD
 	spectype=$1
 	write_install_yaml zotpath "$spectype"
+	echo "after write_install_yaml"
+	exit 1
 	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
 		-out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
 	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
@@ -233,6 +235,8 @@ function lxc_install {
 	cp mosctl ${TMPD}/
 	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
 	# copy TMPD over to the container under /iso/
+	echo "about to run lxc-attach"
+	exit 1
 	lxc-attach -n mos-test-1 -- mkdir -p /iso /config /atomfs-store /scratch-writes /factory/secure
 	tar -C $TMPD -cf - . | lxc-attach -n mos-test-1 -- tar -C /iso -xf -
 	# do the install

@@ -3,17 +3,25 @@
 load helpers
 
 function setup() {
-	set -e
+	set -ex
 	lxc_setup
+	echo "lxc_setup done"
 }
 
 function teardown() {
 	lxc_teardown
 }
 
+@test "dummy first lxc job" {
+	set -ex
+	echo Success
+}
+
 # This is to test the test infrastructure itself.  If this fails,
 # then lxc is not set up correctly.
 @test "install of simple system in an lxc container" {
+	set -ex
+	echo "starting test: install of simple system in an lxc container"
 	lxc_install hostfsonly
 }
 
