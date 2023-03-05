@@ -30,14 +30,26 @@ function common_setup {
 function lxc_setup {
 	common_setup
 	lxc-info -q -n mos-test || {
-		./tests/create-test-container.bash
+		./tests/create-test-container.bash || {
+			echo "Failed running create-test-container.bash"
+			exit 1
+		}
 	}
 	lxc-info -q -n mos-test-1 && {
 		lxc-destroy -n mos-test-1 -f
 	}
 	lxc-copy -n mos-test -N mos-test-1
-	lxc-start -n mos-test-1
-	lxc-wait --timeout=60 -n mos-test-1 -s RUNNING
+	lxc-start -n mos-test-1 -l trace -o lxc2.log.$$ || {
+		echo "lxc-start mos-test-1 failed"
+		cat lxc2.log.$$
+		rm -f lxc.log.$$
+		exit 1
+	}
+	lxc-wait --timeout=60 -n mos-test-1 -s RUNNING || {
+		echo "failed waiting for mos-test-1 to run"
+		exit 1
+	}
+	echo "mos-test-1 is setup and running"
 }
 
 function zot_setup {
