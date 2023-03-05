@@ -33,6 +33,7 @@ test: mosctl $(ORAS) $(ZOT)
 	bats tests/rfs.bats
 	bats tests/soci.bats
 	bats tests/activate.bats
+	bats tests/lxc.bats
 	bats tests/update.bats
 
 clean:
