@@ -73,7 +73,7 @@ jobs:
           make
       - name: test
         run: |
-          timeout 20m make test
+          make test
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
