@@ -33,6 +33,7 @@ test: mosctl $(ORAS) $(ZOT)
 	#bats tests/rfs.bats
 	#bats tests/soci.bats
 	#bats tests/activate.bats
+	export BATS_TEST_TIMEOUT=600
 	bats tests/lxc.bats
 	#bats tests/update.bats
 
