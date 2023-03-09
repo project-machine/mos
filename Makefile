@@ -28,7 +28,7 @@ $(ORAS):
 	rm oras.tar.gz
 
 .PHONY: test
-test: mosctl $(ORAS) $(ZOT)
+test: mosctl mosb $(ORAS) $(ZOT)
 	bats tests/install.bats
 	bats tests/rfs.bats
 	bats tests/soci.bats
