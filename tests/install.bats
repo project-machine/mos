@@ -10,140 +10,168 @@ function teardown() {
   common_teardown
 }
 
-@test "simple mos install from local oci" {
-	good_install hostfsonly
-	cat $TMPD/install.yaml
-	[ -f $TMPD/atomfs-store/busybox-squashfs/index.json ]
-	[ -f $TMPD/config/manifest.git/manifest.yaml ]
+@test "mosctl manifest publish" {
+	write_install_yaml "hostfsonly"
+	./mosb manifest publish --key "${KEYS_DIR}/manifest/privkey.pem" \
+		--cert "${KEYS_DIR}/manifest-ca/cert.pem" \
+		--repo ${ZOT_HOST}:${ZOT_PORT} --name machine/install:1.0.0 \
+		$TMPD/manifest.yaml
+	[ -f $TMPD/zot/mos/index.json ]  # the layers were pushed
+	[ -f $TMPD/zot/machine/install/index.json ]  # the manifest was pushed
+	oras discover --plain-http $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
 }
 
-@test "simple mos install with bad signature" {
-	sum=$(manifest_shasum busybox-squashfs)
-	cat > $TMPD/install.yaml << EOF
-version: 1
-product: de6c82c5-2e01-4c92-949b-a6545d30fc06
-update_type: complete
-targets:
-  - service_name: hostfs
-    imagepath: puzzleos/hostfs
-    version: 1.0.0
-    manifest_hash: $sum
-    service_type: hostfs
-    nsgroup: ""
-    network:
-      type: host
-    mounts: []
-EOF
-	echo "fooled ya" > "$TMPD/install.yaml.signed"
-	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
-	failed=0
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
-	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml || failed=1
-	[ $failed -eq 1 ]
+@test "mosctl manifest publish twice" {
+	write_install_yaml "hostfsonly"
+	./mosb manifest publish --key "${KEYS_DIR}/manifest/privkey.pem" \
+		--cert "${KEYS_DIR}/manifest-ca/cert.pem" \
+		--repo ${ZOT_HOST}:${ZOT_PORT} --name machine/install:1.0.0 \
+		$TMPD/manifest.yaml
+	./mosb manifest publish --key "${KEYS_DIR}/manifest/privkey.pem" \
+		--cert "${KEYS_DIR}/manifest-ca/cert.pem" \
+		--repo ${ZOT_HOST}:${ZOT_PORT} --name machine/install:1.0.0 \
+		$TMPD/manifest.yaml
+	[ -f $TMPD/zot/mos/index.json ]  # the layers were pushed
+	[ -f $TMPD/zot/machine/install/index.json ]  # the manifest was pushed
+	oras discover --plain-http $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
 }
 
 @test "simple mos install from local zot" {
 	sum=$(manifest_shasum busybox-squashfs)
-	cat > $TMPD/install.yaml << EOF
-version: 1
-product: de6c82c5-2e01-4c92-949b-a6545d30fc06
-update_type: complete
-targets:
-  - service_name: hostfs
-    imagepath: puzzleos/hostfs
-    version: 1.0.0
-    manifest_hash: $sum
-    service_type: hostfs
-    nsgroup: ""
-    network:
-      type: host
-    mounts: []
+	size=$(manifest_size busybox-squashfs)
+	cat > $TMPD/install.json << EOF
+{
+  "version": 1,
+  "product": "de6c82c5-2e01-4c92-949b-a6545d30fc06",
+  "update_type": "complete",
+  "targets": [
+    {
+      "service_name": "hostfs",
+      "version": "1.0.0",
+      "digest": "sha256:$sum",
+      "size": $size,
+      "service_type": "hostfs",
+      "nsgroup": "",
+      "network": {
+        "type": "host"
+      }
+    }
+  ]
+}
 EOF
+
+	skopeo copy --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
+	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
 	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
-		-out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
-	mkdir -p $TMPD/zot/c3
-	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
-	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml
-	[ -f $TMPD/atomfs-store/puzzleos/hostfs/index.json ]
+		-out "$TMPD/install.json.signed" "$TMPD/install.json"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
+	mkdir -p "$TMPD/factory/secure"
+	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/factory/secure/manifestCA.pem"
+	./mosctl install --rfs $TMPD $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
+	[ -f $TMPD/atomfs-store/mos/index.json ]
 }
 
-@test "simple mos install from local zot with references" {
+@test "simple mos manifest publish and mos install" {
+	good_install hostfsonly
+}
+
+@test "simple mos install with bad signature" {
 	sum=$(manifest_shasum busybox-squashfs)
-	cat > $TMPD/install.yaml << EOF
-version: 1
-product: de6c82c5-2e01-4c92-949b-a6545d30fc06
-update_type: complete
-targets:
-  - service_name: hostfs
-    imagepath: puzzleos/hostfs
-    version: 1.0.0
-    manifest_hash: $sum
-    service_type: hostfs
-    nsgroup: ""
-    network:
-      type: host
-    mounts: []
+	size=$(manifest_size busybox-squashfs)
+	cat > $TMPD/install.json << EOF
+{
+  "version": 1,
+  "product": "de6c82c5-2e01-4c92-949b-a6545d30fc06",
+  "update_type": "complete",
+  "targets": [
+    {
+      "service_name": "hostfs",
+      "version": "1.0.0",
+      "digest": "sha256:$sum",
+      "size": $size,
+      "service_type": "hostfs",
+      "nsgroup": "",
+      "network": {
+        "type": "host"
+      }
+    }
+  ]
+}
 EOF
-  openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
-    -out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
-  mkdir -p $TMPD/zot/c3
-  skopeo copy --format=oci --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/oci:hostfs
-  skopeo copy --src-tls-verify=false docker://$ZOT_HOST:$ZOT_PORT/oci:hostfs oci:$TMPD/oci:hostfs
-  # push the install manifest
-  oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.yaml":vnd.machine.install
-  # make a copy of the cert, which we will push and restore
-  mkdir -p "$TMPD/manifest-ca"
-  cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifest-ca"
-  # make this a cert a reference to the install manifest and remove the local copy
-  oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.public-key $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/manifest-ca/cert.pem"
-  rm "$TMPD/manifest-ca/cert.pem"
-  # ensure this association is made on the OCI registry
-  oras discover --plain-http -o json --artifact-type vnd.machine.public-key $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
-  PUBKEY=$(oras discover --plain-http -o json --artifact-type vnd.machine.public-key $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 | jq .manifests[0].digest | tr -d \")
-  # restore the cert copy from the OCI registry
-  oras pull --plain-http -o "$TMPD/manifest-ca/" $ZOT_HOST:$ZOT_PORT/machine/install@$PUBKEY
-  cp "$TMPD/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
-  ./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml
-  [ -f $TMPD/atomfs-store/puzzleos/hostfs/index.json ]
+
+	skopeo copy --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
+	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
+	echo "fooled ya" > "$TMPD/install.json.signed"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
+	mkdir -p "$TMPD/factory/secure"
+	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/factory/secure/manifestCA.pem"
+	failed=0
+	./mosctl install --rfs "$TMPD" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 || failed=1
+	[ $failed -eq 1 ]
 }
 
 @test "mos install with bad version" {
 	sum=$(manifest_shasum busybox-squashfs)
-	cat > $TMPD/install.yaml << EOF
-version: 2
-product: de6c82c5-2e01-4c92-949b-a6545d30fc06
-update_type: complete
-targets:
+	size=$(manifest_size busybox-squashfs)
+	cat > $TMPD/install.json << EOF
+{
+  "version": 2,
+  "product": "de6c82c5-2e01-4c92-949b-a6545d30fc06",
+  "update_type": "complete",
+  "targets": []
+}
 EOF
+	skopeo copy --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
+	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
+	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
+		-out "$TMPD/install.json.signed" "$TMPD/install.json"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
+
 	failed=0
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
-	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml || failed=1
+	mkdir -p "$TMPD/factory/secure"
+	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/factory/secure/manifestCA.pem"
+	./mosctl install --rfs "$TMPD" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 || failed=1
 	[ $failed -eq 1 ]
 }
 
 @test "simple mos install with bad manifest hash" {
 	sum=$(manifest_shasum busybox-squashfs)
+	skopeo copy --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
+	size=$(manifest_size busybox-squashfs)
+	# Next line is where we make the manifest hash invalid
 	sum=$(echo $sum | sha256sum | cut -f 1 -d \ )
-	cat > $TMPD/install.yaml << EOF
-version: 1
-product: de6c82c5-2e01-4c92-949b-a6545d30fc06
-update_type: complete
-targets:
-  - service_name: hostfs
-    imagepath: puzzleos/hostfs
-    version: 1.0.0
-    manifest_hash: $sum
-    service_type: hostfs
-    nsgroup: ""
-    network:
-      type: host
-    mounts: []
+	cat > $TMPD/install.json << EOF
+{
+  "version": 1,
+  "product": "de6c82c5-2e01-4c92-949b-a6545d30fc06",
+  "update_type": "complete",
+  "targets": [
+    {
+      "service_name": "hostfs",
+      "version": "1.0.0",
+      "digest": "sha256:$sum",
+      "size": $size,
+      "service_type": "hostfs",
+      "nsgroup": "none",
+      "network": {
+        "type": "host"
+      }
+    }
+  ]
+}
 EOF
-	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
+	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
+	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
+		-out "$TMPD/install.json.signed" "$TMPD/install.json"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
+
 	failed=0
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
-	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml || failed=1
+	mkdir -p "$TMPD/factory/secure"
+	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/factory/secure/manifestCA.pem"
+	./mosctl install --rfs "$TMPD" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 || failed=1
 	[ $failed -eq 1 ]
 }
-

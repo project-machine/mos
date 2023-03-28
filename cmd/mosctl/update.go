@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/project-machine/mos/pkg/mosconfig"
 	"github.com/urfave/cli"
@@ -13,19 +14,9 @@ var updateCmd = cli.Command{
 	Action: doUpdate,
 	Flags: []cli.Flag{
 		cli.StringFlag{
-			Name:  "f, file",
-			Usage: "File from which to read the install manifest",
-			Value: "./install.yaml",
-		},
-		cli.StringFlag{
 			Name:  "root, rfs, r",
 			Usage: "Directory under which to find the mos install",
 			Value: "/",
-		},
-		cli.StringFlag{
-			Name:  "capath, ca",
-			Usage: "Manifest CA path",
-			Value: "/factory/secure/manifestCA.pem",
 		},
 	},
 }
@@ -38,8 +29,8 @@ func doUpdate(ctx *cli.Context) error {
 
 	opts := mosconfig.DefaultMosOptions()
 	opts.RootDir = rfs
-	capath := ctx.String("capath")
-	if capath != "" {
+	capath := filepath.Join(rfs, "factory/secure/manifestCA.pem")
+	if ctx.IsSet(capath) {
 		opts.CaPath = capath
 	}
 
@@ -49,10 +40,13 @@ func doUpdate(ctx *cli.Context) error {
 	}
 	defer mos.Close()
 
-	cpath := ctx.String("file")
-	err = mos.Update(cpath)
+	if len(ctx.Args()) != 1 {
+		return fmt.Errorf("update requires an oci url for update manifest")
+	}
+	url := ctx.Args()[0]
+	err = mos.Update(url)
 	if err != nil {
-		return fmt.Errorf("Update using %q failed: %w", cpath, err)
+		return fmt.Errorf("Update using %q failed: %w", url, err)
 	}
 
 	return nil

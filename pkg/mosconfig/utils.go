@@ -222,3 +222,11 @@ func fixupSymlinks(dir string) error {
 
 	return err
 }
+
+func dropHashAlg(d string) string {
+	s := strings.SplitN(d, ":", 2)
+	if len(s) == 2 {
+		return s[1]
+	}
+	return d
+}

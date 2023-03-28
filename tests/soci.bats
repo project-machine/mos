@@ -2,9 +2,11 @@ load helpers
 
 function setup() {
 	common_setup
+	zot_setup
 }
 
 function teardown() {
+	zot_teardown
 	common_teardown
 }
 
@@ -133,7 +135,7 @@ targets:
   - service_name: hostfs
     imagepath: puzzleos/hostfs
     version: 1.0.0
-    manifest_hash: $sum
+    digest: $sum
     service_type: hostfs
     nsgroup: ""
     network:

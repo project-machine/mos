@@ -27,23 +27,15 @@ function common_setup {
 	cp "${KEYS_DIR}/manifest/cert.pem" "$TMPUD/manifestCert.pem"
 }
 
-function lxc_setup {
-	common_setup
-	lxc-info -q -n mos-test || {
-		./tests/create-test-container.bash
-	}
-	lxc-info -q -n mos-test-1 && {
-		lxc-destroy -n mos-test-1 -f
-	}
-	lxc-copy -n mos-test -N mos-test-1
-	lxc-start -n mos-test-1
-	lxc-wait --timeout=60 -n mos-test-1 -s RUNNING
-}
+if [ -z "$ZOT" ]; then
+	export topdir="$(git rev-parse --show-toplevel)"
+	export PATH="$PATH:${topdir}/hack/tools/bin"
+fi
 
 function zot_setup {
-  export ZOT_HOST=127.0.0.1
-  export ZOT_PORT=5000
-  cat > $TMPD/zot-config.json << EOF
+	export ZOT_HOST=127.0.0.1
+	export ZOT_PORT=5000
+	cat > $TMPD/zot-config.json << EOF
 {
   "distSpecVersion": "1.0.1-dev",
   "storage": {
@@ -59,10 +51,27 @@ function zot_setup {
   }
 }
 EOF
-  # start as a background task
-  zot serve $TMPD/zot-config.json &
-  # wait until service is up
-  while true; do x=0; curl -f http://$ZOT_HOST:$ZOT_PORT/v2/ || x=1; if [ $x -eq 0 ]; then break; fi; sleep 1; done
+	# start as a background task
+	zot serve $TMPD/zot-config.json &
+	pid=$!
+	# wait until service is up
+	count=5
+	up=0
+	while [[ $count -gt 0 ]]; do
+		if [ ! -d /proc/$pid ]; then
+			echo "zot failed to start or died"
+			exit 1
+		fi
+		up=1
+		curl -f http://$ZOT_HOST:$ZOT_PORT/v2/ || up=0
+		if [ $up -eq 1 ]; then break; fi
+		sleep 1
+		count=$((count - 1))
+	done
+	if [ $up -eq 0 ]; then
+		echo "Timed out waiting for zot"
+		exit 1
+	fi
 }
 
 function common_teardown {
@@ -73,11 +82,6 @@ function common_teardown {
 	if [ -n $TMPUD ]; then
 		lxc-usernsexec -s -- rm -rf $TMPUD
 	fi
-}
-
-function lxc_teardown {
-	#lxc-destroy -n mos-test-1 -f
-	common_teardown
 }
 
 function zot_teardown {
@@ -97,97 +101,112 @@ function manifest_shasum {
 	manifest_shasum_from $target zothub/index.json
 }
 
+function manifest_size_from {
+	target=$1
+	jsonindex=$2
+	size=$(jq '.manifests[] | select(.annotations == {"org.opencontainers.image.ref.name": "'"$target"'"}).size' $jsonindex)
+	echo $size
+}
+
+function manifest_size {
+	target=$1
+	manifest_size_from $target zothub/index.json
+}
+
 function write_install_yaml {
-	pathtype=$1
-	spectype=$2
+	spectype=$1
+	sum=$(manifest_shasum busybox-squashfs)
+	size=$(manifest_size busybox-squashfs)
 	case "$spectype" in
+	  livecd)
+	    cat > $TMPD/manifest.yaml << EOF
+version: 1
+product: de6c82c5-2e01-4c92-949b-a6545d30fc06
+update_type: complete
+targets:
+  - service_name: livecd
+    source: oci:zothub:busybox-squashfs
+    version: 1.0.0
+    digest: sha256:$sum
+    size: $size
+    service_type: fs-only
+    nsgroup: ""
+    network:
+      type: none
+EOF
+	  ;;
+
 	  hostfsonly)
-	    sum=$(manifest_shasum busybox-squashfs)
-	    if [ "$pathtype" = "ocipath" ]; then
-	      imagepath=oci:zothub:busybox-squashfs
-	    else
-	      imagepath=puzzleos/hostfs
-	    fi
-	    cat > $TMPD/install.yaml << EOF
+	    cat > $TMPD/manifest.yaml << EOF
 version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
 update_type: complete
 targets:
   - service_name: hostfs
-    imagepath: ${imagepath}
+    source: oci:zothub:busybox-squashfs
     version: 1.0.0
-    manifest_hash: $sum
+    digest: sha256:$sum
+    size: $size
     service_type: hostfs
     nsgroup: ""
     network:
       type: none
-    mounts: []
 EOF
 	  ;;
 
 	  fsonly)
 	    sum=$(manifest_shasum busybox-squashfs)
-	    if [ "$pathtype" = "ocipath" ]; then
-	      imagepath=oci:zothub:busybox-squashfs
-	    else
-	      imagepath=puzzleos/hostfs
-	    fi
-	    cat > $TMPD/install.yaml << EOF
+	    cat > $TMPD/manifest.yaml << EOF
 version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
 update_type: complete
 targets:
   - service_name: hostfs
-    imagepath: ${imagepath}
+    source: oci:zothub:busybox-squashfs
     version: 1.0.0
-    manifest_hash: $sum
+    digest: sha256:$sum
+    size: $size
     service_type: hostfs
     nsgroup: ""
     network:
       type: host
-    mounts: []
   - service_name: hostfstarget
-    imagepath: ${imagepath}
+    source: oci:zothub:busybox-squashfs
     version: 1.0.0
-    manifest_hash: $sum
+    digest: sha256:$sum
+    size: $size
     service_type: fs-only
     nsgroup: ""
     network:
       type: none
-    mounts: []
 EOF
 	    ;;
 
 	  containeronly)
 	    sum=$(manifest_shasum busybox-squashfs)
-	    if [ "$pathtype" = "ocipath" ]; then
-	      imagepath=oci:zothub:busybox-squashfs
-	    else
-	      imagepath=puzzleos/hostfs
-	    fi
-	    cat > $TMPD/install.yaml << EOF
+	    cat > $TMPD/manifest.yaml << EOF
 version: 1
 product: de6c82c5-2e01-4c92-949b-a6545d30fc06
 update_type: complete
 targets:
   - service_name: hostfs
-    imagepath: ${imagepath}
+    source: oci:zothub:busybox-squashfs
     version: 1.0.0
-    manifest_hash: $sum
+    digest: sha256:$sum
+    size: $size
     service_type: hostfs
     nsgroup: ""
     network:
       type: host
-    mounts: []
   - service_name: hostfstarget
-    imagepath: ${imagepath}
+    source: oci:zothub:busybox-squashfs
     version: 1.0.0
-    manifest_hash: $sum
+    digest: sha256:$sum
+    size: $size
     service_type: container
     nsgroup: c1
     network:
       type: host
-    mounts: []
 EOF
 	    ;;
 	  *)
@@ -199,33 +218,14 @@ EOF
 
 function good_install {
 	spectype=$1
-	write_install_yaml ocipath "$spectype"
-	./mosb iso build --key "${KEYS_DIR}/manifest/privkey.pem" \
-		--cert "${KEYS_DIR}/manifest-ca/cert.pem" \
-		--file $TMPD/install.yaml \
-		--output-file $TMPD/mos.iso
-	rm $TMPD/install.yaml
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
-	# Just expand the iso in $TMPD
-	(pushd $TMPD; bsdtar -x -f mos.iso; rm -f mos.iso; popd)
-	./mosctl --debug install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml
-}
-
-function lxc_install {
-	# set up the file we need under TMPD
-	spectype=$1
-	write_install_yaml zotpath "$spectype"
-	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
-		-out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
-	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
-	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfstarget
-	cp mosctl ${TMPD}/
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
-	# copy TMPD over to the container under /iso/
-	lxc-attach -n mos-test-1 -- mkdir -p /iso /config /atomfs-store /scratch-writes /factory/secure
-	tar -C $TMPD -cf - . | lxc-attach -n mos-test-1 -- tar -C /iso -xf -
-	# do the install
-	lxc-attach -n mos-test-1 -- cp /iso/manifestCA.pem /factory/secure/
-	lxc-attach -n mos-test-1 -- cp /iso/mosctl /usr/bin/
-	lxc-attach -n mos-test-1 -- mosctl install -f /iso/install.yaml
+	write_install_yaml "$spectype"
+	./mosb manifest publish --key "${KEYS_DIR}/manifest/privkey.pem" \
+		--cert "${KEYS_DIR}/manifest/cert.pem" \
+		--repo ${ZOT_HOST}:${ZOT_PORT} --name puzzleos/install:1.0.0 \
+		$TMPD/manifest.yaml
+	rm $TMPD/manifest.yaml
+	mkdir -p $TMPD/factory/secure
+	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/factory/secure/manifestCA.pem"
+	./mosctl --debug install --rfs "$TMPD" \
+	    ${ZOT_HOST}:${ZOT_PORT}/puzzleos/install:1.0.0
 }

@@ -17,24 +17,9 @@ var createBootFsCmd = cli.Command{
 			Usage: "Make mount read-only",
 		},
 		cli.StringFlag{
-			Name:  "config-dir, c",
-			Usage: "Directory where mos config is found",
-			Value: "/config",
-		},
-		cli.StringFlag{
-			Name:  "atomfs-store, a",
-			Usage: "Directory under which atomfs store is kept",
-			Value: "/atomfs-store",
-		},
-		cli.StringFlag{
-			Name:  "scratch-dir, s",
-			Usage: "Directory under which storage should keep overlays and tempdirs",
-			Value: "/scratch-writes",
-		},
-		cli.StringFlag{
-			Name:  "ca-path",
-			Usage: "Path to the manifest sigining CA certificate",
-			Value: "/factory/secure/manifestCA.pem",
+			Name:  "rfs, root, r",
+			Usage: "Directory under which to find the mos install",
+			Value: "/",
 		},
 		cli.StringFlag{
 			Name:  "dest",
@@ -49,31 +34,23 @@ var createBootFsCmd = cli.Command{
 // must already have been done.
 func doCreateBootfs(ctx *cli.Context) error {
 	opts := mosconfig.DefaultMosOptions()
-	opts.ConfigDir = ctx.String("config-dir")
-	opts.StorageCache = ctx.String("atomfs-store")
-	opts.ScratchWrites = ctx.String("scratch-dir")
-	opts.CaPath = ctx.String("ca-path")
 
-	m, err := mosconfig.OpenMos(opts)
+	if ctx.IsSet("rfs") {
+		opts.RootDir = ctx.String("rfs")
+	}
+
+
+	mos, err := mosconfig.OpenMos(opts)
 	if err != nil {
 		return errors.Wrapf(err, "Error opening mos")
 	}
 
-	t, err := m.Current("hostfs")
-	if err != nil {
-		return errors.Wrapf(err, "Error getting hostfs target information")
-	}
-
 	dest := ctx.String("dest")
-	if ctx.Bool("readonly") {
-		_, err = m.Storage().Mount(t, dest)
-	} else {
-		_, err = m.Storage().MountWriteable(t, dest)
-	}
+	err = mos.Mount("hostfs", dest, "", ctx.Bool("readonly"))
 	if err != nil {
-		return errors.Wrapf(err, "Error mounting %#v onto %q", t, dest)
+		return errors.Wrapf(err, "Error mounting rootfs %q", dest)
 	}
 
-	log.Infof("Rootfs has been setup under %s", dest)
+	log.Debugf("Rootfs has been setup under %s", dest)
 	return nil
 }

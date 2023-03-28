@@ -1,22 +1,13 @@
 package mosconfig
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
+	"github.com/pkg/errors"
 	ispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/project-machine/trust/pkg/trust"
-	"gopkg.in/yaml.v2"
-	imagesource "stackerbuild.io/stacker/pkg/types"
-)
-
-// An ImageType can be either an ISO or a Zap layer.
-type ImageType string
-
-const (
-	ISO ImageType = "iso"
-	ZAP ImageType = "zap"
 )
 
 // Update can be full, meaning all existing Targets are replaced, or
@@ -51,12 +42,7 @@ func ParseUpdateType(t string) (UpdateType, error) {
 
 const CurrentInstallFileVersion = 1
 
-type MountSpec struct {
-	Source  string `yaml:"source"`
-	Dest    string `yaml:"dest"`
-	Options string `yaml:"options"`
-}
-
+// Service networking.
 // Only host network supported right now.
 // To do: simple/nat, CNI
 type TargetNetworkType string
@@ -67,9 +53,14 @@ const (
 )
 
 type TargetNetwork struct {
-	Type TargetNetworkType `yaml:"type"`
+	Type TargetNetworkType `json:"type"`
 }
 
+// Service type defines how a service is run.
+// Hostfs is the "root filesystem".
+// Container services run in lxc containers.
+// FsService (fs-only) only offers a filesystem that can
+// be mounted for user by others.
 type ServiceType string
 
 const (
@@ -78,15 +69,19 @@ const (
 	FsService        ServiceType = "fs-only"
 )
 
+// Target defines a single service.  This includes the rootfs
+// and every container and fs-only service.
+// NSGroup is a user namespace group.  Two services both in
+// NSGroup 'ran' will have the same uid mapping.  A service
+// in NSGroup "none" (or "") runs in the host uid network.
 type Target struct {
-	ServiceName  string        `yaml:"service_name"` // name of target
-	ImagePath    string        `yaml:"imagepath"`    // full image repository path
-	Version      string        `yaml:"version"`      // docker or oci version tag
-	ServiceType  ServiceType   `yaml:"service_type"`
-	Network      TargetNetwork `yaml:"network"`
-	NSGroup      string        `yaml:"nsgroup"`
-	Mounts       []*MountSpec  `yaml:"mounts"`
-	ManifestHash string        `yaml:"manifest_hash"`
+	ServiceName  string        `json:"service_name"` // name of target
+	Version      string        `json:"version"`      // docker or oci version tag
+	ServiceType  ServiceType   `json:"service_type"`
+	Network      TargetNetwork `json:"network"`
+	NSGroup      string        `json:"nsgroup"`
+	Digest       string        `json:"digest"`
+	Size         int64         `json:"size"`
 }
 type InstallTargets []Target
 
@@ -96,26 +91,24 @@ func (t *Target) NeedsIdmap() bool {
 
 // This describes an install manifest
 type InstallFile struct {
-	Version     int            `yaml:"version"`
-	ImageType   ImageType      `yaml:"image_type"`
-	Product     string         `yaml:"product"`
-	Targets     InstallTargets `yaml:"targets"`
-	UpdateType  UpdateType     `yaml:"update_type"`
-	StorageType StorageType    `yaml:"storage_type"`
+	Version     int            `json:"version"`
+	Product     string         `json:"product"`
+	Targets     InstallTargets `json:"targets"`
+	UpdateType  UpdateType     `json:"update_type"`
 }
 
 // Note we only do combined uid+gid ranges, range 65536, and only starting at
 // container id 0.
 type IdmapSet struct {
-	Name   string `yaml:"idmap-name"` // This is the NSGroup specified in target
-	Hostid int64  `yaml:"hostid"`
+	Name   string `json:"idmap-name"` // This is the NSGroup specified in target
+	Hostid int64  `json:"hostid"`
 }
 
 // SysTarget exists as an intermediary between a 'system manifest'
 // and an 'install manifest'
 type SysTarget struct {
-	Name   string `yaml:"name"`   // the name of the target
-	Source string `yaml:"source"` // the content address manifest file defining it
+	Name   string `json:"name"`   // the name of the target
+	Source string `json:"source"` // the content address manifest file defining it
 
 	raw         *Target
 	OCIManifest ispec.Manifest
@@ -133,8 +126,17 @@ func (s *SysTargets) Contains(needle SysTarget) (SysTarget, bool) {
 }
 
 type SysManifest struct {
-	UidMaps    []IdmapSet  `yaml:"uidmaps"`
-	SysTargets []SysTarget `yaml:"targets"`
+	UidMaps    []IdmapSet  `json:"uidmaps"`
+	SysTargets []SysTarget `json:"targets"`
+}
+
+func (sm *SysManifest) GetTarget(target string) (*SysTarget, error) {
+	for _, t := range sm.SysTargets {
+		if t.Name == target {
+			return &t, nil
+		}
+	}
+	return nil, errors.Errorf("No such target: %q", target)
 }
 
 func (af *InstallFile) Validate() error {
@@ -157,58 +159,60 @@ func (af *InstallFile) Validate() error {
 	return nil
 }
 
+func (af *InstallFile) GetTarget(target string) (*Target, error) {
+	for _, t := range af.Targets {
+		if t.ServiceName == target {
+			return &t, nil
+		}
+	}
+	return nil, errors.Errorf("No such target: %q", target)
+}
+
+
 func simpleParseInstall(manifestPath string) (InstallFile, error) {
 	bytes, err := os.ReadFile(manifestPath)
 	if err != nil {
-		return InstallFile{}, fmt.Errorf("Failed reading manifest: %w", err)
+		return InstallFile{}, errors.Wrapf(err, "Failed reading manifest")
 	}
 	var manifest InstallFile
-	err = yaml.Unmarshal(bytes, &manifest)
+	err = json.Unmarshal(bytes, &manifest)
 	if err != nil {
-		return InstallFile{}, fmt.Errorf("Failed parsing manifest: %w", err)
+		return InstallFile{}, errors.Wrapf(err, "Failed parsing manifest")
 	}
 
 	return manifest, nil
 }
 
-// Verify an install.yaml manifest.  Return the parsed manifest.
-// manifestPath is the source of the install.yaml.
-// certPath is the signing cert.  This comes from install media.
-// caPath is the CA cert to verify certPath.  This comes from signed initrd.
-// srcDir is only passed if we are in an install or update step.  In this
-//
-//	case, we copy the layers from either srcDir/zot or srcDir/oci, into
-//	persistent storage.  If srcDir is "", then we are parsing an installed
-//	manifest and layers are already installed.
-//
-// s is the storage driver, currently always an atomfs.
-func ReadVerifyManifest(manifestPath, certPath, caPath, srcDir string, s Storage) (InstallFile, error) {
-	bytes, err := os.ReadFile(manifestPath)
+// Verify an install.json manifest.  Return the parsed manifest.
+// @is is the InstallSource of the install.json.
+// @s is the storage driver, currently always an atomfs.
+func ReadVerifyInstallManifest(is InstallSource, capath string, s Storage) (InstallFile, error) {
+	bytes, err := os.ReadFile(is.FilePath)
 	if err != nil {
 		return InstallFile{}, fmt.Errorf("Failed reading manifest: %w", err)
 	}
-	sigPath := manifestPath + ".signed"
 
-	if err := trust.VerifyManifest(bytes, sigPath, certPath, caPath); err != nil {
+	if err := trust.VerifyManifest(bytes, is.SignPath, is.CertPath, capath); err != nil {
 		return InstallFile{}, err
 	}
 
 	var manifest InstallFile
-	err = yaml.Unmarshal(bytes, &manifest)
+	err = json.Unmarshal(bytes, &manifest)
 	if err != nil {
 		return InstallFile{}, fmt.Errorf("Failed parsing manifest: %w", err)
 	}
 
-	// We've verified the install.yaml contents.  Now verify that the container
+	// We've verified the install.json contents.  Now verify that the container
 	// image manifest files pointed to have not been altered.
 	for _, t := range manifest.Targets {
-		if srcDir != "" {
+		if is.ocirepo != nil {
 			// Import the layer into our zot store.
 			// We could consider deleting the layer if VerifyTarget fails below.
 			// This is not terribly important as nothing will use it,
 			// unless there's a manifest which is properly signed which refers
 			// to it, in which case we'll regret having deleted it...
-			if err := s.ImportTarget(srcDir, &t); err != nil {
+			src := fmt.Sprintf("docker://%s/mos:%s", is.ocirepo.addr, dropHashAlg(t.Digest))
+			if err := s.ImportTarget(src, &t); err != nil {
 				return InstallFile{}, err
 			}
 		}
@@ -243,67 +247,24 @@ func (ts InstallTargets) Validate() error {
 	return nil
 }
 
-// From a list of targets provided by the user, build an install.yaml.
-// Most of the fields are not set here, but need to be set by the caller.
-// The function simply
-//   1. unmarshalls the input file
-//   2. replace the ImagePath from one which is used to import to one one which
-//      will be used on the host.
-func ManifestFromTargets(infile string) (InstallFile, InstallTargets, error) {
-	bad1 := InstallFile{}
-	bad2 := InstallTargets{}
+// The import manifest (manifest.yaml) which the user writes,
+// and which mosb converts into an install.json.
 
-	bytes, err := os.ReadFile(infile)
-	if err != nil {
-		return bad1, bad2, fmt.Errorf("Failed reading %q: %w", infile, err)
-	}
-
-	manifest := InstallFile{}
-	if err := yaml.Unmarshal(bytes, &manifest); err != nil {
-		return bad1, bad2, fmt.Errorf("Failed unmarshaling input file: %w", err)
-	}
-
-	inTargets := InstallTargets{}
-	for key, t := range manifest.Targets {
-		inTargets = append(inTargets, t)
-		b, err := calculateImagePath(t.ImagePath)
-		if err != nil {
-			return bad1, bad2, fmt.Errorf("Failed parsing image path %q: %w", t.ImagePath, err)
-		}
-		manifest.Targets[key].ImagePath = b
-	}
-
-	return manifest, inTargets, nil
+type ImportFile struct {
+	Version     int            `yaml:"version"`
+	Product     string         `yaml:"product"`
+	Targets     UserTargets  `yaml:"targets"`
+	UpdateType  UpdateType     `yaml:"update_type"`
 }
 
-func calculateImagePath(url string) (string, error) {
-	src, err := imagesource.NewImageSource(url)
-	if err != nil {
-		return "", err
-	}
-
-	// For oci:oci:image:version, src.Url will be oci:image:version, and we
-	// want to return 'image'.
-	// For docker://zothub.io/machine/baseos:1.0.2 src.Url will be
-	// zothub.io/machine/baseos:1.0.2, and we want to return machine/baseos
-
-	switch src.Type {
-	case "oci":
-		tag, err := src.ParseTag()
-		if err != nil {
-			return "", err
-		}
-		r := strings.SplitN(tag, ":", 2)
-		return r[0], nil
-	case "docker":
-		du, err := imagesource.NewDockerishUrl(url)
-		if err != nil {
-			return "", err
-		}
-		tag := strings.TrimPrefix(du.Path, "/")
-		r := strings.SplitN(tag, ":", 2)
-		return r[0], nil
-	default:
-		return "", fmt.Errorf("Unhandled image type %s", src.Type)
-	}
+type UserTarget struct {
+	ServiceName  string        `yaml:"service_name"` // name of target
+	Source       string        `yaml:"source"`       // docker url from which to fetch
+	Version      string        `yaml:"version"`      // A version for internal use.
+	ServiceType  ServiceType   `yaml:"service_type"`
+	Network      TargetNetwork `yaml:"network"`
+	NSGroup      string        `yaml:"nsgroup"`
+	Digest       string        `yaml:"digest"`
+	Size         int64         `yaml:"size"`
 }
+type UserTargets []UserTarget
