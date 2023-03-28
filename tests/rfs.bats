@@ -2,9 +2,11 @@ load helpers
 
 function setup() {
 	common_setup
+	zot_setup
 }
 
 function teardown() {
+	zot_teardown
 	common_teardown
 }
 
@@ -17,8 +19,7 @@ function teardown() {
 unshare -m -- << "XXX"
 #!/bin/bash
 set -e
-./mosctl create-boot-fs --readonly -c $TMPD/config -a $TMPD/atomfs-store \
-   -s $TMPD/scratch-writes --ca-path $TMPD/manifestCA.pem --dest $TMPD/mnt
+./mosctl create-boot-fs --readonly --rfs "$TMPD" --dest $TMPD/mnt
 sleep 1s
 [ -e $TMPD/mnt/etc ]
 failed=0
@@ -38,8 +39,7 @@ EOF
 unshare -m -- << "XXX"
 #!/bin/bash
 set -e
-./mosctl create-boot-fs -c $TMPD/config -a $TMPD/atomfs-store \
-   -s $TMPD/scratch-writes --ca-path $TMPD/manifestCA.pem --dest $TMPD/mnt
+./mosctl create-boot-fs --rfs "$TMPD" --dest $TMPD/mnt
 sleep 1s
 [ -e $TMPD/mnt/etc ]
 echo testing > $TMPD/mnt/helloworld
@@ -51,10 +51,11 @@ EOF
 
 @test "create boot filesystem with corrupted manifest" {
 	good_install hostfsonly
-	# Make the install.yaml fail verification with install.yaml.signature
+	# Make the install.json fail verification with install.json.signature
 	pushd "${TMPD}/config/manifest.git"
-	sed -i 's/^targets:/\n\0/' *.yaml
-	git add *.yaml
+	cat *.json
+	sed -i 's/$/ $/' *.json
+	git add *.json
 	me="test-user <test-user@example.com>"
 	git commit -m "corrupt"
 	popd
@@ -66,8 +67,7 @@ unshare -m -- << "XXX"
 #!/bin/bash
 set -e
 failed=0
-if ./mosctl create-boot-fs -c $TMPD/config -a $TMPD/atomfs-store \
-   -s $TMPD/scratch-writes --ca-path $TMPD/manifestCA.pem --dest $TMPD/mnt; then
+if ./mosctl create-boot-fs --rfs "$TMPD" --dest $TMPD/mnt; then
    echo "mosctl create-boot-fs should have failed"
    false
 else

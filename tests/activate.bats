@@ -2,9 +2,11 @@ load helpers
 
 function setup() {
 	common_setup
+	zot_setup
 }
 
 function teardown() {
+	zot_teardown
 	common_teardown
 }
 
@@ -15,12 +17,12 @@ function teardown() {
 unshare -m -- << "XXX"
 #!/bin/bash
 set -e
-./mosctl activate -r $TMPD -t hostfstarget -capath $TMPD/manifestCA.pem
+./mosctl activate -r $TMPD -t hostfstarget -capath $TMPD/factory/secure/manifestCA.pem
 [ -e $TMPD/mnt/atom/hostfstarget/etc ]
 /bin/ls -l $TMPD/mnt/atom/hostfstarget
 cat /proc/self/mountinfo
 # Re-activate, to test stop
-./mosctl activate -r $TMPD -t hostfstarget -capath $TMPD/manifestCA.pem
+./mosctl activate -r $TMPD -t hostfstarget -capath $TMPD/factory/secure/manifestCA.pem
 [ -e $TMPD/mnt/atom/hostfstarget/etc ]
 killall squashfuse || true
 XXX

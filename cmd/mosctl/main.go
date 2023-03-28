@@ -17,7 +17,7 @@ func main() {
 		createBootFsCmd,
 		activateCmd,
 		installCmd,
-		sociCmd,
+		mountCmd,
 		updateCmd,
 	}
 	app.Flags = []cli.Flag{

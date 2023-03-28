@@ -1,23 +1,21 @@
 package mosconfig
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"gopkg.in/yaml.v2"
+	"github.com/pkg/errors"
 )
 
-func (mos *Mos) Update(filename string) error {
-	filename, err := filepath.Abs(filename)
+func (mos *Mos) Update(url string) error {
+	var is InstallSource
+	defer is.Cleanup()
+
+	err := is.FetchFromZot(url)
 	if err != nil {
-		return fmt.Errorf("Failed to make absolute pathname for install file: %w", err)
-	}
-	baseDir := filepath.Dir(filename)
-	cPath := filepath.Join(baseDir, "manifestCert.pem")
-	sPath := filepath.Join(baseDir, "install.yaml.signed")
-	if !PathExists(filename) || !PathExists(cPath) || !PathExists(sPath) {
-		return fmt.Errorf("Install manifest or certificate missing")
+		return err
 	}
 
 	manifest, err := mos.CurrentManifest()
@@ -25,20 +23,21 @@ func (mos *Mos) Update(filename string) error {
 		return err
 	}
 
-	shaSum, err := ShaSum(filename)
+	// TODO - we will drop the git manifest altogether.
+	shaSum, err := ShaSum(is.FilePath)
 	if err != nil {
 		return fmt.Errorf("Failed calculating shasum: %w", err)
 	}
 
-	newIF, err := ReadVerifyManifest(filename, cPath, mos.opts.CaPath, baseDir, mos.storage)
+	newIF, err := ReadVerifyInstallManifest(is, mos.opts.CaPath, mos.storage)
 	if err != nil {
-		return fmt.Errorf("Failed verifying signature on %s: %w", filename, err)
+		return errors.Wrapf(err, "Failed verifying signature on %s", is.FilePath)
 	}
 
-	// The shasum-named install.yaml which we'll place in
+	// The shasum-named install.json which we'll place in
 	// /config/manifest.git
-	mFile := fmt.Sprintf("%s.yaml", shaSum)
-	sFile := fmt.Sprintf("%s.yaml.signed", shaSum)
+	mFile := fmt.Sprintf("%s.json", shaSum)
+	sFile := fmt.Sprintf("%s.json.signed", shaSum)
 	cFile := fmt.Sprintf("%s.pem", shaSum)
 
 	newtargets := SysTargets{}
@@ -50,7 +49,8 @@ func (mos *Mos) Update(filename string) error {
 			raw:    &t,
 		}
 		newtargets = append(newtargets, newT)
-		if err := mos.storage.ImportTarget(baseDir, &t); err != nil {
+		src := fmt.Sprintf("docker://%s/mos:%s", is.ocirepo.addr, dropHashAlg(t.Digest))
+		if err := mos.storage.ImportTarget(src, &t); err != nil {
 			return fmt.Errorf("Failed copying %s: %w", newT.Name, err)
 		}
 	}
@@ -60,33 +60,33 @@ func (mos *Mos) Update(filename string) error {
 		return err
 	}
 
-	tmpdir, err := os.MkdirTemp(filepath.Join(mos.opts.RootDir, "/root"), "newmanifest")
+	tmpdir, err := os.MkdirTemp("", "newmanifest")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tmpdir)
 
 	dest := filepath.Join(tmpdir, mFile)
-	if err = CopyFileBits(filename, dest); err != nil {
-		return fmt.Errorf("Failed copying %q to %q: %w", filename, dest, err)
+	if err = CopyFileBits(is.FilePath, dest); err != nil {
+		return fmt.Errorf("Failed copying %q to %q: %w", is.FilePath, dest, err)
 	}
 
 	dest = filepath.Join(tmpdir, sFile)
-	if err = CopyFileBits(sPath, dest); err != nil {
-		return fmt.Errorf("Failed copying %q to %q: %w", sPath, dest, err)
+	if err = CopyFileBits(is.SignPath, dest); err != nil {
+		return fmt.Errorf("Failed copying %q to %q: %w", is.SignPath, dest, err)
 	}
 
 	dest = filepath.Join(tmpdir, cFile)
-	if err = CopyFileBits(cPath, dest); err != nil {
-		return fmt.Errorf("Failed copying %q to %q: %w", cPath, dest, err)
+	if err = CopyFileBits(is.CertPath, dest); err != nil {
+		return fmt.Errorf("Failed copying %q to %q: %w", is.CertPath, dest, err)
 	}
 
-	bytes, err := yaml.Marshal(&sysmanifest)
+	bytes, err := json.Marshal(&sysmanifest)
 	if err != nil {
 		return fmt.Errorf("Failed marshalling the system manifest")
 	}
 
-	dest = filepath.Join(tmpdir, "manifest.yaml")
+	dest = filepath.Join(tmpdir, "manifest.json")
 	if err = os.WriteFile(dest, bytes, 0640); err != nil {
 		return fmt.Errorf("Failed writing system manifest: %w", err)
 	}

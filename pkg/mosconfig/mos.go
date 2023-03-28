@@ -171,16 +171,16 @@ func (mos *Mos) Current(name string) (*Target, error) {
 func (mos *Mos) Activate(name string) error {
 	t, err := mos.Current(name)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to get current version of %s", name)
 	}
 
 	if t.ServiceType == HostfsService {
-		return fmt.Errorf("Reboot not yet supported, do it yourself")
+		return errors.Errorf("Reboot not yet supported, do it yourself")
 	}
 
 	v, err := mos.RunningVersion(t)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed getting running version of %s", name)
 	}
 
 	log.Infof("running version is \"%q\" wanted version is %q", v, t.Version)
@@ -198,14 +198,14 @@ func (mos *Mos) Activate(name string) error {
 		log.Infof("Stopping target %q", t.ServiceName)
 		err = mos.StopTarget(t)
 		if err != nil {
-			return fmt.Errorf("Failed stopping service %s for update: %w", name, err)
+			return errors.Wrapf(err, "Failed stopping service %s for update", name)
 		}
 		log.Infof("Stopped target %q", t.ServiceName)
 	}
 
 	err = mos.SetupTargetRuntime(t)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Error setting up runtime for %s", name)
 	}
 
 	if t.ServiceType != ContainerService {
@@ -214,7 +214,7 @@ func (mos *Mos) Activate(name string) error {
 
 	err = mos.startInit(t)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Error starting %s", name)
 	}
 
 	return nil
@@ -250,7 +250,7 @@ func (mos *Mos) GetSystarget(t *Target) (*SysTarget, error) {
 		}
 	}
 
-	return &SysTarget{}, fmt.Errorf("No system target found for %s!", t.ImagePath)
+	return &SysTarget{}, fmt.Errorf("No system target found for %s!", t.ServiceName)
 }
 
 func (mos *Mos) startFsOnly(t *Target) error {

@@ -2,104 +2,130 @@ load helpers
 
 function setup() {
 	common_setup
+	zot_setup
 }
 
 function teardown() {
+	zot_teardown
 	common_teardown
 }
 
 @test "simple mos update from local zot" {
 	sum=$(manifest_shasum busybox-squashfs)
-	cat > $TMPD/install.yaml << EOF
-version: 1
-product: de6c82c5-2e01-4c92-949b-a6545d30fc06
-update_type: complete
-targets:
-  - service_name: hostfs
-    imagepath: puzzleos/hostfs
-    version: 1.0.0
-    manifest_hash: $sum
-    service_type: hostfs
-    nsgroup: ""
-    network:
-      type: host
-    mounts: []
+	size=$(manifest_size busybox-squashfs)
+	cat > $TMPD/install.json << EOF
+{
+  "version": 1,
+  "product": "de6c82c5-2e01-4c92-949b-a6545d30fc06",
+  "update_type": "complete",
+  "targets": [
+    {
+      "service_name": "hostfs",
+      "version": "1.0.0",
+      "digest": "sha256:$sum",
+      "size": $size,
+      "service_type": "hostfs",
+      "nsgroup": "",
+      "network": {
+        "type": "host"
+      }
+    }
+  ]
+}
 EOF
-	cat $TMPD/install.yaml
+	skopeo copy --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
+	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
 	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
-		-out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
-	mkdir -p $TMPD/zot/c3
-	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
-	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml
-	[ -f $TMPD/atomfs-store/puzzleos/hostfs/index.json ]
-	sum=$(manifest_shasum busyboxu1-squashfs)
-	cat > $TMPUD/install.yaml << EOF
-version: 1
-product: de6c82c5-2e01-4c92-949b-a6545d30fc06
-update_type: complete
-targets:
-  - service_name: hostfs
-    imagepath: puzzleos/hostfs
-    version: 1.0.2
-    manifest_hash: $sum
-    service_type: hostfs
-    nsgroup: ""
-    network:
-      type: host
-    mounts: []
-EOF
-	cat $TMPUD/install.yaml
-	skopeo copy oci:zothub:busyboxu1-squashfs oci:$TMPUD/oci:hostfs
-	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
-		-out "$TMPUD/install.yaml.signed" "$TMPUD/install.yaml"
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPUD/manifestCA.pem"
+		-out "$TMPD/install.json.signed" "$TMPD/install.json"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
+
 	mkdir -p $TMPD/factory/secure
-	mkdir -p $TMPD/root
-	cp ${KEYS_DIR}/manifest/cert.pem $TMPD/factory/secure/manifestCA.pem
-	./mosctl update -r $TMPD -f $TMPUD/install.yaml
+	cp ${KEYS_DIR}/manifest-ca/cert.pem $TMPD/factory/secure/manifestCA.pem
+	./mosctl install --rfs "$TMPD" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
+	[ -f $TMPD/atomfs-store/mos/index.json ]
+	sum=$(manifest_shasum busyboxu1-squashfs)
+	size=$(manifest_size busyboxu1-squashfs)
+	cat > $TMPD/install.json << EOF
+{
+  "version": 1,
+  "product": "de6c82c5-2e01-4c92-949b-a6545d30fc06",
+  "update_type": "complete",
+  "targets": [
+    {
+      "service_name": "hostfs",
+      "version": "1.0.2",
+      "digest": "sha256:$sum",
+      "size": $size,
+      "service_type": "hostfs",
+      "nsgroup": "",
+      "network": {
+        "type": "host"
+      }
+    }
+  ]
+}
+EOF
+	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json":vnd.machine.install
+	skopeo copy --dest-tls-verify=false oci:zothub:busyboxu1-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
+	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
+		-out "$TMPD/install.json.signed" "$TMPD/install.json"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json.signed"
+	./mosctl update -r $TMPD $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2
 }
 
 @test "update of fs-only layer" {
 	# Simple install
 	sum=$(manifest_shasum busybox-squashfs)
-	cat > $TMPD/install.yaml << EOF
-version: 1
-product: de6c82c5-2e01-4c92-949b-a6545d30fc06
-update_type: complete
-targets:
-  - service_name: hostfs
-    imagepath: puzzleos/hostfs
-    version: 1.0.0
-    manifest_hash: $sum
-    service_type: hostfs
-    nsgroup: ""
-    network:
-      type: host
-    mounts: []
-  - service_name: hostfstarget
-    imagepath: puzzleos/hostfstarget
-    version: 1.0.0
-    manifest_hash: $sum
-    service_type: fs-only
-    nsgroup: ""
-    network:
-      type: none
-    mounts: []
+	size=$(manifest_size busybox-squashfs)
+	cat > $TMPD/install.json << EOF
+{
+  "version": 1,
+  "product": "de6c82c5-2e01-4c92-949b-a6545d30fc06",
+  "update_type": "complete",
+  "targets": [
+    {
+      "service_name": "hostfs",
+      "version": "1.0.0",
+      "digest": "sha256:$sum",
+      "size": $size,
+      "service_type": "hostfs",
+      "nsgroup": "",
+      "network": {
+        "type": "host"
+      }
+    },
+    {
+      "service_name": "hostfstarget",
+      "version": "1.0.0",
+      "digest": "sha256:$sum",
+      "size": $size,
+      "service_type": "fs-only",
+      "nsgroup": "",
+      "network": {
+        "type": "none"
+      }
+    }
+  ]
+}
 EOF
+	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
 	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
-		-out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
-	mkdir -p $TMPD/zot/c3
-	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
-	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfstarget
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
-	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml
+		-out "$TMPD/install.json.signed" "$TMPD/install.json"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
+	skopeo copy --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
+	# In "real life", /factory/secure/ is set up by the signed initrd
+	mkdir -p $TMPD/factory/secure
+	cp ${KEYS_DIR}/manifest-ca/cert.pem $TMPD/factory/secure/manifestCA.pem
+	./mosctl install --rfs "$TMPD" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
 	export TMPD
 	lxc-usernsexec -s -- << "EOF"
 unshare -m -- << "XXX"
 #!/bin/bash
 set -e
-./mosctl activate -r $TMPD -t hostfstarget -capath $TMPD/manifestCA.pem
+./mosctl activate -r $TMPD -t hostfstarget -capath $TMPD/factory/secure/manifestCA.pem
 [ -e $TMPD/mnt/atom/hostfstarget/etc ]
 /bin/ls -l $TMPD/mnt/atom/hostfstarget
 cat /proc/self/mountinfo
@@ -109,43 +135,49 @@ EOF
 
 	# Now upgrade
 	sum=$(manifest_shasum busyboxu1-squashfs)
-	cat > $TMPUD/install.yaml << EOF
-version: 1
-product: de6c82c5-2e01-4c92-949b-a6545d30fc06
-update_type: complete
-targets:
-  - service_name: hostfs
-    imagepath: puzzleos/hostfs
-    version: 1.0.2
-    manifest_hash: $sum
-    service_type: hostfs
-    nsgroup: ""
-    network:
-      type: host
-    mounts: []
-  - service_name: hostfstarget
-    imagepath: puzzleos/hostfstarget
-    version: 1.0.2
-    manifest_hash: $sum
-    service_type: fs-only
-    nsgroup: ""
-    network:
-      type: none
-    mounts: []
+	size=$(manifest_size busyboxu1-squashfs)
+	cat > $TMPD/install.json << EOF
+{
+  "version": 1,
+  "product": "de6c82c5-2e01-4c92-949b-a6545d30fc06",
+  "update_type": "complete",
+  "targets": [
+    {
+      "service_name": "hostfs",
+      "version": "1.0.2",
+      "digest": "sha256:$sum",
+      "size": $size,
+      "service_type": "hostfs",
+      "nsgroup": "",
+      "network": {
+        "type": "host"
+      }
+    },
+    {
+      "service_name": "hostfstarget",
+      "version": "1.0.2",
+      "digest": "sha256:$sum",
+      "size": $size,
+      "service_type": "fs-only",
+      "nsgroup": "",
+      "network": {
+        "type": "none"
+      }
+    }
+  ]
+}
 EOF
-	skopeo copy oci:zothub:busyboxu1-squashfs oci:$TMPUD/oci:hostfs
-	skopeo copy oci:zothub:busyboxu1-squashfs oci:$TMPUD/oci:hostfstarget
+	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json":vnd.machine.install
+	skopeo copy --dest-tls-verify=false oci:zothub:busyboxu1-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
 	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
-		-out "$TMPUD/install.yaml.signed" "$TMPUD/install.yaml"
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPUD/manifestCA.pem"
-	mkdir -p $TMPD/factory/secure
-	mkdir -p $TMPD/root
-	cp ${KEYS_DIR}/manifest/cert.pem $TMPD/factory/secure/manifestCA.pem
+		-out "$TMPD/install.json.signed" "$TMPD/install.json"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json.signed"
 	echo "BEFORE UPDATE"
 	ls -l $TMPD/config/manifest.git
 	(cd $TMPD/config/manifest.git; git status)
 	echo "END OF BEFORE UPDATE"
-	./mosctl update -r $TMPD -f $TMPUD/install.yaml
+	./mosctl update -r $TMPD $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2
 
 	ls -l $TMPD/config/manifest.git
 	(cd $TMPD/config/manifest.git; git status)
@@ -154,7 +186,7 @@ EOF
 unshare -m -- << "XXX"
 #!/bin/bash
 set -e
-./mosctl activate -r $TMPD -t hostfstarget -capath $TMPD/manifestCA.pem
+./mosctl activate -r $TMPD -t hostfstarget -capath $TMPD/factory/secure/manifestCA.pem
 [ -e $TMPD/mnt/atom/hostfstarget/etc ]
 /bin/ls -l $TMPD/mnt/atom/hostfstarget
 cat /proc/self/mountinfo
@@ -167,57 +199,71 @@ EOF
 @test "test partial update" {
 	# Simple install
 	sum=$(manifest_shasum busybox-squashfs)
-	cat > $TMPD/install.yaml << EOF
-version: 1
-product: de6c82c5-2e01-4c92-949b-a6545d30fc06
-update_type: complete
-targets:
-  - service_name: hostfs
-    imagepath: puzzleos/hostfs
-    version: 1.0.0
-    manifest_hash: $sum
-    service_type: hostfs
-    nsgroup: ""
-    network:
-      type: host
-    mounts: []
+	size=$(manifest_size busybox-squashfs)
+	cat > $TMPD/install.json << EOF
+{
+  "version": 1,
+  "product": "de6c82c5-2e01-4c92-949b-a6545d30fc06",
+  "update_type": "complete",
+  "targets": [
+    {
+      "service_name": "hostfs",
+      "version": "1.0.0",
+      "digest": "sha256:$sum",
+      "size": $size,
+      "service_type": "hostfs",
+      "nsgroup": "",
+      "network": {
+        "type": "host"
+      }
+    }
+  ]
+}
 EOF
+	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
 	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
-		-out "$TMPD/install.yaml.signed" "$TMPD/install.yaml"
-	mkdir -p $TMPD/zot/c3
-	skopeo copy oci:zothub:busybox-squashfs oci:$TMPD/oci:hostfs
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/manifestCA.pem"
-	./mosctl install -c $TMPD/config -a $TMPD/atomfs-store -f $TMPD/install.yaml
+		-out "$TMPD/install.json.signed" "$TMPD/install.json"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
+	skopeo copy --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
+	mkdir -p $TMPD/factory/secure
+	cp ${KEYS_DIR}/manifest-ca/cert.pem $TMPD/factory/secure/manifestCA.pem
+	./mosctl install --rfs "$TMPD" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
 
 	# Now do a partial upgrade to install hostfstarget
 	sum=$(manifest_shasum busyboxu1-squashfs)
-	cat > $TMPUD/install.yaml << EOF
-version: 1
-product: de6c82c5-2e01-4c92-949b-a6545d30fc06
-update_type: partial
-targets:
-  - service_name: hostfstarget
-    imagepath: puzzleos/hostfstarget
-    version: 1.0.2
-    manifest_hash: $sum
-    service_type: fs-only
-    nsgroup: ""
-    network:
-      type: none
-    mounts: []
+	size=$(manifest_size busyboxu1-squashfs)
+	cat > $TMPD/install.json << EOF
+{
+  "version": 1,
+  "product": "de6c82c5-2e01-4c92-949b-a6545d30fc06",
+  "update_type": "partial",
+  "targets": [
+    {
+      "service_name": "hostfstarget",
+      "version": "1.0.2",
+      "digest": "sha256:$sum",
+      "size": $size,
+      "service_type": "fs-only",
+      "nsgroup": "",
+      "network": {
+        "type": "none"
+      }
+    }
+  ]
+}
 EOF
-	skopeo copy oci:zothub:busyboxu1-squashfs oci:$TMPUD/oci:hostfstarget
+	skopeo copy --dest-tls-verify=false oci:zothub:busyboxu1-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
+	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json":vnd.machine.install
 	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
-		-out "$TMPUD/install.yaml.signed" "$TMPUD/install.yaml"
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPUD/manifestCA.pem"
-	mkdir -p $TMPD/factory/secure
-	mkdir -p $TMPD/root
-	cp ${KEYS_DIR}/manifest/cert.pem $TMPD/factory/secure/manifestCA.pem
+		-out "$TMPD/install.json.signed" "$TMPD/install.json"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json.signed"
 	echo "BEFORE UPDATE"
 	ls -l $TMPD/config/manifest.git
 	(cd $TMPD/config/manifest.git; git status)
 	echo "END OF BEFORE UPDATE"
-	./mosctl update -r $TMPD -f $TMPUD/install.yaml
+	./mosctl update -r $TMPD $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2
 	echo "AFTER UPDATE"
 	ls -l $TMPD/config/manifest.git
 	(cd $TMPD/config/manifest.git; git status; git log)
@@ -228,12 +274,12 @@ EOF
 unshare -m -- << "XXX"
 #!/bin/bash
 set -e
-./mosctl activate -r $TMPD -t hostfstarget -capath $TMPD/manifestCA.pem
+./mosctl activate -r $TMPD -t hostfstarget -capath $TMPD/factory/secure/manifestCA.pem
 [ -e $TMPD/mnt/atom/hostfstarget/etc ]
 /bin/ls -l $TMPD/mnt/atom/hostfstarget
 cat /proc/self/mountinfo
 # Re-activate, to test stop
-./mosctl activate -r $TMPD -t hostfstarget -capath $TMPD/manifestCA.pem
+./mosctl activate -r $TMPD -t hostfstarget -capath $TMPD/factory/secure/manifestCA.pem
 [ -e $TMPD/mnt/atom/hostfstarget/etc ]
 [ -e $TMPD/mnt/atom/hostfstarget/u1 ]
 killall squashfuse || true
@@ -247,8 +293,7 @@ EOF
 unshare -m -- << "XXX"
 #!/bin/bash
 set -e
-./mosctl create-boot-fs --readonly -c $TMPD/config -a $TMPD/atomfs-store \
-   -s $TMPD/scratch-writes --ca-path $TMPD/manifestCA.pem --dest $TMPD/mnt
+./mosctl create-boot-fs --readonly --rfs $TMPD --dest $TMPD/mnt
 sleep 1s
 [ -e $TMPD/mnt/etc ]
 failed=0
