@@ -67,6 +67,9 @@ jobs:
           make
       - name: test
         run: |
+          id
+          chmod go+rx /run/user/1001
+          chmod go+rx /run/user/1001/containers
           timeout 20m make test
       - name: Release
         uses: softprops/action-gh-release@v1
