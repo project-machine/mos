@@ -46,6 +46,10 @@ CA, and a mos bringup program which will enforce proper signatures.
 
 ## Development
 
+There are some dependencies required for building and running.  The surest
+way to get an uptodate list of dependencies is to look at what the github
+action workflow (.github/workflows/build.yml) is installing.
+
 ```
 go get ./...
 make
@@ -54,38 +58,33 @@ make test
 
 ## Layout
 
-pkg/mosconfig contains the code for installing, updating,
-and booting a mos system.
+pkg/mosconfig contains the code for installing, updating, and booting a mos
+system.
 
-cmd/mosctl builds 'mosctl', the frontend binary.
+cmd/mosctl builds 'mosctl', the frontend program used to install and administer
+a mos instance.
 
-## Test notes
+cmd/mosb builds 'mosb', the program used to build install manifests.
 
-To test the more baroque features, we use an lxc container.  This
-must be permitted to mount overlay filesystems.  You can allow this
-by adding
+## Using
 
-```
-mount fstype=overlay,
-```
+Most of what mosb and mosctl do is intended to be hidden behind simpler
+'machine' commands.  The gist however is as follows:
 
-to the lxc-container-default-cgns profile.  THe updated /etc/apparmor.d/lxc/lxc-default-cgns
-should look like:
+1. 'mosb manifest publish' will create, sign, and publish an install
+   manifest.
+2. 'mosctl mount' will mount a remote image which can be used for provisioning
+   or installing a host.
+3. 'mosctl install' will use the published manifest to install a system (once
+   provisioned using 'trust provision').
+4. 'mostctl create-boot-fs', during initrd,  will mount an instance of the root
+   filesystem on an installed system.
+5. 'mosctl update', on an installed and booted system, will update the system
+   configuration from a new install manifest.
+6. 'mosctl activate', on an installed and booted system, will start or restart
+   a service.
 
-```
-# Do not load this file.  Rather, load /etc/apparmor.d/lxc-containers, which
-# will source all profiles under /etc/apparmor.d/lxc
+A (not yet written) 'mosctl boot' will start all listed services.
 
-profile lxc-container-default-cgns flags=(attach_disconnected,mediate_deleted) {
-  #include <abstractions/lxc/container-base>
-
-  # the container may never be allowed to mount devpts.  If it does, it
-  # will remount the host's devpts.  We could allow it to do it with
-  # the newinstance option (but, right now, we don't).
-  deny mount fstype=devpts,
-  mount fstype=cgroup -> /sys/fs/cgroup/**,
-  mount fstype=cgroup2 -> /sys/fs/cgroup/**,
-  mount fstype=overlay,
-}
-```
-Reload this by calling "sudo systemctl restart apparmor".
+A containerized service will be responsible for periodically fetching
+(TUF-protected) manifest updates.
