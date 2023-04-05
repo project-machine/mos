@@ -9,7 +9,7 @@ ORAS := $(TOOLSDIR)/bin/oras
 ORAS_VERSION := 1.0.0-rc.1
 # project-machine trust
 TRUST := $(TOOLSDIR)/bin/trust
-TRUST_VERSION := 0.0.2
+TRUST_VERSION := 0.0.3
 
 all: mosctl mosb $(ZOT) $(ORAS)
 
