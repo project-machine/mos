@@ -7,6 +7,17 @@ function common_setup {
 		stacker --oci-dir zothub build --layer-type squashfs
 	fi
 
+	# back up any existing machine config under XDG
+	MDIR=~/.local/share/machine
+	BACKUP=~/.local/share/machine.backup
+	if [ -d "$BACKUP" ]; then
+		rm -rf "$BACKUP"
+	fi
+	if [ -d "$MDIR" ]; then
+		mv "$MDIR" "$BACKUP"
+	fi
+
+	# set up test git
 	local name="test-user" email="test-user@example.com"
 	export \
         GIT_AUTHOR_NAME="$name" \
@@ -14,17 +25,16 @@ function common_setup {
         GIT_COMMITTER_NAME="$name" \
         GIT_COMMITTER_EMAIL="$email"
 
-	if [ -z "${KEYS_DIR}" ]; then
-		export KEYS_DIR="${PWD}/keys"
-		if [ ! -d "${KEYS_DIR}" ]; then
-			git clone https://github.com/project-machine/keys
-		fi
-	fi
+	# set up temporary directories for installs
 	export TMPD=$(mktemp -d "${PWD}/batstest-XXXXX")
 	export TMPUD=$(mktemp -d "${PWD}/batstest-XXXXX")
-	mkdir -p "$TMPD/config" "$TMPD/atomfs-store" "$TMPD/scratch-writes"
-	cp "${KEYS_DIR}/manifest/cert.pem" "$TMPD/manifestCert.pem"
-	cp "${KEYS_DIR}/manifest/cert.pem" "$TMPUD/manifestCert.pem"
+	mkdir -p "$TMPD/config" "$TMPD/atomfs-store" "$TMPD/scratch-writes" "$TMPD/bin"
+
+	# setup a trust keyset
+	trust keyset add mos
+	export CA_PEM=~/.local/share/machine/trust/keys/mos/manifest-ca/cert.pem
+	export M_CERT=~/.local/share/machine/trust/keys/mos/manifest/default/cert.pem
+	export M_KEY=~/.local/share/machine/trust/keys/mos/manifest/default/privkey.pem
 }
 
 if [ -z "$ZOT" ]; then
@@ -75,6 +85,12 @@ EOF
 }
 
 function common_teardown {
+	if [ -d "$MDIR" ]; then
+		rm -rf "$MDIR"
+	fi
+	if [ -d "$BACKUP" ]; then
+		mv "$BACKUP" "$MDIR"
+	fi
 	echo "Deleting $TMPD and $TMPUD"
 	if [ -n $TMPD ]; then
 		lxc-usernsexec -s -- rm -rf $TMPD
@@ -219,13 +235,12 @@ EOF
 function good_install {
 	spectype=$1
 	write_install_yaml "$spectype"
-	./mosb manifest publish --key "${KEYS_DIR}/manifest/privkey.pem" \
-		--cert "${KEYS_DIR}/manifest/cert.pem" \
+	./mosb manifest publish \
 		--repo ${ZOT_HOST}:${ZOT_PORT} --name puzzleos/install:1.0.0 \
-		$TMPD/manifest.yaml
+		--project mos:default $TMPD/manifest.yaml
 	rm $TMPD/manifest.yaml
 	mkdir -p $TMPD/factory/secure
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/factory/secure/manifestCA.pem"
+	cp "$CA_PEM" "$TMPD/factory/secure/manifestCA.pem"
 	./mosctl --debug install --rfs "$TMPD" \
 	    ${ZOT_HOST}:${ZOT_PORT}/puzzleos/install:1.0.0
 }

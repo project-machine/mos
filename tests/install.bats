@@ -12,8 +12,7 @@ function teardown() {
 
 @test "mosctl manifest publish" {
 	write_install_yaml "hostfsonly"
-	./mosb manifest publish --key "${KEYS_DIR}/manifest/privkey.pem" \
-		--cert "${KEYS_DIR}/manifest-ca/cert.pem" \
+	./mosb manifest publish --product mos:default \
 		--repo ${ZOT_HOST}:${ZOT_PORT} --name machine/install:1.0.0 \
 		$TMPD/manifest.yaml
 	[ -f $TMPD/zot/mos/index.json ]  # the layers were pushed
@@ -23,12 +22,10 @@ function teardown() {
 
 @test "mosctl manifest publish twice" {
 	write_install_yaml "hostfsonly"
-	./mosb manifest publish --key "${KEYS_DIR}/manifest/privkey.pem" \
-		--cert "${KEYS_DIR}/manifest-ca/cert.pem" \
+	./mosb manifest publish --product mos:default \
 		--repo ${ZOT_HOST}:${ZOT_PORT} --name machine/install:1.0.0 \
 		$TMPD/manifest.yaml
-	./mosb manifest publish --key "${KEYS_DIR}/manifest/privkey.pem" \
-		--cert "${KEYS_DIR}/manifest-ca/cert.pem" \
+	./mosb manifest publish --product mos:default \
 		--repo ${ZOT_HOST}:${ZOT_PORT} --name machine/install:1.0.0 \
 		$TMPD/manifest.yaml
 	[ -f $TMPD/zot/mos/index.json ]  # the layers were pushed
@@ -62,12 +59,12 @@ EOF
 
 	skopeo copy --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
 	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
-	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
+	openssl dgst -sha256 -sign "$M_KEY" \
 		-out "$TMPD/install.json.signed" "$TMPD/install.json"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$M_CERT"
 	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
 	mkdir -p "$TMPD/factory/secure"
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/factory/secure/manifestCA.pem"
+	cp "$CA_PEM" "$TMPD/factory/secure/manifestCA.pem"
 	./mosctl install --rfs $TMPD $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
 	[ -f $TMPD/atomfs-store/mos/index.json ]
 }
@@ -103,10 +100,10 @@ EOF
 	skopeo copy --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
 	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
 	echo "fooled ya" > "$TMPD/install.json.signed"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$M_CERT"
 	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
 	mkdir -p "$TMPD/factory/secure"
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/factory/secure/manifestCA.pem"
+	cp "$CA_PEM" "$TMPD/factory/secure/manifestCA.pem"
 	failed=0
 	./mosctl install --rfs "$TMPD" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 || failed=1
 	[ $failed -eq 1 ]
@@ -125,14 +122,14 @@ EOF
 EOF
 	skopeo copy --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
 	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
-	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
+	openssl dgst -sha256 -sign "$M_KEY" \
 		-out "$TMPD/install.json.signed" "$TMPD/install.json"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$M_CERT"
 	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
 
 	failed=0
 	mkdir -p "$TMPD/factory/secure"
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/factory/secure/manifestCA.pem"
+	cp "$CA_PEM" "$TMPD/factory/secure/manifestCA.pem"
 	./mosctl install --rfs "$TMPD" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 || failed=1
 	[ $failed -eq 1 ]
 }
@@ -164,14 +161,14 @@ EOF
 }
 EOF
 	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
-	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
+	openssl dgst -sha256 -sign "$M_KEY" \
 		-out "$TMPD/install.json.signed" "$TMPD/install.json"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$M_CERT"
 	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
 
 	failed=0
 	mkdir -p "$TMPD/factory/secure"
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/factory/secure/manifestCA.pem"
+	cp "$CA_PEM" "$TMPD/factory/secure/manifestCA.pem"
 	./mosctl install --rfs "$TMPD" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 || failed=1
 	[ $failed -eq 1 ]
 }

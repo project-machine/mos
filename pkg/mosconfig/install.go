@@ -159,20 +159,16 @@ func InitializeMos(ctx *cli.Context) error {
 // format, sign it, and post all referenced layers as well as the
 // manifest, cert, and signature to the listed repository.
 func PublishManifest(ctx *cli.Context) error {
-	cert := ctx.String("cert")
-	if cert == "" {
-		return fmt.Errorf("Certificate filename is required")
-	}
-	key := ctx.String("key")
-	if key == "" {
-		return fmt.Errorf("Key filename is required")
+	proj := ctx.String("project")
+	if proj == "" {
+		return fmt.Errorf("Project is required")
 	}
 	repo := ctx.String("repo")
-	if cert == "" {
+	if repo == "" {
 		return fmt.Errorf("Repo is required")
 	}
 	destpath := ctx.String("name")
-	if cert == "" {
+	if destpath == "" {
 		return fmt.Errorf("Repo is required")
 	}
 	args := ctx.Args()
@@ -255,6 +251,11 @@ func PublishManifest(ctx *cli.Context) error {
 	}
 
 	signPath := filepath.Join(workdir, "install.json.signed")
+
+	key, err := projectKey(proj)
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting manifest signing key")
+	}
 	if err = trust.Sign(filePath, signPath, key); err != nil {
 		return errors.Wrapf(err, "Failed signing file")
 	}
@@ -263,6 +264,11 @@ func PublishManifest(ctx *cli.Context) error {
 	mDigest, mSize, err := PostManifest(filePath, dest)
 	if err != nil {
 		return errors.Wrapf(err, "Failed writing install.json to %s", dest)
+	}
+
+	cert, err := projectCert(proj)
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting manifest signing cert")
 	}
 	if err = PostArtifact(mDigest, mSize, cert, "vnd.machine.pubkeycrt", dest); err != nil {
 		return errors.Wrapf(err, "Failed writing certificate to %s", dest)
@@ -447,4 +453,37 @@ func PostArtifact(refDigest digest.Digest, refSize int64, path, mediatype, dest 
 		return errors.Wrapf(err, "Repo retunrred error for manifest wrapper.  Response was: %q", resp.Status)
 	}
 	return nil
+}
+
+func projectDir(name string) (string, error) {
+	s := strings.SplitN(name, ":", 2)
+	if len(s) != 2 {
+		return "", fmt.Errorf("Invalid project name: use keyset:project")
+	}
+	keyset := s[0]
+	project := s[1]
+	h, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(h, ".local", "share", "machine", "trust", "keys", keyset, "manifest", project), nil
+}
+
+// .local/share/machine/trust/keys/zomg/manifest/project/privkey.pem
+// TODO - projectKey and projectCert should be exported by trust, not
+// guessed at by us.  Or, trust should get its paths from pkg/mosconfig.
+func projectKey(name string) (string, error) {
+	projDir, err := projectDir(name)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(projDir, "privkey.pem"), nil
+}
+
+func projectCert(name string) (string, error) {
+	projDir, err := projectDir(name)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(projDir, "cert.pem"), nil
 }

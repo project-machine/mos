@@ -15,13 +15,8 @@ var manifestCmd = cli.Command{
 			Usage: "build and publish an install manifest",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "key",
-					Usage: "path to manifest signing key to use",
-					Value: "",
-				},
-				cli.StringFlag{
-					Name:  "cert",
-					Usage: "path to manifest certificate to use",
+					Name:  "project, product",
+					Usage: "project (specified as \"keyset:project\") for which to sign the manifest",
 					Value: "",
 				},
 				cli.StringFlag{
