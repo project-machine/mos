@@ -35,13 +35,13 @@ function teardown() {
 EOF
 	skopeo copy --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
 	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
-	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
+	openssl dgst -sha256 -sign "$M_KEY" \
 		-out "$TMPD/install.json.signed" "$TMPD/install.json"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$M_CERT"
 	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
 
 	mkdir -p $TMPD/factory/secure
-	cp ${KEYS_DIR}/manifest-ca/cert.pem $TMPD/factory/secure/manifestCA.pem
+	cp "$CA_PEM" "$TMPD/factory/secure/manifestCA.pem"
 	./mosctl install --rfs "$TMPD" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
 	[ -f $TMPD/atomfs-store/mos/index.json ]
 	sum=$(manifest_shasum busyboxu1-squashfs)
@@ -68,9 +68,9 @@ EOF
 EOF
 	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json":vnd.machine.install
 	skopeo copy --dest-tls-verify=false oci:zothub:busyboxu1-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
-	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
+	openssl dgst -sha256 -sign "$M_KEY" \
 		-out "$TMPD/install.json.signed" "$TMPD/install.json"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$M_CERT"
 	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json.signed"
 	./mosctl update -r $TMPD $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2
 }
@@ -111,14 +111,14 @@ EOF
 }
 EOF
 	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
-	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
+	openssl dgst -sha256 -sign "$M_KEY" \
 		-out "$TMPD/install.json.signed" "$TMPD/install.json"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$M_CERT"
 	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
 	skopeo copy --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
 	# In "real life", /factory/secure/ is set up by the signed initrd
 	mkdir -p $TMPD/factory/secure
-	cp ${KEYS_DIR}/manifest-ca/cert.pem $TMPD/factory/secure/manifestCA.pem
+	cp "$CA_PEM" "$TMPD/factory/secure/manifestCA.pem"
 	./mosctl install --rfs "$TMPD" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
 	export TMPD
 	lxc-usernsexec -s -- << "EOF"
@@ -169,9 +169,9 @@ EOF
 EOF
 	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json":vnd.machine.install
 	skopeo copy --dest-tls-verify=false oci:zothub:busyboxu1-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
-	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
+	openssl dgst -sha256 -sign "$M_KEY" \
 		-out "$TMPD/install.json.signed" "$TMPD/install.json"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$M_CERT"
 	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json.signed"
 	echo "BEFORE UPDATE"
 	ls -l $TMPD/config/manifest.git
@@ -221,13 +221,13 @@ EOF
 }
 EOF
 	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
-	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
+	openssl dgst -sha256 -sign "$M_KEY" \
 		-out "$TMPD/install.json.signed" "$TMPD/install.json"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$M_CERT"
 	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
 	skopeo copy --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
 	mkdir -p $TMPD/factory/secure
-	cp ${KEYS_DIR}/manifest-ca/cert.pem $TMPD/factory/secure/manifestCA.pem
+	cp "$CA_PEM" "$TMPD/factory/secure/manifestCA.pem"
 	./mosctl install --rfs "$TMPD" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
 
 	# Now do a partial upgrade to install hostfstarget
@@ -255,9 +255,9 @@ EOF
 EOF
 	skopeo copy --dest-tls-verify=false oci:zothub:busyboxu1-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
 	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json":vnd.machine.install
-	openssl dgst -sha256 -sign "${KEYS_DIR}/manifest/privkey.pem" \
+	openssl dgst -sha256 -sign "$M_KEY" \
 		-out "$TMPD/install.json.signed" "$TMPD/install.json"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$KEYS_DIR/manifest/cert.pem"
+	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$M_CERT"
 	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json.signed"
 	echo "BEFORE UPDATE"
 	ls -l $TMPD/config/manifest.git

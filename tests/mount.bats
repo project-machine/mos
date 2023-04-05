@@ -31,13 +31,12 @@ EOF
 @test "mount ro livecd filesystem" {
 	write_install_yaml "livecd"
 
-	./mosb manifest publish --key "${KEYS_DIR}/manifest/privkey.pem" \
-		--cert "${KEYS_DIR}/manifest/cert.pem" \
+	./mosb manifest publish --product mos:default \
 		--repo ${ZOT_HOST}:${ZOT_PORT} --name machine/livecd:1.0.0 \
 		$TMPD/manifest.yaml
 
 	mkdir -p "${TMPD}/factory/secure"
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/factory/secure/manifestCA.pem"
+	cp "$CA_PEM" "$TMPD/factory/secure/manifestCA.pem"
 	mkdir -p "${TMPD}/mnt"
 	export TMPD
 	lxc-usernsexec -s -- << "EOF"
@@ -60,13 +59,12 @@ EOF
 @test "mount rw livecd filesystem" {
 	write_install_yaml "livecd"
 
-	./mosb manifest publish --key "${KEYS_DIR}/manifest/privkey.pem" \
-		--cert "${KEYS_DIR}/manifest/cert.pem" \
+	./mosb manifest publish --product mos:default \
 		--repo ${ZOT_HOST}:${ZOT_PORT} --name machine/livecd:1.0.0 \
 		$TMPD/manifest.yaml
 
 	mkdir -p "${TMPD}/factory/secure"
-	cp "${KEYS_DIR}/manifest-ca/cert.pem" "$TMPD/factory/secure/manifestCA.pem"
+	cp "$CA_PEM" "$TMPD/factory/secure/manifestCA.pem"
 	mkdir -p "${TMPD}/mnt"
 	export TMPD
 	lxc-usernsexec -s -- << "EOF"
