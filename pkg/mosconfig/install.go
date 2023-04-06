@@ -206,10 +206,10 @@ func PublishManifest(ctx *cli.Context) error {
 		if err != nil {
 			return errors.Wrapf(err, "Failed checking %s", t.Source)
 		}
-		if t.Digest != digest {
+		if t.Digest != "" && t.Digest != digest {
 			return errors.Errorf("Digest (%s) specified for %s does not match remote image's (%s)", t.Digest, t.Source, digest)
 		}
-		if t.Size != size {
+		if t.Size != 0 && t.Size != size {
 			return errors.Errorf("Size (%d) specified for %s does not match remote image's (%s)", t.Size, t.Source, size)
 		}
 
