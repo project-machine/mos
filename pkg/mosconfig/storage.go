@@ -343,6 +343,7 @@ func (a *AtomfsStorage) ImportTarget(src string, target *Target) error {
 }
 
 func (a *AtomfsStorage) copyRemote(image string, target *Target) error {
+	log.Debugf("Copying (%#v (image %s) to local storage", target, image)
 	tpath := filepath.Join(a.zotPath, "mos")
 	dest := fmt.Sprintf("oci:%s:%s", tpath, target.Digest)
 	err := EnsureDir(tpath)
@@ -350,6 +351,7 @@ func (a *AtomfsStorage) copyRemote(image string, target *Target) error {
 		return errors.Wrapf(err, "Failed creating local zot directory %q", tpath)
 	}
 	copyOpts := lib.ImageCopyOpts{Src: image, Dest: dest, Progress: os.Stdout, SrcSkipTLS: true}
+	log.Debugf("Copying with following options:\n%#v", copyOpts)
 	if err := lib.ImageCopy(copyOpts); err != nil {
 		return errors.Wrapf(err, "failed copying layer")
 	}

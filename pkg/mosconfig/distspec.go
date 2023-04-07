@@ -110,6 +110,22 @@ func dropURLPrefix(url string) string {
 	return url
 }
 
+// PingRepo checks whether a given dist url, say 10.0.2.2:5000, is
+// up.
+func PingRepo(base string) error {
+	url := "http://" + base + "/v2/"
+	resp, err := http.Get(url)
+	if err != nil {
+		return errors.Errorf("Failed connecting to %q", url)
+	}
+	if resp.StatusCode != 200 {
+		return errors.Errorf("Bad status code %d connecting to %q: %d", url, resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	return nil
+}
+
 // Given a 10.0.2.2:5000/foo/install.json, set addr to
 // http://10.0.2.2:5000, and check for connection using
 // http://10.0.2.2:5000/v2
@@ -332,4 +348,10 @@ func (mos *Mos) remoteManifest(url string) (*InstallFile, error) {
 	}
 
 	return &manifest, nil
+}
+
+func dropHashPrefix(d string) string {
+	d = strings.TrimPrefix(d, "sha256:")
+	d = strings.TrimPrefix(d, "sha512:")
+	return d
 }
