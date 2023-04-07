@@ -85,6 +85,29 @@ func (is *InstallSource) FetchFromZot(inUrl string) error {
 	return nil
 }
 
+// SaveToZot: Save an installsource to local zot.
+// Local zot is running on zotport.  The name to be used for the
+// manifest is 'name', e.g. machine/livecd:1.0.0
+func (is *InstallSource) SaveToZot(zotport int, name string) error {
+	repo := fmt.Sprintf("127.0.0.1:%d", zotport)
+
+	// Post install.json as manifest
+	dest := repo + "/" + name
+	mDigest, mSize, err := PostManifest(is.FilePath, dest)
+	if err != nil {
+		return errors.Wrapf(err, "Failed writing install.json to %s", dest)
+	}
+
+	if err = PostArtifact(mDigest, mSize, is.CertPath, "vnd.machine.pubkeycrt", dest); err != nil {
+		return errors.Wrapf(err, "Failed writing certificate to %s", dest)
+	}
+	if err = PostArtifact(mDigest, mSize, is.SignPath, "vnd.machine.signature", dest); err != nil {
+		return errors.Wrapf(err, "Failed writing signature to %s", dest)
+	}
+
+	return nil
+}
+
 func InitializeMos(ctx *cli.Context) error {
 	storeDir := "/atomfs-store"
 	configDir := "/config"

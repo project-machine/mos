@@ -14,6 +14,7 @@ func main() {
 	app.Name = "mosb"
 	app.Version = Version
 	app.Commands = []cli.Command{
+		mkBootCmd,
 		manifestCmd,
 	}
 	app.Flags = []cli.Flag{
