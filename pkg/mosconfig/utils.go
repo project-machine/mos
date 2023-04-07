@@ -230,3 +230,31 @@ func dropHashAlg(d string) string {
 	}
 	return d
 }
+
+// UserDataDir returns the user's data directory
+func UserDataDir() (string, error) {
+	p, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(p, ".local", "share"), nil
+}
+
+// ConfPath returns the user's config directory
+func ConfPath(cluster string) string {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(configDir, "machine", cluster, "machine.yaml")
+}
+
+// MosKeyPath returns the mos/trust key path under which all keysets
+// are found.
+func MosKeyPath() (string, error) {
+	dataDir, err := UserDataDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dataDir, "machine", "trust", "keys"), nil
+}
