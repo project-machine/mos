@@ -19,6 +19,10 @@ func main() {
 		installCmd,
 		mountCmd,
 		updateCmd,
+		// trust subcommands
+		initrdSetupCmd,
+		preInstallCmd,
+		provisionCmd,
 	}
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
