@@ -73,17 +73,18 @@ func (opts ISOOptions) MkisofsArgs() ([]string, error) {
 
 const layoutTree, layoutFlat, layoutNone = "tree", "flat", ""
 type OciBoot struct {
-	KeySet         string
-	Project        string
-	BootURL        string
-	BootStyle      string
-	Files          map[string]string
-	Cdrom          bool
-	Cmdline        string
+	KeySet         string // the trust keyset (e.g. snakeoil) to use
+	Project        string // project within @KeySet whose keys to sign with
+	BootURL        string // the docker:// or oci: URL to the manifest to boot
+	BootStyle      string // Uh, not actually sure - shim or kernel?
+	Files          map[string]string // file to copy in
+	Cdrom          bool   // if true, build a cdrom
+	Cmdline        string // The extra kernel command line to pass
 	BootKit        string // path to directory with bootkit artifacts
-	ZotPort        int
-	OutFile        string
-	BootFromRemote bool // if true, manifest and oci layers are not copied onto boot media
+	ZotPort        int    // port on which a local zot is running
+	OutFile        string // The output file (iso or qcow)
+	BootFromRemote bool   // if true, manifest and oci layers are not copied onto boot media
+	RepoDir        string // The directory against which zot is running - to optionally rsync into iso
 }
 
 func (o *OciBoot) getBootKit() error {
@@ -390,6 +391,16 @@ func (o *OciBoot) Build() error {
 	mkopts, err := opts.MkisofsArgs()
 	if err != nil {
 		return err
+	}
+
+	if !o.BootFromRemote {
+		// copy the zot backing dir in
+		// XXX TODO yikes, but will zot still be writing stuff out?
+		src := o.RepoDir + "/"
+		dest := filepath.Join(tmpd, "oci")
+		if err := RunCommand("rsync", "-va", src, dest + "/"); err != nil{
+			return errors.Wrapf(err, "Failed copying zot cache")
+		}
 	}
 
 	cmd := []string{

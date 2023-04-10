@@ -53,6 +53,14 @@ func doMkBoot(ctx *cli.Context) error {
 		return fmt.Errorf("First argument must be keyset:project")
 	}
 
+	tmpd, err := os.MkdirTemp("", "zot")
+	if err != nil {
+		return errors.Wrapf(err, "Failed creating tempfile")
+	}
+	defer os.RemoveAll(tmpd)
+
+	cachedir := filepath.Join(tmpd, "cache")
+	mosconfig.EnsureDir(cachedir)
 	ociboot := mosconfig.OciBoot{
 		KeySet:         s[0],
 		Project:        s[1],
@@ -62,6 +70,7 @@ func doMkBoot(ctx *cli.Context) error {
 		Cdrom:          ctx.Bool("cdrom"),
 		Cmdline:        ctx.String("cmdline"),
 		BootFromRemote: ctx.Bool("boot-from-remote"),
+		RepoDir:        cachedir,
 	}
 
 	ociboot.Files = map[string]string{}
@@ -74,7 +83,7 @@ func doMkBoot(ctx *cli.Context) error {
 	}
 
 	log.Debugf("Starting zot...")
-	zotport, cleanup, err := startZot()
+	zotport, cleanup, err := startZot(tmpd, cachedir)
 	defer cleanup()
 	if err != nil {
 		return err
@@ -111,19 +120,11 @@ const zotconf = `
 `
 // startZot starts a new zot server on an unused port.  It returns a cleanup
 // function to terminate the zot.
-func startZot() (int, func(), error) {
+func startZot(tmpd, cachedir string) (int, func(), error) {
 	cleanup := func(){}
-	d, err := os.MkdirTemp("", "zot")
-	if err != nil {
-		return -1, func(){}, errors.Wrapf(err, "Failed creating tempfile")
-	}
-	cleanup = func() {
-		os.RemoveAll(d)
-	}
-	confile := filepath.Join(d, "zot-config.json")
-	cachedir := filepath.Join(d, "cache")
+	confile := filepath.Join(tmpd, "zot-config.json")
 	zotport := unusedPort(20000)
-	mosconfig.EnsureDir(cachedir)
+
 	log.Infof("Starting zot on port %d", zotport)
 	conf := fmt.Sprintf(zotconf, cachedir, zotport)
 	log.Infof("zot config: %s", conf)
@@ -132,15 +133,14 @@ func startZot() (int, func(), error) {
 	}
 
 	cmd := exec.Command("zot", "serve", confile)
-	if err = cmd.Start(); err != nil {
+	if err := cmd.Start(); err != nil {
 		return -1, cleanup, errors.Wrapf(err, "Failed starting zot")
 	}
 	cleanup = func() {
 		cmd.Process.Kill()
-		os.RemoveAll(d)
 	}
 
-	if err = waitOnZot(zotport); err != nil {
+	if err := waitOnZot(zotport); err != nil {
 		return -1, cleanup, errors.Wrapf(err, "Zot did not properly start")
 	}
 
