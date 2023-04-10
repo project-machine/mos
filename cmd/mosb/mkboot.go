@@ -23,6 +23,10 @@ var mkBootCmd = cli.Command{
 		  out-file: filename to write bootable image to`,
 	Flags: []cli.Flag{
 		cli.BoolFlag{
+			Name:  "boot-from-remote",
+			Usage: "Configure to boot directly from network",
+		},
+		cli.BoolFlag{
 			Name:  "cdrom",
 			Usage: "create a cdrom (iso9660) rather than a disk",
 		},
@@ -50,13 +54,14 @@ func doMkBoot(ctx *cli.Context) error {
 	}
 
 	ociboot := mosconfig.OciBoot{
-		KeySet:    s[0],
-		Project:   s[1],
-		BootURL:   args[1],
-		BootStyle: ctx.String("boot"),
-		OutFile:   args[2],
-		Cdrom:     ctx.Bool("cdrom"),
-		Cmdline:   ctx.String("cmdline"),
+		KeySet:         s[0],
+		Project:        s[1],
+		BootURL:        args[1],
+		BootStyle:      ctx.String("boot"),
+		OutFile:        args[2],
+		Cdrom:          ctx.Bool("cdrom"),
+		Cmdline:        ctx.String("cmdline"),
+		BootFromRemote: ctx.Bool("boot-from-remote"),
 	}
 
 	ociboot.Files = map[string]string{}

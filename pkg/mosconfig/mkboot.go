@@ -73,16 +73,17 @@ func (opts ISOOptions) MkisofsArgs() ([]string, error) {
 
 const layoutTree, layoutFlat, layoutNone = "tree", "flat", ""
 type OciBoot struct {
-	KeySet     string
-	Project    string
-	BootURL    string
-	BootStyle  string
-	Files      map[string]string
-	Cdrom      bool
-	Cmdline    string
-	BootKit    string // path to directory with bootkit artifacts
-	ZotPort    int
-	OutFile    string
+	KeySet         string
+	Project        string
+	BootURL        string
+	BootStyle      string
+	Files          map[string]string
+	Cdrom          bool
+	Cmdline        string
+	BootKit        string // path to directory with bootkit artifacts
+	ZotPort        int
+	OutFile        string
+	BootFromRemote bool // if true, manifest and oci layers are not copied onto boot media
 }
 
 func (o *OciBoot) getBootKit() error {
@@ -123,7 +124,35 @@ func (o *OciBoot) PopulateEFI(mode BootMode, cmdline string, destd string) error
 	fullCmdline := ""
 	if o.BootURL != "" {
 		// FIXME: fullCmdline root= should be based on type of o.BootLayer (root=soci or root=oci)
-		fullCmdline = "root=soci:name=" + BootLayerName + ",dev=LABEL=" + ISOLabel
+		n := o.BootURL
+		repo := ""
+		if strings.HasPrefix(n, "docker://") {
+			n = strings.TrimPrefix(n, "docker://")
+			split := strings.SplitN(n, "/", 2)
+			if len(split) != 2 {
+				return fmt.Errorf("Bad boot URL: %s", o.BootURL)
+			}
+			if o.BootFromRemote {
+				repo = split[0]
+			} else {
+				repo = "local"
+			}
+			n = split[1]
+		} else if strings.HasPrefix(n, "oci:") {
+			repo = ""
+			split := strings.SplitN(n, ":", 3)
+			if len(split) != 3 {
+				return fmt.Errorf("bad oci url: %s", o.BootURL)
+			}
+			n = split[2]
+		} else {
+			return fmt.Errorf("Unknown boot url: %s", o.BootURL)
+		}
+
+		fullCmdline = "root=soci:name=" + n + ",dev=LABEL=" + ISOLabel
+		if repo != "" {
+			fullCmdline += ",repo=" + repo
+		}
 	}
 	if cmdline != "" {
 		fullCmdline = fullCmdline + " " + cmdline
