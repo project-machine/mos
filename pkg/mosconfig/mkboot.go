@@ -97,11 +97,7 @@ func (o *OciBoot) getBootKit() error {
 		return fmt.Errorf("Keyset not found: %s", o.KeySet)
 	}
 
-	projPath := filepath.Join(keysetPath, "manifest", o.Project)
-	if !PathExists(projPath) {
-		return fmt.Errorf("Project not found: %s", o.Project)
-	}
-	o.BootKit = filepath.Join(projPath, "bootkit")
+	o.BootKit = filepath.Join(keysetPath, "bootkit")
 
 	return nil
 }
