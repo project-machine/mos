@@ -1,0 +1,22 @@
+config:
+    prerequisites:
+      - build.yaml
+
+build-mosb:
+    build_only: true
+    from:
+      type: built
+      tag: build-mos-gosrc
+    binds:
+        - ${{TOP_D}} -> /output
+    run: |
+        #!/bin/bash
+        set -o errexit -o pipefail -o nounset
+        export HOME=/root
+        export GOPATH=$HOME/go
+        mkdir -p $GOPATH
+        cd $HOME/build
+        echo "building mosb ..."
+        go build --tags "${{BUILD_TAGS}}" ./cmd/mosb
+        cp ./mosb /output
+        echo -e "copied mosb to ${{TOP_D}}/mosb\n"

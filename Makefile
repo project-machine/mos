@@ -1,3 +1,8 @@
+DOCKER_BASE ?= docker://
+UBUNTU_MIRROR ?= http://archive.ubuntu.com/ubuntu
+TOP_D := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+BUILD_D = $(TOP_D)/build
+
 BUILD_TAGS = containers_image_openpgp
 TOOLSDIR := $(shell pwd)/hack/tools
 PATH := bin:$(TOOLSDIR)/bin:$(PATH)
@@ -10,14 +15,38 @@ ORAS_VERSION := 1.0.0-rc.1
 # project-machine trust
 TRUST := $(TOOLSDIR)/bin/trust
 TRUST_VERSION := 0.0.3
+# project-stacker stacker
+STACKER := $(TOOLSDIR)/bin/stacker
+STACKER_VERSION := v1.0.0-rc4
 
-all: mosctl mosb $(ZOT) $(ORAS)
+all: mosctl mosb
 
-mosctl: cmd/mosctl/*.go pkg/mosconfig/*.go
-	go build -tags "$(BUILD_TAGS)" ./cmd/mosctl
+mosctl: mosctl.yaml cmd/mosctl/*.go pkg/mosconfig/*.go $(STACKER)
+	$(STACKER) --storage-type=overlay \
+	"--oci-dir=$(BUILD_D)/oci" "--roots-dir=$(BUILD_D)/roots" "--stacker-dir=$(BUILD_D)/stacker" \
+	build --shell-fail \
+	"--substitute=TOP_D=$(TOP_D)" \
+	"--substitute=DOCKER_BASE=$(DOCKER_BASE)" \
+	"--substitute=UBUNTU_MIRROR=$(UBUNTU_MIRROR)" \
+	"--substitute=BUILD_TAGS=$(BUILD_TAGS)" \
+	"--layer-type=tar" \
+	"--stacker-file=mosctl.yaml"
 
-mosb: cmd/mosb/*.go pkg/mosconfig/*.go
-	go build -tags "$(BUILD_TAGS)" ./cmd/mosb
+mosb: mosb.yaml cmd/mosb/*.go pkg/mosconfig/*.go $(STACKER)
+	$(STACKER) --storage-type=overlay \
+	"--oci-dir=$(BUILD_D)/oci" "--roots-dir=$(BUILD_D)/roots" "--stacker-dir=$(BUILD_D)/stacker" \
+	build --shell-fail \
+	"--substitute=TOP_D=$(TOP_D)" \
+	"--substitute=DOCKER_BASE=$(DOCKER_BASE)" \
+	"--substitute=UBUNTU_MIRROR=$(UBUNTU_MIRROR)" \
+	"--substitute=BUILD_TAGS=$(BUILD_TAGS)" \
+	"--layer-type=tar" \
+	"--stacker-file=mosb.yaml"
+
+$(STACKER):
+	mkdir -p $(TOOLSDIR)/bin
+	curl -Lo $(STACKER) https://github.com/project-stacker/stacker/releases/download/$(STACKER_VERSION)/stacker
+	chmod +x $(STACKER)
 
 $(ZOT):
 	mkdir -p $(TOOLSDIR)/bin
@@ -43,6 +72,11 @@ test: mosctl mosb $(ORAS) $(ZOT) $(TRUST)
 	bats tests/update.bats
 	bats tests/mount.bats
 
+.PHONY: clean
 clean:
 	rm -f mosb mosctl
+
+.PHONY: dist-clean
+dist-clean: clean
 	rm -rf $(TOOLSDIR)
+	lxc-usernsexec -s -- rm -Rf "$(TOP_D)/build"

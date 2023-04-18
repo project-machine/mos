@@ -1,0 +1,296 @@
+minbase:
+  build_only: true
+  from:
+    type: docker
+    url: "${{DOCKER_BASE}}ubuntu:jammy"
+  run: |
+  run: |
+    mirror=${{UBUNTU_MIRROR}}
+
+    rel=$(. /etc/os-release && echo "${VERSION_CODENAME}")
+    [ -n "$rel" ]
+
+    cp /etc/apt/sources.list /etc/apt/sources.list.dist
+    cat > /etc/apt/sources.list <<EOF
+    deb [by-hash=force] $mirror ${rel} main universe
+    deb [by-hash=force] $mirror ${rel}-updates main universe
+    deb [by-hash=force] $mirror ${rel}-security main universe
+    EOF
+    cat >"/usr/local/bin/pkgtool" <<"END"
+    #!/bin/sh
+    # shellcheck disable=SC2015,SC2039,SC2166,SC3043
+
+    VERBOSITY=0
+    TEMP_D=""
+    UPDATE_MARKER=/tmp/.${0##*/}.apt-update
+
+    error() { echo "$@" 1>&2; }
+    errorrc() { local r=$?; error "$@" "[rc=$r]"; return $r; }
+    fail() { local r=$?;  [ $r -eq 0 ] && r=1; failrc "$r" "$@"; }
+    failrc() { local r="$1"; shift; [ $# -eq 0 ] || error "$@"; exit "$r"; }
+
+    Usage() {
+        cat <<EOF
+    Usage: ${0##*/} subcmd [ options ]
+
+      Work with packages.
+
+      global options:
+        -v | --verbose - increase verbosity
+        -h | --help - show usage.
+
+      subcmds:
+
+        clean - clean package cache and other downloaded artifacts
+
+        upgrade [options]
+
+           upgrade installed packages.
+           options:
+              --no-clean  - do not clean after upgrade.
+
+        install [options] pkg1 pkg2 ...
+           install provided packages.
+           options:
+              --no-clean  - do not clean after pkg install.
+    EOF
+    }
+
+    bad_Usage() { Usage 1>&2; [ $# -eq 0 ] || error "$@"; return 1; }
+    cleanup() {
+        [ -z "${TEMP_D}" -o ! -d "${TEMP_D}" ] || rm -Rf "${TEMP_D}"
+    }
+
+    debug() {
+        local level="$1"; shift;
+        [ "${level}" -gt "${VERBOSITY}" ] && return
+        error "${@}"
+    }
+
+    marker_is_valid() {
+        local marker="$1" f=""
+        shift
+        [ -f "$marker" ] || {
+            debug 2 "marker $marker did not exist"
+            return 1
+        }
+        for f in "$@"; do
+            [ -f "$f" ] || continue
+            test [ "$f" -ot "$marker" ] || {
+                debug 2 "marker $marker is invalid by $f"
+                return 1
+            }
+        done
+    }
+
+    update() {
+        set -- /etc/apt/sources.list /etc/apt/sources.listd./*.list
+        local f="" n="$#"
+        for f in "$@"; do
+            [ -f "$f" ] && set -- "$@" "$f"
+        done
+        shift $n
+
+        [ $# -ne 0 ] || {
+            error "no sources.list files found."
+            return 1
+        }
+
+        marker_is_valid "$UPDATE_MARKER" "$@" && return 0
+        debug 1 "update marker file $UPDATE_MARKER was not valid."
+
+        set -- "--option=APT::Update::Error-Mode=any"
+        if [ "$VERBOSITY" -ge 2 ]; then
+            set -- --option=Debug::Acquire::http=true \
+                --option=Debug::Acquire::https=true
+        fi
+        runapt "$@" update || {
+            errorrc "apt-get update failed"
+            return
+        }
+
+        touch "$UPDATE_MARKER" || {
+            errorrc "failed to update $UPDATE_MARKER"
+            return
+        }
+        return 0
+    }
+
+    runapt() {
+        local emd=""
+        local quiet=""
+        [ $VERBOSITY -ge 1 ] || quiet="--quiet"
+
+        command -v eatmydata >/dev/null && emd="eatmydata"
+        set -- env LANG=C.UTF-8 LC_ALL=C.UTF-8 \
+            DEBIAN_FRONTEND=noninteractive \
+            $emd apt-get \
+            --option=Dpkg::Options::=--force-confold \
+            --option=Dpkg::options::=--force-unsafe-io \
+            --assume-yes \
+            $quiet "$@"
+        debug 0 "execute:" "$@"
+        "$@" </dev/null || {
+            errorrc "failed $*"
+            return
+        }
+        return 0
+    }
+
+    pkginstall() {
+        local sopts="" lopts="no-clean" out=""
+        out=$(getopt --name "${0##*/}" \
+            --options "$sopts" --long "$lopts" -- "$@") &&
+            eval set -- "${out}" ||
+            { bad_Usage; return; }
+
+        local cur="" clean=true
+        while [ $# -ne 0 ]; do
+            cur="$1"
+            case "$cur" in
+                --no-clean) clean=false;;
+                --) shift; break;;
+            esac
+            shift;
+        done
+
+        local pkgs="$*"
+        update || return
+        runapt install --no-install-recommends "$@" || {
+            errorrc "failed to install $pkgs"
+            return
+        }
+
+        if [ "$clean" = "true" ]; then
+            clean || {
+                errorrc "Failed to clean after installation."
+                return
+            }
+        fi
+
+        return 0
+    }
+
+    upgrade() {
+        local sopts="" lopts="no-clean" out=""
+        out=$(getopt --name "${0##*/}" \
+            --options "$sopts" --long "$lopts" -- "$@") &&
+            eval set -- "${out}" ||
+            { bad_Usage; return; }
+
+        local cur="" clean=true
+        while [ $# -ne 0 ]; do
+            cur="$1"
+            case "$cur" in
+                --no-clean) clean=false;;
+                --) shift; break;;
+            esac
+            shift;
+        done
+
+        update || return
+        runapt dist-upgrade --no-install-recommends "$@" || {
+            errorrc "dist-upgrade failed"
+            return
+        }
+        if [ "$clean" = "true" ]; then
+            clean || {
+                errorrc "Failed to clean after upgrade."
+                return
+            }
+        fi
+        return 0
+    }
+
+    clean() {
+        runapt clean || return
+        rm -Rf "/var/lib/apt/lists/"*
+        rm -f "$UPDATE_MARKER"
+    }
+
+    remove() {
+        apt-get --purge remove "$@"
+    }
+
+    remove_force() {
+        dpkg --force all --purge "$@"
+    }
+
+    main() {
+        while [ $# -ne 0 ]; do
+            case "$1" in
+                -h|--help) Usage main; exit 0;;
+                -v|--verbose) VERBOSITY=$((VERBOSITY+1)); shift; continue;;
+                --) shift; break;;
+                -*) bad_Usage "$1: not a main argument."; return;;
+                *) break;;
+            esac
+        done
+
+        [ $# -gt 0 ] || {
+            bad_Usage "must provide subcommand"
+            return 1
+        }
+        local subcmd="$1" subfunc=""
+        case "$subcmd" in
+            install) subfunc="pkginstall";;
+            upgrade|clean|remove) subfunc="$subcmd";;
+            remove-force) subfunc="remove_force";;
+            *) bad_Usage "Unknown subcommand '$subcmd'."; return 1;;
+        esac
+        shift
+
+        [ "$(id -u)" = "0" ] || { error "Must be root"; return 1; }
+
+        trap cleanup EXIT
+        $subfunc "$@" || fail "$subcmd failed"
+    }
+
+    main "$@"
+    # vi: ts=4 expandtab
+    END
+
+    chmod 0755 /usr/local/bin/pkgtool
+
+    pkgtool upgrade
+    pkgtool install ca-certificates
+
+build-env:
+    build_only: true
+    from:
+      type: built
+      tag: minbase
+    run: |
+        #!/bin/bash
+        set -o errexit -o pipefail -o nounset
+        pkgtool install \
+            build-essential cryptsetup-bin git golang-go libacl1-dev \
+            libarchive-tools libcap-dev libcryptsetup-dev libdevmapper-dev \
+            libgpgme-dev liblxc-dev libpam0g-dev libseccomp-dev \
+            libsquashfs-dev make openssl pkg-config squashfuse umoci
+        mkdir -p /root
+        export HOME=/root
+        chmod ugo+x $HOME
+
+build-mos-gosrc:
+    build_only: true
+    from:
+      type: built
+      tag: build-env
+    import:
+        - ${{TOP_D}}/cmd
+        - ${{TOP_D}}/pkg
+        - ${{TOP_D}}/go.mod
+        - ${{TOP_D}}/go.sum
+    run: |
+        #!/bin/bash
+        set -o errexit -o pipefail -o nounset
+        export HOME=/root
+        export GOPATH=$HOME/go
+        mkdir -p $GOPATH
+
+        mkdir -p $HOME/build
+        cd $HOME/build
+        cp -av /stacker/* .
+        echo "Fetching go modules..."
+        go mod download
