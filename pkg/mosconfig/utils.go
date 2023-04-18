@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,7 +15,9 @@ import (
 	"syscall"
 
 	"github.com/apex/log"
+	"github.com/jsipprell/keyctl"
 	"github.com/msoap/byline"
+	"github.com/pkg/errors"
 )
 
 func IsMountpoint(path string) (bool, error) {
@@ -84,6 +87,16 @@ func CopyFileBits(src, dest string) error {
 		return err
 	}
 	return out.Close()
+}
+
+func RunCommandEnv(env []string, args ...string) error {
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Env = env
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Errorf("%s: %s: %s", strings.Join(args, " "), err, string(output))
+	}
+	return nil
 }
 
 func RunCommand(args ...string) error {
@@ -257,4 +270,33 @@ func MosKeyPath() (string, error) {
 		return "", err
 	}
 	return filepath.Join(dataDir, "machine", "trust", "keys"), nil
+}
+
+func ReadKeyFromUserKeyring(keyName string) (string, error) {
+	keyring, err := keyctl.UserKeyring()
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed opening user keyring for reading")
+	}
+	key, err := keyring.Search(keyName)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed searching user keyring for key: %s", keyName)
+	}
+	b, err := key.Get()
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed reading %s key from user keyring", keyName)
+	}
+	return string(b), nil
+}
+
+// Create a tmpfile, write contents to it, close it, return
+// the filename.
+func WriteTempFile(dir, prefix, contents string) (string, error) {
+	f, err := ioutil.TempFile(dir, prefix)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed opening a tempfile")
+	}
+	name := f.Name()
+	_, err = f.Write([]byte(contents))
+	defer f.Close()
+	return name, errors.Wrapf(err, "Failed writing contents to tempfile")
 }
