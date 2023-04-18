@@ -77,6 +77,7 @@ func NewMos(configDir, storeDir string) (*Mos, error) {
 		LayersReadOnly:   false,
 		ManifestReadOnly: false,
 		NoHostCerts:      true,
+		ScratchWrites:    "/scratch-writes",
 	}
 
 	s, err := NewStorage(opts)

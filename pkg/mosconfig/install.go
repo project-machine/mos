@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/apex/log"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/umoci"
 	"github.com/pkg/errors"
@@ -108,27 +109,14 @@ func (is *InstallSource) SaveToZot(zotport int, name string) error {
 	return nil
 }
 
-func InitializeMos(ctx *cli.Context) error {
-	storeDir := "/atomfs-store"
-	configDir := "/config"
-	caPath := "/factory/secure/manifestCA.pem"
-	rfs := "/"
-	if ctx.IsSet("rfs") {
-		rfs = ctx.String("rfs")
-		caPath = filepath.Join(rfs, caPath)
-		configDir = filepath.Join(rfs, configDir)
-		storeDir = filepath.Join(rfs, storeDir)
-	}
-	if !PathExists(caPath) {
-		return errors.Errorf("Install manifest CA (%s) missing", caPath)
-	}
-	if !PathExists(configDir) {
-		return errors.Errorf("Configuration directory (%s) missing", configDir)
-	}
-	if !PathExists(storeDir) {
-		return errors.Errorf("Storage cache dir (%s) missing", storeDir)
-	}
+type InstallOpts struct {
+	RFS       string
+	CaPath    string
+	ConfigDir string
+	StoreDir  string
+}
 
+func InitializeMos(ctx *cli.Context, opts InstallOpts) error {
 	args := ctx.Args()
 	if len(args) < 1 {
 		return errors.Errorf("An install source is required.\nUsage: mos install [--config-dir /config] [--atomfs-store /atomfs-store] docker://10.0.2.2:5000/mos/install.json:1.0")
@@ -142,7 +130,7 @@ func InitializeMos(ctx *cli.Context) error {
 		return err
 	}
 
-	mos, err := NewMos(configDir, storeDir)
+	mos, err := NewMos(opts.ConfigDir, opts.StoreDir)
 	if err != nil {
 		return errors.Errorf("Error opening manifest: %w", err)
 	}
@@ -155,11 +143,16 @@ func InitializeMos(ctx *cli.Context) error {
 		return errors.Wrapf(err, "Failed parsing install configuration")
 	}
 
+	var boot *Target
 	for _, target := range cf.Targets {
 		src := fmt.Sprintf("docker://%s/mos:%s", is.ocirepo.addr, dropHashAlg(target.Digest))
 		err = mos.storage.ImportTarget(src, &target)
 		if err != nil {
 			return errors.Wrapf(err, "Failed reading targets while initializing mos")
+		}
+		if target.ServiceName == "bootkit" {
+			boot = &target
+			log.Infof("Found a bootkit layer.  Will update EFI with %#v", boot)
 		}
 	}
 
@@ -167,12 +160,86 @@ func InitializeMos(ctx *cli.Context) error {
 		return errors.Errorf("Cannot install with a partial manifest")
 	}
 
-	// Finally set up our manifest store
+	// If there is a bootkit layer, expand than on top of our /boot/efi
+	// TODO - fallback on failure...
+	if boot != nil {
+		log.Infof("Updating boot layer: %#v", boot)
+		err := mos.InstallNewBoot(boot)
+		if err != nil {
+			return errors.Wrapf(err, "Failed installing new boot")
+		}
+	}
+
+	// Set up our manifest store
 	// The manifest will be re-read as it is verified.
-	err = mos.initManifest(is.FilePath, is.CertPath, caPath, configDir)
+	err = mos.initManifest(is.FilePath, is.CertPath, opts.CaPath, opts.ConfigDir)
 	if err != nil {
 		return errors.Errorf("Error initializing system manifest: %w", err)
 	}
+
+	return nil
+}
+
+const StartupNSH = `
+fs0:
+cd fs0:/efi/boot/
+shim.efi kernel.efi root=soci:name=mosboot,repo=local
+`
+
+func (mos *Mos) InstallNewBoot(boot *Target) error {
+	mp, err := os.MkdirTemp("", "bootkit")
+	if err != nil {
+		return errors.Wrapf(err, "Failed creating mount dir")
+	}
+	cleanup, err := mos.storage.Mount(boot, mp)
+	if err != nil {
+		return errors.Wrapf(err, "Failed mounting bootkit")
+	}
+	defer cleanup()
+
+	mounted, err := IsMountpoint("/boot/efi")
+	if err != nil {
+		return errors.Wrapf(err, "Failed checking whether /boot/efi is mounted")
+	}
+	if !mounted {
+		return errors.Wrapf(err, "/boot/efi should have been mounted")
+	}
+
+	os.RemoveAll("/boot/efi/EFI/BOOT.BAK")
+
+	defer func() {
+		if PathExists("/boot/efi/EFI/BOOT.BAK") {
+			os.RemoveAll("/boot/efi/EFI/BOOT")
+			if err := os.Rename("/boot/efi/EFI/BOOT.BAK", "/boot/efi/EFI/BOOT"); err != nil {
+				log.Warnf("Failed restoring boot")
+			}
+		}
+	}()
+	if PathExists("/boot/efi/EFI/BOOT") {
+		err := os.Rename("/boot/efi/EFI/BOOT", "/boot/efi/EFI/BOOT.BAK")
+		if err != nil {
+			return errors.Wrapf(err, "Failed backing up boot directory")
+		}
+	}
+	if err := EnsureDir("/boot/efi/EFI/BOOT"); err != nil {
+		return errors.Wrapf(err, "Failed creating target boot directory")
+	}
+	src := filepath.Join(mp, "bootkit", "shim.efi")
+	dest := "/boot/efi/EFI/BOOT/shim.efi"
+	if err := CopyFileBits(src, dest); err != nil {
+		return errors.Wrapf(err, "Failed copying shim into boot directory")
+	}
+	src = filepath.Join(mp, "bootkit", "kernel.efi")
+	dest = "/boot/efi/EFI/BOOT/kernel.efi"
+	if err := CopyFileBits(src, dest); err != nil {
+		return errors.Wrapf(err, "Failed copying UKI into boot directory")
+	}
+
+	if err := os.WriteFile("/boot/efi/EFI/BOOT/STARTUP.NSH", []byte(StartupNSH), 0644); err != nil {
+		return errors.Wrapf(err, "Failed writing startup.nsh")
+	}
+
+	os.RemoveAll("/boot/efi/EFI/BOOT.BAK")
 
 	return nil
 }
