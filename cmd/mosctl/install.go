@@ -42,15 +42,15 @@ const mib, gib = disko.Mebibyte, disko.Mebibyte * 1024
 const gb = uint64(1000 * 1000 * 1000)
 const espPart, configPart, storePart, scratchPart = "esp", "machine-config", "machine-store", "machine-scratch"
 
-// F79962B9-24E6-9948-9F94-E6BFDAD2771A
+// PartitionTypeIDMachineConfig - F79962B9-24E6-9948-9F94-E6BFDAD2771A
 var PartitionTypeIDMachineConfig = [16]byte{
 	0xb9, 0x62, 0x99, 0xf7, 0xe6, 0x24, 0x48, 0x99, 0x9f, 0x94, 0xe6, 0xbf, 0xda, 0xd2, 0x77, 0x1a}
 
-// F79962B9-24E6-9948-9F94-E6BFDAD2771B
+// PartitionTypeIDMachineStore - F79962B9-24E6-9948-9F94-E6BFDAD2771B
 var PartitionTypeIDMachineStore = [16]byte{
 	0xb9, 0x62, 0x99, 0xf7, 0xe6, 0x24, 0x48, 0x99, 0x9f, 0x94, 0xe6, 0xbf, 0xda, 0xd2, 0x77, 0x1b}
 
-// F79962B9-24E6-9948-9F94-E6BFDAD2771C
+// PartitionTypeIDMachineScratch - F79962B9-24E6-9948-9F94-E6BFDAD2771C
 var PartitionTypeIDMachineScratch = [16]byte{
 	0xb9, 0x62, 0x99, 0xf7, 0xe6, 0x24, 0x48, 0x99, 0x9f, 0x94, 0xe6, 0xbf, 0xda, 0xd2, 0x77, 0x1c}
 
