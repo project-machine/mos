@@ -54,7 +54,7 @@ var PartitionTypeIDMachineStore = [16]byte{
 var PartitionTypeIDMachineScratch = [16]byte{
 	0xb9, 0x62, 0x99, 0xf7, 0xe6, 0x24, 0x48, 0x99, 0x9f, 0x94, 0xe6, 0xbf, 0xda, 0xd2, 0x77, 0x1c}
 
-const MinDiskSpace = 110
+const minDiskSpace = 110 * gib
 
 type newPart struct {
 	Size uint64
@@ -405,14 +405,14 @@ func doPartition(opts mosconfig.InstallOpts) error {
 		err = fmt.Errorf("scan returned empty disk set")
 	}
 
-	// We look for all disks which are > MinDiskSpace, and which either are
+	// We look for all disks which are > minDiskSpace, and which either are
 	// empty or have just partitions other than our SBF and PBF.
 	// We will wipe those all, and use the first one as our install disk.
 	oDisks := []disko.Disk{}
 	for _, d := range disks {
 		foundPbf := false
 		foundSbf := false
-		if d.Size < MinDiskSpace {
+		if d.Size < minDiskSpace {
 			log.Infof("Disk %s is size %d, ignoring", d.Name, d.Size)
 			continue
 		}
