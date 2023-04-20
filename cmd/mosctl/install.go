@@ -153,35 +153,6 @@ func pathForPartition(diskPath string, ptnum int) string {
 	return diskPath + sep + fmt.Sprintf("%d", ptnum)
 }
 
-func getDiskSet(mysys disko.System, paths ...string) (disko.DiskSet, error) {
-	var disks disko.DiskSet
-	var err error
-
-	matchAll := func(d disko.Disk) bool {
-		return true
-	}
-
-	if len(paths) == 0 || (len(paths) == 1 && paths[0] == "all") {
-		disks, err = mysys.ScanAllDisks(matchAll)
-	} else {
-		// just add /dev/ to paths, to allow 'vda' instead of '/dev/vda'
-		pathsWithDev := []string{}
-		for _, p := range paths {
-			if !strings.HasPrefix(p, "/dev/") {
-				p = "/dev/" + p
-			}
-			pathsWithDev = append(pathsWithDev, p)
-		}
-		disks, err = mysys.ScanDisks(matchAll, pathsWithDev...)
-	}
-
-	if len(disks) == 0 {
-		err = fmt.Errorf("scan returned empty disk set")
-	}
-
-	return disks, err
-}
-
 func getPartitions(disk disko.Disk) (disko.PartitionSet, error) {
 	myPts := disko.PartitionSet{}
 
@@ -423,9 +394,15 @@ func doPartition(opts mosconfig.InstallOpts) error {
 	log.Warnf("XXX Note that we are not setting up luks yet")
 
 	mysys := linux.System()
-	disks, err := getDiskSet(mysys, "all")
+	disks, err := mysys.ScanAllDisks(
+		func(d disko.Disk) bool {
+			return true
+		})
 	if err != nil {
 		return err
+	}
+	if len(disks) == 0 {
+		err = fmt.Errorf("scan returned empty disk set")
 	}
 
 	// We look for all disks which are > MinDiskSpace, and which either are
