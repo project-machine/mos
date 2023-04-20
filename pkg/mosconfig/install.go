@@ -143,7 +143,7 @@ func InitializeMos(ctx *cli.Context, opts InstallOpts) error {
 		return errors.Wrapf(err, "Failed parsing install configuration")
 	}
 
-	var boot *Target
+	var boot Target
 	for _, target := range cf.Targets {
 		src := fmt.Sprintf("docker://%s/mos:%s", is.ocirepo.addr, dropHashAlg(target.Digest))
 		err = mos.storage.ImportTarget(src, &target)
@@ -151,7 +151,7 @@ func InitializeMos(ctx *cli.Context, opts InstallOpts) error {
 			return errors.Wrapf(err, "Failed reading targets while initializing mos")
 		}
 		if target.ServiceName == "bootkit" {
-			boot = &target
+			boot = target
 			log.Infof("Found a bootkit layer.  Will update EFI with %#v", boot)
 		}
 	}
@@ -161,8 +161,7 @@ func InitializeMos(ctx *cli.Context, opts InstallOpts) error {
 	}
 
 	// If there is a bootkit layer, expand than on top of our /boot/efi
-	// TODO - fallback on failure...
-	if boot != nil {
+	if boot.ServiceName == "bootkit" {
 		log.Infof("Updating boot layer: %#v", boot)
 		err := mos.InstallNewBoot(boot)
 		if err != nil {
@@ -186,12 +185,12 @@ cd fs0:/efi/boot/
 shim.efi kernel.efi root=soci:name=mosboot,repo=local
 `
 
-func (mos *Mos) InstallNewBoot(boot *Target) error {
+func (mos *Mos) InstallNewBoot(boot Target) error {
 	mp, err := os.MkdirTemp("", "bootkit")
 	if err != nil {
 		return errors.Wrapf(err, "Failed creating mount dir")
 	}
-	cleanup, err := mos.storage.Mount(boot, mp)
+	cleanup, err := mos.storage.Mount(&boot, mp)
 	if err != nil {
 		return errors.Wrapf(err, "Failed mounting bootkit")
 	}
