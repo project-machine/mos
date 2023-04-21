@@ -26,7 +26,7 @@ var installCmd = cli.Command{
 	Flags: []cli.Flag{
 		cli.BoolFlag{
 			Name: "partition",
-			Usage: "Disable to use existing partitioning",
+			Usage: "Wipe disks and create partitions for the new mos install\nIf not enabled, then use existing mounted filesystems",
 		},
 		cli.StringFlag{
 			Name:  "root, rfs, r",
@@ -96,7 +96,7 @@ func placePartitions(disk disko.Disk, parts []newPart) (disko.Disk, error) {
 
 		freespace := fslist[0]
 		start := freespace.Start
-		if freespace.Start < minStart && p.Type != partid.BiosBoot {
+		if freespace.Start < minStart {
 			// only put bbp in the space < minStart. adjust starting pos of others.
 			start = minStart
 			shrunk := start - freespace.Start
@@ -422,8 +422,9 @@ func doPartition(opts mosconfig.InstallOpts) error {
 		return err
 	}
 
-	// We look for a disk which is > MinDiskSpace, and which either is
-	// empty or has just our SBF and PBF.
+	// We look for all disks which are > MinDiskSpace, and which either are
+	// empty or have just partitions other than our SBF and PBF.
+	// We will wipe those all, and use the first one as our install disk.
 	oDisks := []disko.Disk{}
 	for _, d := range disks {
 		foundPbf := false
