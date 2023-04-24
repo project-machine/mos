@@ -15,8 +15,8 @@ import (
 )
 
 var mkBootCmd = cli.Command{
-	Name:  "mkboot",
-	Usage: "build a bootable image/livecd",
+	Name:   "mkboot",
+	Usage:  "build a bootable image/livecd",
 	Action: doMkBoot,
 	UsageText: `url out-file
 		  url: distribution URL to manifest to boot (e.g. 10.0.2.2:5000/puzzleos/hostfs:1.0.1)
@@ -118,10 +118,11 @@ const zotconf = `
   }
 }
 `
+
 // startZot starts a new zot server on an unused port.  It returns a cleanup
 // function to terminate the zot.
 func startZot(tmpd, cachedir string) (int, func(), error) {
-	cleanup := func(){}
+	cleanup := func() {}
 	confile := filepath.Join(tmpd, "zot-config.json")
 	zotport := unusedPort(20000)
 

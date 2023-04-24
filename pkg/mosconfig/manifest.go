@@ -261,9 +261,9 @@ func (mos *Mos) readInstallManifest(gitdir string, l map[string]InstallFile, yNa
 	defer os.RemoveAll(tmpd)
 
 	is := InstallSource{
-		FilePath: filepath.Join(gitdir, yName),
-		CertPath: filepath.Join(gitdir, pemName),
-		SignPath: filepath.Join(gitdir, fmt.Sprintf("%s.signed", yName)),
+		FilePath:     filepath.Join(gitdir, yName),
+		CertPath:     filepath.Join(gitdir, pemName),
+		SignPath:     filepath.Join(gitdir, fmt.Sprintf("%s.signed", yName)),
 		NeedsCleanup: false,
 	}
 	manifest, err := ReadVerifyInstallManifest(is, mos.opts.CaPath, mos.storage)

@@ -13,12 +13,12 @@ import (
 
 	"github.com/apex/log"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/specs-go"
+	ispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/umoci"
 	"github.com/pkg/errors"
 	"github.com/project-machine/trust/pkg/trust"
 	"github.com/urfave/cli"
-	"github.com/opencontainers/image-spec/specs-go"
-	ispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gopkg.in/yaml.v2"
 
 	"stackerbuild.io/stacker/pkg/lib"
@@ -282,8 +282,8 @@ func PublishManifest(ctx *cli.Context) error {
 	}
 
 	install := InstallFile{
-		Version: imports.Version,
-		Product: imports.Product,
+		Version:    imports.Version,
+		Product:    imports.Product,
 		UpdateType: imports.UpdateType,
 	}
 
@@ -304,7 +304,7 @@ func PublishManifest(ctx *cli.Context) error {
 
 		dest := "docker://" + repo + "/mos:" + dropHashAlg(digest)
 		copyOpts := lib.ImageCopyOpts{
-			Src: t.Source,
+			Src:         t.Source,
 			Dest:        dest,
 			Progress:    os.Stdout,
 			SrcSkipTLS:  true,
@@ -402,70 +402,70 @@ func getSizeDigestOCI(inUrl string) (string, int64, error) {
 func PostManifest(path, dest string) (digest.Digest, int64, error) {
 	r, err := NewDistRepo(dest)
 	if err != nil {
-		return "", 0,  errors.Wrapf(err, "Failed parsing destination address")
+		return "", 0, errors.Wrapf(err, "Failed parsing destination address")
 	}
 	murl, err := r.findUrl(dest)
 	if err != nil {
-		return "", 0,  errors.Wrapf(err, "Failed parsing destination name")
+		return "", 0, errors.Wrapf(err, "Failed parsing destination name")
 	}
 
 	// First, post an empty config and get the digest
 	if err := murl.PostEmptyConfig(); err != nil {
-		return "", 0,  err
+		return "", 0, err
 	}
 
 	// Post the actual install.json as a blob
 	fSize, fDigest, err := murl.Post(path)
 	if err != nil {
-		return "", 0,  err
+		return "", 0, err
 	}
 
 	// Finally, build an ispec.Manifest
 	config := ispec.Descriptor{
 		MediaType: "application/vnd.unknown.config.v1+json",
-		Digest: digest.NewDigestFromEncoded(digest.Canonical, "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"),
-		Size: 2,
+		Digest:    digest.NewDigestFromEncoded(digest.Canonical, "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"),
+		Size:      2,
 	}
 	layers := []ispec.Descriptor{
 		ispec.Descriptor{
-			MediaType: "vnd.machine.install",
-			Digest: fDigest,
-			Size: fSize,
+			MediaType:   "vnd.machine.install",
+			Digest:      fDigest,
+			Size:        fSize,
 			Annotations: map[string]string{"org.opencontainers.image.title": "index.json"},
 		},
 	}
 	t := time.Now().Format(time.RFC3339)
 	m := ispec.Manifest{
-		Versioned: specs.Versioned{ SchemaVersion: 2,},
-		MediaType: ispec.MediaTypeImageManifest,
-		Config: config,
-		Layers: layers,
+		Versioned:   specs.Versioned{SchemaVersion: 2},
+		MediaType:   ispec.MediaTypeImageManifest,
+		Config:      config,
+		Layers:      layers,
 		Annotations: map[string]string{ispec.AnnotationCreated: t},
 	}
 
 	b, err := json.Marshal(&m)
 	if err != nil {
-		return "", 0,  errors.Wrapf(err, "Failed marshalling manifest")
+		return "", 0, errors.Wrapf(err, "Failed marshalling manifest")
 	}
 	mSize := int64(len(b))
 	mDigest := digest.FromBytes(b)
 	u := "http://" + murl.repo.addr + "/v2/" + murl.name + "/manifests/" + murl.tag
 	req, err := http.NewRequest(http.MethodPut, u, bytes.NewBuffer(b))
 	if err != nil {
-		return "", 0,  errors.Wrapf(err, "Failed opening PUT request")
+		return "", 0, errors.Wrapf(err, "Failed opening PUT request")
 	}
 	req.Header.Set("Content-Type", ispec.MediaTypeImageManifest)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", 0,  errors.Wrapf(err, "Failed sending PUT request")
+		return "", 0, errors.Wrapf(err, "Failed sending PUT request")
 	}
 	defer resp.Body.Close()
 
 	resp.Body.Close()
 	if resp.StatusCode != 201 {
 		fmt.Printf("response code was %d, %q\n", resp.StatusCode, resp.Status)
-		return "", 0,  errors.Wrapf(err, "Repo retunrred error for manifest wrapper.  Response was: %q", resp.Status)
+		return "", 0, errors.Wrapf(err, "Repo retunrred error for manifest wrapper.  Response was: %q", resp.Status)
 	}
 	return mDigest, mSize, nil
 }
@@ -492,29 +492,29 @@ func PostArtifact(refDigest digest.Digest, refSize int64, path, mediatype, dest 
 	// Construct an ispec.Manifest referring to the blob
 	config := ispec.Descriptor{
 		MediaType: mediatype,
-		Digest: digest.NewDigestFromEncoded(digest.Canonical, "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"),
-		Size: 2,
+		Digest:    digest.NewDigestFromEncoded(digest.Canonical, "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"),
+		Size:      2,
 	}
 	layers := []ispec.Descriptor{
 		ispec.Descriptor{
-			MediaType: ispec.MediaTypeImageLayer,
-			Digest: fDigest,
-			Size: fSize,
+			MediaType:   ispec.MediaTypeImageLayer,
+			Digest:      fDigest,
+			Size:        fSize,
 			Annotations: map[string]string{"org.opencontainers.image.title": filepath.Base(path)},
 		},
 	}
 	subject := ispec.Descriptor{
 		MediaType: ispec.MediaTypeImageManifest,
-		Digest: refDigest,
-		Size: refSize,
+		Digest:    refDigest,
+		Size:      refSize,
 	}
 	t := time.Now().Format(time.RFC3339)
 	manifest := ispec.Manifest{
-		Versioned: specs.Versioned{ SchemaVersion: 2,},
-		MediaType: ispec.MediaTypeImageManifest,
-		Config: config,
-		Layers: layers,
-		Subject: &subject,
+		Versioned:   specs.Versioned{SchemaVersion: 2},
+		MediaType:   ispec.MediaTypeImageManifest,
+		Config:      config,
+		Layers:      layers,
+		Subject:     &subject,
 		Annotations: map[string]string{ispec.AnnotationCreated: t},
 	}
 
