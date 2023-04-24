@@ -56,6 +56,8 @@ var PartitionTypeIDMachineScratch = [16]byte{
 
 const minDiskSpace = 110 * gib
 
+var errNoFactoryFound = errors.New("No Factory partitions found")
+
 type newPart struct {
 	Size uint64
 	Name string
@@ -370,6 +372,95 @@ func zeroStartEnd(fp io.WriteSeeker, start int64, last int64) error {
 	return nil
 }
 
+// DiskPart - a disk and partition number pair.
+type DiskPart struct {
+	Disk disko.Disk
+	PNum uint
+}
+
+type factoryParts struct {
+	Disk      disko.Disk
+	PlainNum  uint
+	SecureNum uint
+}
+
+// findFactoryParts - search provided diskSet and return a factoryParts
+func findFactoryParts(disks disko.DiskSet) (factoryParts, error) {
+	foundCrypt := []DiskPart{}
+	foundPlain := []DiskPart{}
+	retParts := factoryParts{}
+
+	for _, d := range disks {
+		if d.Table != disko.GPT {
+			continue
+		}
+		for _, p := range d.Partitions {
+			newDisk := DiskPart{
+				Disk: d,
+				PNum: p.Number,
+			}
+			if p.Type == trust.PBFPartitionTypeID {
+				foundPlain = append(foundPlain, newDisk)
+			} else if p.Type == trust.SBFPartitionTypeID {
+				foundCrypt = append(foundCrypt, newDisk)
+			}
+		}
+	}
+
+	if len(foundPlain) == 0 && len(foundCrypt) == 0 {
+		return retParts, errNoFactoryFound
+	} else if len(foundPlain) == 1 && len(foundCrypt) == 1 {
+		c := foundCrypt[0]
+		p := foundPlain[0]
+		if p.Disk.Name != c.Disk.Name {
+			return retParts, fmt.Errorf(
+				"Plain (%s) and Secure (%s) factory partitions found on different disks",
+				pathForPartition(p.Disk.Name, p.PNum),
+				pathForPartition(p.Disk.Name, c.PNum),
+			)
+		}
+		retParts.Disk = c.Disk
+		retParts.PlainNum = p.PNum
+		retParts.SecureNum = c.PNum
+		return retParts, nil
+	}
+
+	fdesc := func(parts []DiskPart, label string) string {
+		s := fmt.Sprintf("%d %s", len(parts), label)
+		if len(parts) == 0 {
+			return s
+		}
+		paths := []string{}
+		for _, p := range parts {
+			paths = append(paths, pathForPartition(p.Disk.Name, p.PNum))
+		}
+		return fmt.Sprintf("%s (%s)", s, strings.Join(paths, ", "))
+	}
+
+	return retParts, fmt.Errorf("Expected 1 PBF and 1 SBF. Found %s %s",
+		fdesc(foundPlain, "PBF"), fdesc(foundCrypt, "SBF"))
+}
+
+// findInstallDisk - find a disk to install onto.
+func findInstallDisk(disks disko.DiskSet) (disko.Disk, error) {
+	candList := []string{}
+	for name := range disks {
+		candList = append(candList, name)
+	}
+	sort.Strings(candList)
+
+	for _, name := range candList {
+		d := disks[name]
+		if d.Size < minDiskSpace {
+			log.Infof("Skipping disk %s as it is too small", d.Name)
+			continue
+		}
+		return d, nil
+	}
+
+	return disko.Disk{}, fmt.Errorf("Did not find a valid disk for install.")
+}
+
 // doPartition sets up partitions for
 // 1. EFI (1G)
 // 2. Machine config - configuration backing store (/config, 1G)
@@ -404,61 +495,38 @@ func doPartition(opts mosconfig.InstallOpts) error {
 		err = fmt.Errorf("scan returned empty disk set")
 	}
 
-	// We look for all disks which are > minDiskSpace, and which either are
-	// empty or have just partitions other than our SBF and PBF.
-	// We will wipe those all, and use the first one as our install disk.
-	oDisks := []disko.Disk{}
-	for _, d := range disks {
-		foundPbf := false
-		foundSbf := false
-		if d.Size < minDiskSpace {
-			log.Infof("Disk %s is size %d, ignoring", d.Name, d.Size)
-			continue
-		}
-		if d.Table != disko.GPT {
-			log.Infof("Disk %s is not GPT, accepting", d.Name, d.Size)
-			oDisks = append(oDisks, d)
-			continue
-		}
-		if len(d.Partitions) > 2 {
-			log.Infof("Disk %s has more than two partitions, accepting", d.Name)
-			oDisks = append(oDisks, d)
-			continue
-		}
-		for _, p := range d.Partitions {
-			switch p.Type {
-			case trust.PBFPartitionTypeID:
-				foundPbf = true
-			case trust.SBFPartitionTypeID:
-				foundSbf = true
-			}
-		}
-		if foundPbf || foundSbf {
-			log.Infof("Skipping disk %s as it has PBF or SBF", d.Name)
-			continue
-		}
-		log.Infof("Disk %s has partition which is not PBF or SBF, accepting", d.Name)
-		oDisks = append(oDisks, d)
+	factory, err := findFactoryParts(disks)
+	if err != nil {
+		return fmt.Errorf("Did not find factory data: %v", err)
 	}
 
-	if len(oDisks) < 1 {
-		return errors.Errorf("No suitable disk found for install")
-	}
-
-	disk := oDisks[0]
-
-	// Wipe all disks
-	dontskip := func(disko.Disk, uint) bool { return false }
-	for _, d := range oDisks {
-		log.Infof("Wiping %q", d.Name)
-		err := wipeDiskParts(d, dontskip)
+	installDisk := factory.Disk
+	// if factory disk matches size need, use it for install.
+	if factory.Disk.Size < minDiskSpace {
+		installDisk, err = findInstallDisk(disks)
 		if err != nil {
 			return err
 		}
 	}
 
-	if disk, err = mysys.ScanDisk(disk.Path); err != nil {
-		return errors.Wrapf(err, "Failed reading new partition table")
+	if installDisk.Name == factory.Disk.Name {
+		err := wipeDiskParts(factory.Disk,
+			// skip the factory partitions
+			func(d disko.Disk, p uint) bool {
+				return p == factory.PlainNum || p == factory.SecureNum
+			})
+		if err != nil {
+			return fmt.Errorf("Failed to remove partitions from %s: %v", factory.Disk.Name, err)
+		}
+	} else {
+		if err := mysys.Wipe(installDisk); err != nil {
+			return fmt.Errorf("Failed to wipe disk %s: %v", installDisk.Name, err)
+		}
+	}
+
+	disk, err := mysys.ScanDisk(installDisk.Path)
+	if err != nil {
+		return errors.Wrapf(err, "Failed reading new partition table on %s", installDisk.Path)
 	}
 
 	// partition the first
