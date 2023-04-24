@@ -9,10 +9,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/apex/log"
 	"github.com/anuvu/disko"
 	"github.com/anuvu/disko/linux"
 	"github.com/anuvu/disko/partid"
+	"github.com/apex/log"
 	"github.com/pkg/errors"
 	"github.com/project-machine/mos/pkg/mosconfig"
 	"github.com/project-machine/trust/pkg/trust"
@@ -25,7 +25,7 @@ var installCmd = cli.Command{
 	Action: doInstall,
 	Flags: []cli.Flag{
 		cli.BoolFlag{
-			Name: "partition",
+			Name:  "partition",
 			Usage: "Wipe disks and create partitions for the new mos install\nIf not enabled, then use existing mounted filesystems",
 		},
 		cli.StringFlag{
@@ -37,18 +37,23 @@ var installCmd = cli.Command{
 }
 
 type ptSizes map[string]uint64
+
 const mib, gib = disko.Mebibyte, disko.Mebibyte * 1024
 const gb = uint64(1000 * 1000 * 1000)
 const espPart, configPart, storePart, scratchPart = "esp", "machine-config", "machine-store", "machine-scratch"
+
 // F79962B9-24E6-9948-9F94-E6BFDAD2771A
 var PartitionTypeIDMachineConfig = [16]byte{
 	0xb9, 0x62, 0x99, 0xf7, 0xe6, 0x24, 0x48, 0x99, 0x9f, 0x94, 0xe6, 0xbf, 0xda, 0xd2, 0x77, 0x1a}
+
 // F79962B9-24E6-9948-9F94-E6BFDAD2771B
 var PartitionTypeIDMachineStore = [16]byte{
 	0xb9, 0x62, 0x99, 0xf7, 0xe6, 0x24, 0x48, 0x99, 0x9f, 0x94, 0xe6, 0xbf, 0xda, 0xd2, 0x77, 0x1b}
+
 // F79962B9-24E6-9948-9F94-E6BFDAD2771C
 var PartitionTypeIDMachineScratch = [16]byte{
 	0xb9, 0x62, 0x99, 0xf7, 0xe6, 0x24, 0x48, 0x99, 0x9f, 0x94, 0xe6, 0xbf, 0xda, 0xd2, 0x77, 0x1c}
+
 const MinDiskSpace = 110
 
 type newPart struct {
@@ -264,6 +269,7 @@ huge = {
 	inode_ratio = 65536
 }
 `
+
 type MkExt4Opts struct {
 	Label    string
 	Features []string
@@ -554,10 +560,10 @@ func doPartition(opts mosconfig.InstallOpts) error {
 
 func doInstall(ctx *cli.Context) error {
 	opts := mosconfig.InstallOpts{
-		RFS:           ctx.String("rfs"),
-		StoreDir:      "/atomfs-store",
-		ConfigDir:     "/config",
-		CaPath:        "/factory/secure/manifestCA.pem",
+		RFS:       ctx.String("rfs"),
+		StoreDir:  "/atomfs-store",
+		ConfigDir: "/config",
+		CaPath:    "/factory/secure/manifestCA.pem",
 	}
 
 	if ctx.IsSet("rfs") {

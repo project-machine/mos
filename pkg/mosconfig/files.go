@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pkg/errors"
 	ispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 	"github.com/project-machine/trust/pkg/trust"
 )
 
@@ -75,13 +75,13 @@ const (
 // NSGroup 'ran' will have the same uid mapping.  A service
 // in NSGroup "none" (or "") runs in the host uid network.
 type Target struct {
-	ServiceName  string        `json:"service_name"` // name of target
-	Version      string        `json:"version"`      // docker or oci version tag
-	ServiceType  ServiceType   `json:"service_type"`
-	Network      TargetNetwork `json:"network"`
-	NSGroup      string        `json:"nsgroup"`
-	Digest       string        `json:"digest"`
-	Size         int64         `json:"size"`
+	ServiceName string        `json:"service_name"` // name of target
+	Version     string        `json:"version"`      // docker or oci version tag
+	ServiceType ServiceType   `json:"service_type"`
+	Network     TargetNetwork `json:"network"`
+	NSGroup     string        `json:"nsgroup"`
+	Digest      string        `json:"digest"`
+	Size        int64         `json:"size"`
 }
 type InstallTargets []Target
 
@@ -91,10 +91,10 @@ func (t *Target) NeedsIdmap() bool {
 
 // This describes an install manifest
 type InstallFile struct {
-	Version     int            `json:"version"`
-	Product     string         `json:"product"`
-	Targets     InstallTargets `json:"targets"`
-	UpdateType  UpdateType     `json:"update_type"`
+	Version    int            `json:"version"`
+	Product    string         `json:"product"`
+	Targets    InstallTargets `json:"targets"`
+	UpdateType UpdateType     `json:"update_type"`
 }
 
 // Note we only do combined uid+gid ranges, range 65536, and only starting at
@@ -167,7 +167,6 @@ func (af *InstallFile) GetTarget(target string) (*Target, error) {
 	}
 	return nil, errors.Errorf("No such target: %q", target)
 }
-
 
 func simpleParseInstall(manifestPath string) (InstallFile, error) {
 	bytes, err := os.ReadFile(manifestPath)
@@ -251,20 +250,20 @@ func (ts InstallTargets) Validate() error {
 // and which mosb converts into an install.json.
 
 type ImportFile struct {
-	Version     int            `yaml:"version"`
-	Product     string         `yaml:"product"`
-	Targets     UserTargets  `yaml:"targets"`
-	UpdateType  UpdateType     `yaml:"update_type"`
+	Version    int         `yaml:"version"`
+	Product    string      `yaml:"product"`
+	Targets    UserTargets `yaml:"targets"`
+	UpdateType UpdateType  `yaml:"update_type"`
 }
 
 type UserTarget struct {
-	ServiceName  string        `yaml:"service_name"` // name of target
-	Source       string        `yaml:"source"`       // docker url from which to fetch
-	Version      string        `yaml:"version"`      // A version for internal use.
-	ServiceType  ServiceType   `yaml:"service_type"`
-	Network      TargetNetwork `yaml:"network"`
-	NSGroup      string        `yaml:"nsgroup"`
-	Digest       string        `yaml:"digest"`
-	Size         int64         `yaml:"size"`
+	ServiceName string        `yaml:"service_name"` // name of target
+	Source      string        `yaml:"source"`       // docker url from which to fetch
+	Version     string        `yaml:"version"`      // A version for internal use.
+	ServiceType ServiceType   `yaml:"service_type"`
+	Network     TargetNetwork `yaml:"network"`
+	NSGroup     string        `yaml:"nsgroup"`
+	Digest      string        `yaml:"digest"`
+	Size        int64         `yaml:"size"`
 }
 type UserTargets []UserTarget

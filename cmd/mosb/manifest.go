@@ -12,7 +12,7 @@ var manifestCmd = cli.Command{
 		cli.Command{
 			Name:   "publish",
 			Action: doPublishManifest,
-			Usage: "build and publish an install manifest",
+			Usage:  "build and publish an install manifest",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "project, product",

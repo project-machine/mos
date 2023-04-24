@@ -39,7 +39,6 @@ func doCreateBootfs(ctx *cli.Context) error {
 		opts.RootDir = ctx.String("rfs")
 	}
 
-
 	mos, err := mosconfig.OpenMos(opts)
 	if err != nil {
 		return errors.Wrapf(err, "Error opening mos")
