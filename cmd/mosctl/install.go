@@ -65,7 +65,6 @@ type newPart struct {
 
 // placePartitions - returns a Disk with the provided newParts placed or error.
 func placePartitions(disk disko.Disk, parts []newPart) (disko.Disk, error) {
-	// align on 1mib unit, do not start partitions other than bbp < 4mib
 	const align = 1 * mib
 	const minStart = 4 * mib
 
