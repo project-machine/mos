@@ -139,7 +139,7 @@ func placePartitions(disk disko.Disk, parts []newPart) (disko.Disk, error) {
 }
 
 // return a path for partition ptnum on disk path.
-func pathForPartition(diskPath string, ptnum int) string {
+func pathForPartition(diskPath string, ptnum uint) string {
 	base := filepath.Base(diskPath)
 	sep := ""
 	for _, pre := range []string{"loop", "nvme", "nbd"} {
@@ -481,7 +481,7 @@ func doPartition(opts mosconfig.InstallOpts) error {
 	}
 
 	// create and mount EFI
-	efiPath := pathForPartition(disk.Path, int(byName[espPart].Number))
+	efiPath := pathForPartition(disk.Path, byName[espPart].Number)
 	if err := makeFileSystemEFI(efiPath, int(disk.SectorSize)); err != nil {
 		return errors.Wrapf(err, "Failed creating EFI partition")
 	}
@@ -494,7 +494,7 @@ func doPartition(opts mosconfig.InstallOpts) error {
 	}
 
 	// create and mount /config
-	configPath := pathForPartition(disk.Path, int(byName[configPart].Number))
+	configPath := pathForPartition(disk.Path, byName[configPart].Number)
 	if err := makeFileSystemEXT4(configPath, configPart); err != nil {
 		return errors.Wrapf(err, "Failed creating ext4 on %s", configPath)
 	}
@@ -507,7 +507,7 @@ func doPartition(opts mosconfig.InstallOpts) error {
 
 	// create and mount /atomfs-store
 	// XXX  - should we rename atomfs-store to just /store?
-	storePath := pathForPartition(disk.Path, int(byName[storePart].Number))
+	storePath := pathForPartition(disk.Path, byName[storePart].Number)
 	if err := makeFileSystemEXT4(storePath, storePart); err != nil {
 		return errors.Wrapf(err, "Failed creating ext4 on %s", storePath)
 	}
@@ -519,7 +519,7 @@ func doPartition(opts mosconfig.InstallOpts) error {
 	}
 
 	// create and mount /scratch-writes
-	scratchPath := pathForPartition(disk.Path, int(byName[scratchPart].Number))
+	scratchPath := pathForPartition(disk.Path, byName[scratchPart].Number)
 	if err := makeFileSystemEXT4(scratchPath, scratchPart); err != nil {
 		return errors.Wrapf(err, "Failed creating ext4 on %s", scratchPath)
 	}
