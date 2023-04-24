@@ -18,7 +18,7 @@ import (
 
 const (
 	pubkeyArtifact = "vnd.machine.pubkeycrt"
-	sigArtifact = "vnd.machine.signature"
+	sigArtifact    = "vnd.machine.signature"
 )
 
 type DistUrl struct {
@@ -27,7 +27,9 @@ type DistUrl struct {
 	mDigest string // the digest for this image's manifest
 	mSize   int64
 	fDigest string // the digest for this file's contents - the actual blob digest
-	repo    *DistRepo
+	// if the disturl has multiple layers, then it is not an install
+	// manifest artifact, and fDigest will be ""
+	repo *DistRepo
 }
 
 type DistRepo struct {
@@ -86,16 +88,14 @@ func (r *DistRepo) openUrl(base string) (DistUrl, error) {
 	manifest := ispec.Manifest{}
 	err = json.NewDecoder(resp.Body).Decode(&manifest)
 	if err != nil {
-		    return url, errors.Wrapf(err, "Failed parsing the install artifact manifest")
+		return url, errors.Wrapf(err, "Failed parsing the install artifact manifest")
 	}
 	if len(manifest.Layers) == 0 {
 		return url, errors.Errorf("No layers found in the install artifact manifest!")
 	}
-	if len(manifest.Layers) > 1 {
-		return url, errors.Errorf("More than one layer found in the install artifact manifest.")
+	if len(manifest.Layers) == 1 {
+		url.fDigest = manifest.Layers[0].Digest.String()
 	}
-
-	url.fDigest = manifest.Layers[0].Digest.String()
 
 	return url, nil
 }
@@ -200,7 +200,7 @@ func (r *DistRepo) GetReferrers(disturl DistUrl, artifactType string) (ispec.Ind
 
 	err = json.NewDecoder(body).Decode(&idx)
 	if err != nil {
-		    return idx, errors.Wrapf(err, "Failed parsing the list of referrers")
+		return idx, errors.Wrapf(err, "Failed parsing the list of referrers")
 	}
 
 	if len(idx.Manifests) == 0 {
@@ -284,6 +284,7 @@ func getSizeDigest(inUrl string) (string, int64, error) {
 // serge@jerom ~$ echo -n '{}' | sha256sum
 // 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a  -
 const emptyDigest = "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+
 func (disturl *DistUrl) PostEmptyConfig() error {
 	url := "http://" + disturl.repo.addr + "/v2/" + disturl.name + "/blobs/uploads/?digest=" + emptyDigest
 	buf := bytes.NewBufferString("{}")
@@ -301,7 +302,7 @@ func (disturl *DistUrl) PostEmptyConfig() error {
 func (disturl *DistUrl) Post(path string) (int64, digest.Digest, error) {
 	d := digest.FromString("")
 	b, err := os.ReadFile(path)
-	if err !=  nil {
+	if err != nil {
 		return 0, d, errors.Wrapf(err, "Failed reading %q", path)
 	}
 	fSize := int64(len(b))

@@ -1,0 +1,55 @@
+base:
+  build_only: true
+  from:
+    type: docker
+    url: "docker://zothub.io/machine/bootkit/rootfs:${{ROOTFS_VERSION}}"
+
+rootfs-pkg:
+  build_only: true
+  from:
+    type: built
+    tag: base
+  run: |
+    export DEBIAN_PRIORITY=critical
+    export DEBIAN_FRONTEND=noninteractive
+    pkgtool install udev kmod \
+        tpm2-tools e2fsprogs \
+        openssh-client openssh-server
+
+rootfs:
+  from:
+    type: built
+    tag: rootfs-pkg
+  import:
+    - ${{TMPD}}/mosctl
+    - hello-world
+    - hello-world.service
+    - hello-world-failed.service
+  run: |
+    #!/bin/sh -ex
+    writefile() {
+      mkdir -p "${1%/*}"
+      echo "write $1" 1>&2
+      cat >"$1"
+    }
+
+    writefile /etc/systemd/network/20-wire-enp0s-dhcp.network <<"END"
+    [Match]
+    Name=enp0s*
+    [Network]
+    DHCP=yes
+    END
+
+    cd /stacker
+    cp hello-world /usr/bin
+    chmod 755 /usr/bin/hello-world
+
+    cp hello-world.service hello-world-failed.service /etc/systemd/system/
+    for s in hello-world.service hello-world-failed.service; do
+        systemctl enable $s
+    done
+
+    ## FIXME
+    echo root:passw0rd | chpasswd
+
+    echo livecd > /mos-action

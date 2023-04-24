@@ -31,7 +31,15 @@ function common_setup {
 	mkdir -p "$TMPD/config" "$TMPD/atomfs-store" "$TMPD/scratch-writes" "$TMPD/bin"
 
 	# setup a trust keyset
+	export topdir="$(git rev-parse --show-toplevel)"
+	export PATH="$PATH:${topdir}/hack/tools/bin"
+	[ -e ${topdir}/hack/tools/trust ] || {
+		mkdir -p ${topdir}/hack/tools
+		wget -O ${topdir}/hack/tools/trust https://github.com/project-machine/trust/releases/download/0.0.3/trust
+		chmod 755 ${topdir}/hack/tools/trust
+	}
 	trust keyset add mos
+	trust keyset add default
 	export CA_PEM=~/.local/share/machine/trust/keys/mos/manifest-ca/cert.pem
 	export M_CERT=~/.local/share/machine/trust/keys/mos/manifest/default/cert.pem
 	export M_KEY=~/.local/share/machine/trust/keys/mos/manifest/default/privkey.pem

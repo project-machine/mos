@@ -1,0 +1,14 @@
+[Unit]
+Description=Report success
+After=getty.target multi-user.target local-fs.target
+Conflicts=getty@tty1.service
+OnFailure=hello-world-failed.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/usr/bin/hello-world
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target
