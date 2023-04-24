@@ -1,0 +1,109 @@
+#!/bin/bash
+
+set -e
+set -x
+
+# This script is long enough and a common enough operation that it
+# suggests we should have a mosb subcommand for this.
+
+export PATH=$PATH:.
+
+usage() {
+  echo "Example usage: --project=snakeoil:default --layer=oci:oci:provision-rootfs-squashfs --output provision.iso --help"
+  echo "               --project=snakeoil:default --layer=oci:oci:livecd-rootfs-squashfs --output livecd.iso --help"
+  echo "   For an install cd, specify the target layer, e.g. --tlayer=oci:target-rootfs-squashfs"
+}
+
+short_opts="hp:l:t:o:"
+long_opts="help,project:,layer:,tlayer:,output:"
+o=""
+LAYER=""
+TLAYER=""
+OUTFILE="livecd.iso"
+project=snakeoil:default
+o=$(getopt --name "${0##*/}" --options "${short_opts}" \
+	--long "${long_opts}" -- "$@") && eval set -- "${o}" || { usage; exit 1; }
+while [ $# -ne 0 ]; do
+	cur="$1"
+	next="$2"
+	case "$cur" in
+		-h|--help) usage; exit 0;;
+		-p|--project) project="$next";;
+		-l|--layer) LAYER="$next";;
+		-t|--tlayer) TLAYER="$next";;
+		-o|--output) OUTFILE="$next";;
+		--) shift; break;;
+	esac
+	shift;
+done
+
+if [ -z "$LAYER" ]; then
+	echo "Using default layer: $LAYER, copying it locally if needed"
+	LAYER="oci:oci:rootfs-squashfs"
+fi
+
+echo "building project $project layer $LAYER"
+
+which mosb || {
+  echo "mosb is needed"
+  exit 1
+}
+
+product_uuid() {
+  in="$1"
+  keyset="$(echo $in | cut -d : -f 1)"
+  p="$(echo $in | cut -d : -f 2)"
+  f="$HOME/.local/share/machine/trust/keys/${keyset}/manifest/${p}/uuid"
+  uuid=$(<$f)
+  echo $uuid
+}
+
+BOOTKIT_URL="${BOOTKIT_URL:-docker://zothub.io/machine/bootkit/rootfs:$ROOTFS_VERSION}"
+
+product=$(product_uuid $project)
+rm -f manifest.yaml
+cat > manifest.yaml << EOF
+version: 1
+product: "${product}"
+update_type: complete
+targets:
+  - service_name: livecd
+    source: "$LAYER"
+    version: 1.0.0
+    service_type: fs-only
+    nsgroup: "none"
+    network:
+      type: none
+  - service_name: bootkit
+    source: "$BOOTKIT_URL"
+    version: 1.0.0
+    service_type: fs-only
+    nsgroup: "none"
+    network:
+      type: none
+EOF
+if [ -n "$TLAYER" ]; then
+cat >> manifest.yaml << EOF
+  - service_name: hostfs
+    source: "$TLAYER"
+    version: 1.0.0
+    service_type: hostfs
+    nsgroup: "none"
+    network:
+      type: none
+EOF
+fi
+
+echo "XXX manifest publish start"
+mosb --debug manifest publish \
+  --project $project \
+  --repo 127.0.0.1:${ZOT_PORT} --name machine/livecd:1.0.0 \
+  manifest.yaml
+
+echo "XXX manifest publish DONE"
+
+mosb --debug mkboot --cdrom \
+  --cmdline "console=ttyS0" \
+  $project \
+  docker://127.0.0.1:${ZOT_PORT}/machine/livecd:1.0.0 \
+  ${OUTFILE}

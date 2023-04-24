@@ -27,7 +27,9 @@ type DistUrl struct {
 	mDigest string // the digest for this image's manifest
 	mSize   int64
 	fDigest string // the digest for this file's contents - the actual blob digest
-	repo    *DistRepo
+	// if the disturl has multiple layers, then it is not an install
+	// manifest artifact, and fDigest will be ""
+	repo *DistRepo
 }
 
 type DistRepo struct {
@@ -91,11 +93,9 @@ func (r *DistRepo) openUrl(base string) (DistUrl, error) {
 	if len(manifest.Layers) == 0 {
 		return url, errors.Errorf("No layers found in the install artifact manifest!")
 	}
-	if len(manifest.Layers) > 1 {
-		return url, errors.Errorf("More than one layer found in the install artifact manifest.")
+	if len(manifest.Layers) == 1 {
+		url.fDigest = manifest.Layers[0].Digest.String()
 	}
-
-	url.fDigest = manifest.Layers[0].Digest.String()
 
 	return url, nil
 }
