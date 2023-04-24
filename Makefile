@@ -11,12 +11,14 @@ ORAS_VERSION := 1.0.0-rc.1
 TRUST := $(TOOLSDIR)/bin/trust
 TRUST_VERSION := 0.0.3
 
+GO_SRC=$(shell find cmd pkg  -name "*.go")
+
 all: mosctl mosb $(ZOT) $(ORAS)
 
-mosctl: cmd/mosctl/*.go pkg/mosconfig/*.go
+mosctl: .made-gofmt $(GO_SRC)
 	go build -tags "$(BUILD_TAGS)" ./cmd/mosctl
 
-mosb: cmd/mosb/*.go pkg/mosconfig/*.go
+mosb: .made-gofmt $(GO_SRC)
 	go build -tags "$(BUILD_TAGS)" ./cmd/mosb
 
 $(ZOT):
@@ -34,6 +36,15 @@ $(ORAS):
 	curl -Lo oras.tar.gz https://github.com/oras-project/oras/releases/download/v$(ORAS_VERSION)/oras_$(ORAS_VERSION)_linux_amd64.tar.gz
 	tar xvzf oras.tar.gz -C $(TOOLSDIR)/bin oras
 	rm oras.tar.gz
+
+.PHONY: gofmt
+gofmt: .made-gofmt
+
+.made-gofmt: $(GO_SRC)
+	@o=$$(gofmt -l -w . 2>&1) || \
+	  { r=$$?; echo "gofmt failed [$$r]: $$o" 1>&2; exit $$r; }; \
+	  [ -z "$$o" ] || { echo "gofmt made changes: $$o" 1>&2; exit 1; }
+	@touch $@
 
 .PHONY: test
 test: mosctl mosb $(ORAS) $(ZOT) $(TRUST)
