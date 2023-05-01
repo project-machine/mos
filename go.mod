@@ -11,7 +11,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0-rc2
 	github.com/opencontainers/umoci v0.4.8-0.20220412065115-12453f247749
 	github.com/pkg/errors v0.9.1
-	github.com/project-machine/trust v0.0.0-20230328133207-3462b86c33bb
+	github.com/project-machine/trust v0.0.0-20230501220237-85fe1d884837
 	github.com/urfave/cli v1.22.12
 	golang.org/x/sys v0.6.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -44,6 +44,7 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/emirpasic/gods v1.12.0 // indirect
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3 // indirect
+	github.com/foxboron/go-uefi v0.0.0-20230218004016-d1bb9a12f92c // indirect
 	github.com/freddierice/go-losetup v0.0.0-20220331141030-7ad00c49b973 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.3.1 // indirect
@@ -105,6 +106,7 @@ require (
 	github.com/sigstore/rekor v1.1.0 // indirect
 	github.com/sigstore/sigstore v1.6.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
+	github.com/spf13/afero v1.9.3 // indirect
 	github.com/stefanberger/go-pkcs11uri v0.0.0-20201008174630-78d3cae3a980 // indirect
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 // indirect
 	github.com/theupdateframework/go-tuf v0.5.2 // indirect
