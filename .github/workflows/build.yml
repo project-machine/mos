@@ -5,7 +5,7 @@ name: build
 jobs:
   build:
     name: build
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
     steps:
       - name: Set up environment
         run: |
@@ -21,15 +21,26 @@ jobs:
         run: |
           sudo apt-get update
           sudo add-apt-repository -y ppa:puzzleos/dev
-          sudo apt-get install \
+          sudo apt-get -y install \
             bats cryptsetup-bin expect libacl1-dev libarchive-tools \
             libcryptsetup-dev libgpgme-dev libcap-dev \
             libdevmapper-dev liblxc-dev libpam0g-dev \
-            libseccomp-dev libsquashfs-dev lxc lxc-dev \
-            make mtools openssl socat squashfuse swtpm jq \
-            uidmap umoci qemu-utils qemu-system-x86 xorriso
+            libseccomp-dev libsquashfs-dev lxc lxc-dev make mtools\
+            openssl pkgconf skopeo socat squashfuse swtpm jq \
+            uidmap umoci qemu-utils qemu-system-x86 xorriso \
+            ubuntu-dev-tools make gcc
           sudo modprobe kvm
           sudo adduser $(whoami) kvm
+          sudo chmod o+rw /dev/kvm
+          sudo systemctl restart user@$(id -u runner)
+          sudo systemctl start dbus
+          echo "XXX some debug"
+          cat /proc/self/status
+          ls -l /run/user
+          ls -l /dev/kvm
+          id -u
+          id -u runner
+          ps -ef
       - name: setup lxc
         run: |
           chmod ugo+x $HOME
@@ -54,6 +65,9 @@ jobs:
           lxc.idmap = u 0 $uidmap
           lxc.idmap = g 0 $gidmap
           EOF
+          set -x
+          cat ~/.config/lxc/default.conf
+          cat /etc/subuid
 
           echo "writing /etc/lxc/lxc-usernet"
           echo "$u veth lxcbr0 100" | sudo tee -a /etc/lxc/lxc-usernet
@@ -65,6 +79,7 @@ jobs:
         run: |
           wget -O ~/bin/skopeo --progress=dot:mega https://github.com/project-machine/tools/releases/download/v0.0.1/skopeo
           chmod 755 ~/bin/skopeo
+          sudo cp -f ~/bin/skopeo /usr/bin/skopeo
       - name: make
         run: |
           go get -v ./...
@@ -78,15 +93,24 @@ jobs:
           chmod 755 ~/bin/trust ~/bin/machine ~/bin/machined
           mkdir -p ~/.config/systemd/user/
           export  PATH=~/bin:$PATH
-          machined install
-          systemctl --user start machined
       - name: test
         run: |
           id
-          chmod go+rx /run/user/1001
-          chmod go+rx /run/user/1001/containers
+          mkdir -p /run/user/$(id -u)/containers
+          chmod go+rx /run/user/$(id -u)
+          chmod go+rx /run/user/$(id -u)/containers
+          ./tests/setup_local_bootkit
+          nohup ~/bin/machined > /tmp/machined.out 2>&1 &
           timeout 20m make test
           timeout 20m bats tests/livecd1.bats
+          timeout 20m bats tests/livecd2.bats
+      - name: show journal output
+        if: always()
+        run: |
+          set -x
+          cat /tmp/machined.out
+          sudo dmesg
+          sudo df -h
 
       - name: Release
         uses: softprops/action-gh-release@v1

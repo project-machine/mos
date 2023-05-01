@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -ex
+
+[ -e ~/.local/share/machine/trust/keys/snakeoil/bootkit ] && exit 0
+
+cd $TMPD
+git clone https://github.com/project-machine/bootkit
+cd bootkit
+make build
+umoci unpack --rootless --image ../build-bootkit/oci:bootkit extract
+mv extract/rootfs/bootkit ~/.local/share/machine/trust/keys/snakeoil/bootkit
+
+find ~/.local/share/machine/trust/keys/snakeoil/bootkit

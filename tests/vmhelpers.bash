@@ -17,17 +17,38 @@ function vm_teardown() {
 function wait_for_vm() {
 	count=0
 	while [ $count -lt 5 ]; do
-		machine info ${VMNAME}
-		s=$(machine info ${VMNAME} | grep "^status:" | awk -F: '{ print $2 }');
-		echo "machine status is $s (machine info returned $?)"
-		if [ "$s" != " running" ]; then
+		s=$(machine info ${VMNAME} | awk -F\  '/status:/ { print $2 }')
+		if [ "$s" = "running" ]; then
 			break
 		fi
+		echo "machine status is $s (machine info returned $?)"
 		count=$((count+1))
 		sleep 1
 	done
 	if [ $count -ge 5 ]; then
 		echo "failed starting test VM"
+		exit 1
+	fi
+	echo "machine is up"
+}
+
+function wait_for_vm_down() {
+	count=0
+	while [ $count -lt 20 ]; do
+		s=$(machine info ${VMNAME} | awk -F\  '/status:/ { print $2 }')
+		if [ "$s" = "stopped" ]; then
+			break
+		fi
+		if [ "$s" = "failed" ]; then
+			echo "Warning: ${VMNAME} status is \"failed\""
+			break
+		fi
+		echo "machine info returned status code $?. machine status is $s."
+		count=$((count+1))
+		sleep 1
+	done
+	if [ $count -ge 5 ]; then
+		echo "failed waiting for test VM to stop"
 		exit 1
 	fi
 }

@@ -1,0 +1,14 @@
+#!/bin/bash
+
+mount /dev/sr0 /iso
+cp -r /iso/oci /zot
+umount /iso
+systemctl start zot
+
+modprobe dmverity
+mosctl --debug install --partition docker://127.0.0.1:5000/machine/livecd:1.0.0
+if [ $? -eq 0 ]; then
+	echo "XXX installed successfully"
+else
+	echo "XXX FAIL XXX"
+fi
