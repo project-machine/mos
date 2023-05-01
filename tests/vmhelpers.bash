@@ -2,7 +2,6 @@ function vm_setup() {
 	VMNAME="batsvm_$(mktemp -u XXXXXX)"
 	export VMNAME
 
-	trust keyset add snakeoil
 	# Next step shouldn't be needed once 'trust keyset add' does it for us
 	ORIG=$(pwd)
 	cd $TMPD

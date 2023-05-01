@@ -12,7 +12,7 @@ function teardown() {
 
 @test "mosctl manifest publish" {
 	write_install_yaml "hostfsonly"
-	./mosb manifest publish --product mos:default \
+	./mosb manifest publish --product snakeoil:default \
 		--repo ${ZOT_HOST}:${ZOT_PORT} --name machine/install:1.0.0 \
 		$TMPD/manifest.yaml
 	[ -f $TMPD/zot/mos/index.json ]  # the layers were pushed
@@ -22,10 +22,10 @@ function teardown() {
 
 @test "mosctl manifest publish twice" {
 	write_install_yaml "hostfsonly"
-	./mosb manifest publish --product mos:default \
+	./mosb manifest publish --product snakeoil:default \
 		--repo ${ZOT_HOST}:${ZOT_PORT} --name machine/install:1.0.0 \
 		$TMPD/manifest.yaml
-	./mosb manifest publish --product mos:default \
+	./mosb manifest publish --product snakeoil:default \
 		--repo ${ZOT_HOST}:${ZOT_PORT} --name machine/install:1.0.0 \
 		$TMPD/manifest.yaml
 	[ -f $TMPD/zot/mos/index.json ]  # the layers were pushed
