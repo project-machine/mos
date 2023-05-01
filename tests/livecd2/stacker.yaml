@@ -1,0 +1,139 @@
+base:
+  build_only: true
+  from:
+    type: docker
+    url: "docker://zothub.io/machine/bootkit/rootfs:${{ROOTFS_VERSION}}-squashfs"
+
+provision-rootfs-pkg:
+  build_only: true
+  from:
+    type: built
+    tag: base
+  run: |
+    pkgtool install udev kmod \
+        libsquashfs-dev tpm2-tools cryptsetup
+
+provision-rootfs:
+  from:
+    type: built
+    tag: provision-rootfs-pkg
+  import:
+    - ${{TOPDIR}}/mosctl
+    - trust-provision
+    - trust-provision.service
+  run: |
+    #!/bin/sh -ex
+    writefile() {
+      mkdir -p "${1%/*}"
+      echo "write $1" 1>&2
+      cat >"$1"
+    }
+
+    writefile /etc/systemd/network/20-wire-enp0s-dhcp.network <<"END"
+    [Match]
+    Name=enp0s*
+    [Network]
+    DHCP=yes
+    END
+
+    cd /stacker
+    cp mosctl trust-provision /usr/bin
+    ( cd /usr/bin && chmod 755 mosctl trust-provision )
+
+    cp trust-provision.service /etc/systemd/system/
+    systemctl enable trust-provision.service
+    systemctl mask serial-getty@ttyS0
+    echo provision > /mos-action
+
+install-rootfs-pkg:
+  build_only: true
+  from:
+    type: built
+    tag: base
+  run: |
+    pkgtool install \
+        curl \
+        cryptsetup \
+        dosfstools \
+        e2fsprogs \
+        keyutils \
+        kmod \
+        libsquashfs-dev \
+        parted \
+        tpm2-tools \
+        udev
+
+# The rootfs which we want to run on the system
+target-rootfs:
+  from:
+    type: built
+    tag: install-rootfs-pkg
+  import:
+    - ${{TOPDIR}}/mosctl
+  run: |
+    #!/bin/sh -ex
+    writefile() {
+      mkdir -p "${1%/*}"
+      echo "write $1" 1>&2
+      cat >"$1"
+    }
+
+    writefile /etc/systemd/network/20-wire-enp0s-dhcp.network <<"END"
+    [Match]
+    Name=enp0s*
+    [Network]
+    DHCP=yes
+    END
+
+    cd /stacker
+    cp mosctl /usr/bin
+    ( cd /usr/bin && chmod 755 mosctl )
+    echo root:passw0rd | chpasswd
+
+    systemctl enable serial-getty@ttyS0
+
+install-rootfs:
+  from:
+    type: built
+    tag: install-rootfs-pkg
+  import:
+    - ${{TOPDIR}}/mosctl
+    - https://github.com/project-zot/zot/releases/download/v${{ZOT_VERSION}}/zot-linux-amd64-minimal
+    - zot.service
+    - zot-config.json
+    - mos-install
+    - mos-install.service
+  run: |
+    #!/bin/sh -ex
+    writefile() {
+      mkdir -p "${1%/*}"
+      echo "write $1" 1>&2
+      cat >"$1"
+    }
+
+    writefile /etc/systemd/network/20-wire-enp0s-dhcp.network <<"END"
+    [Match]
+    Name=enp0s*
+    [Network]
+    DHCP=yes
+    END
+
+    cd /stacker
+    cp mosctl mos-install /usr/bin
+    ( cd /usr/bin && chmod 755 mosctl mos-install )
+    cp /stacker/zot-linux-amd64-minimal /usr/bin/zot
+    chmod 755 /usr/bin/zot
+    cp /stacker/zot.service /etc/systemd/system
+    mkdir -p /etc/zot
+    mkdir /iso
+    cp /stacker/zot-config.json /etc/zot/config.json
+
+    cp mos-install.service /etc/systemd/system/
+    systemctl enable mos-install.service
+
+    # Note - don't enable zot, as we want to start it after copying data from ISO
+
+    echo install > /mos-action
+
+    # work around a bootkit bug causing this dir to not be created.
+    mkdir -p /boot/efi

@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Create a local bootkit.  We actually need two artifacts from this:
+# 1. the bootkit KEYS_DIR artifacts under .local/share/machine/
+# 2. the bootkit OCI layer in build-bootkit.
+
+set -ex
+
+KEYSDIR="${HOME}/.local/share/machine/trust/keys"
+SNAKEOIL="${KEYSDIR}/snakeoil"
+
+[ -d "${SNAKEOIL}" ] || trust keyset add snakeoil
+
+export TOPDIR="$(git rev-parse --show-toplevel)"
+LOCAL_BOOTKIT_DIR="${TOPDIR}/../build-bootkit/oci"
+BOOTKIT_KEYSDIR="${SNAKEOIL}/bootkit"
+if [ -e "${LOCAL_BOOTKIT_DIR}" -a -e "${BOOTKIT_KEYSDIR}" ]; then
+	echo "bootkit already locally installed"
+	exit 0
+fi
+cd "${TOPDIR}/.."
+if [ ! -d bootkit ]; then
+	git clone https://github.com/project-machine/bootkit
+fi
+
+cd bootkit
+make build
+umoci unpack --rootless --image ../build-bootkit/oci:bootkit extract
+mv extract/rootfs/bootkit ~/.local/share/machine/trust/keys/snakeoil/bootkit
+rm -rf extract

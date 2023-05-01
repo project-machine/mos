@@ -1,0 +1,14 @@
+[Unit]
+Description=Run machine-os installer
+After=getty.target multi-user.target local-fs.target udev.service
+Requires=udev.service
+OnFailure=poweroff.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/mos-install
+ExecStartPost=/usr/bin/systemctl poweroff
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target

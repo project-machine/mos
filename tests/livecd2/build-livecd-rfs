@@ -92,14 +92,10 @@ cat >> manifest.yaml << EOF
 EOF
 fi
 
-echo "starting manifest publish start"
-cat manifest.yaml
 mosb --debug manifest publish \
   --project $project \
   --repo 127.0.0.1:${ZOT_PORT} --name machine/livecd:1.0.0 \
   manifest.yaml
-
-echo "completed manifest publish"
 
 mosb --debug mkboot --cdrom \
   --cmdline "console=ttyS0" \
