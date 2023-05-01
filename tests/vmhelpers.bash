@@ -31,3 +31,21 @@ function wait_for_vm() {
 		exit 1
 	fi
 }
+
+function wait_for_vm_down() {
+	count=0
+	while [ $count -lt 20 ]; do
+		machine info ${VMNAME}
+		s=$(machine info ${VMNAME} | grep "^status:" | awk -F: '{ print $2 }');
+		echo "machine status is $s (machine info returned $?)"
+		if [ "$s" != " stopped" ]; then
+			break
+		fi
+		count=$((count+1))
+		sleep 1
+	done
+	if [ $count -ge 5 ]; then
+		echo "failed waiting for test VM to stop"
+		exit 1
+	fi
+}

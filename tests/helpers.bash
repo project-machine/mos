@@ -39,6 +39,8 @@ if [ -z "$ZOT" ]; then
 	export PATH="$PATH:${topdir}/hack/tools/bin"
 fi
 
+ROOTFS_VERSION="${ROOTFS_VERSION:-0.0.5.230327-squashfs}"
+
 function zot_setup {
 	export ZOT_HOST=127.0.0.1
 	export ZOT_PORT=5000

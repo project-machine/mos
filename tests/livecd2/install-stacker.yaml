@@ -1,0 +1,108 @@
+install-base:
+  build_only: true
+  from:
+    type: docker
+    url: "docker://zothub.io/machine/bootkit/rootfs:${{ROOTFS_VERSION}}"
+
+install-rootfs-pkg:
+  build_only: true
+  from:
+    type: built
+    tag: install-base
+  run: |
+    pkgtool install \
+        curl \
+        cryptsetup \
+        dosfstools \
+        e2fsprogs \
+        keyutils \
+        kmod \
+        libsquashfs-dev \
+        parted \
+        tpm2-tools \
+        udev
+
+# The rootfs which we want to run on the system
+target-rootfs:
+  from:
+    type: built
+    tag: install-rootfs-pkg
+  import:
+    - mosctl
+    - console-helper
+  run: |
+    #!/bin/sh -ex
+    writefile() {
+      mkdir -p "${1%/*}"
+      echo "write $1" 1>&2
+      cat >"$1"
+    }
+
+    writefile /etc/systemd/network/20-wire-enp0s-dhcp.network <<"END"
+    [Match]
+    Name=enp0s*
+    [Network]
+    DHCP=yes
+    END
+
+    cd /stacker
+    cp mosctl console-helper /usr/bin
+    ( cd /usr/bin && chmod 755 mosctl console-helper )
+
+    systemctl enable debug-shell.service
+    systemctl mask serial-getty@ttyS0
+
+install-rootfs:
+  from:
+    type: built
+    tag: install-rootfs-pkg
+  import:
+    - mosctl
+    - https://github.com/project-zot/zot/releases/download/v${{ZOT_VERSION}}/zot-linux-amd64-minimal
+    - zot.service
+    - zot-config.json
+    - mos-install
+    - mos-install.service
+    - mos-install-failed.service
+    - console-helper
+  run: |
+    #!/bin/sh -ex
+    writefile() {
+      mkdir -p "${1%/*}"
+      echo "write $1" 1>&2
+      cat >"$1"
+    }
+
+    writefile /etc/systemd/network/20-wire-enp0s-dhcp.network <<"END"
+    [Match]
+    Name=enp0s*
+    [Network]
+    DHCP=yes
+    END
+
+    cd /stacker
+    cp mosctl mos-install console-helper /usr/bin
+    ( cd /usr/bin && chmod 755 mosctl console-helper mos-install )
+    cp /stacker/zot-linux-amd64-minimal /usr/bin/zot
+    chmod 755 /usr/bin/zot
+    cp /stacker/zot.service /etc/systemd/system
+    mkdir -p /etc/zot
+    mkdir /iso
+    cp /stacker/zot-config.json /etc/zot/config.json
+
+    cp mos-install.service mos-install-failed.service \
+        /etc/systemd/system/
+
+    cd /etc/systemd/system/
+    # Don't enable zot, as we want to start it after copying data from ISO
+    for s in mos-install*.service; do
+      systemctl enable ${s}
+    done
+    ls -ltr /etc/systemd/system/*.service
+
+    echo root:passw0rd | chpasswd
+    systemctl enable debug-shell.service
+    echo install > /mos-action
+
+    # work around a bootkit bug cuasing this dir to not be created.
+    mkdir -p /boot/efi

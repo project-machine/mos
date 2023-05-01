@@ -1,0 +1,201 @@
+load helpers
+load vmhelpers
+
+function setup() {
+	common_setup
+	zot_setup
+	vm_setup
+}
+
+function teardown() {
+	vm_teardown
+	zot_teardown
+	common_teardown
+}
+
+# 'machine' is expected to be in $PATH, and 'machined' is
+# expected to be running.
+@test "Build and boot provisioning and install ISOs" {
+	set -ex
+	stacker --debug build --layer-type=squashfs \
+		--stacker-file ${ORIG}/tests/livecd2/provision-stacker.yaml \
+		--substitute TMPD=${TMPD} \
+		--substitute "ROOTFS_VERSION=${ROOTFS_VERSION}"
+	export PATH=${TMPD}:$PATH
+	cp ${ORIG}/tests/livecd2/build-livecd-rfs .
+	cp ${ORIG}/tests/livecd2/provision* .
+	./build-livecd-rfs --layer oci:oci:provision-rootfs-squashfs \
+	   --output provision.iso
+	cd $TMPD
+	trust sudi list snakeoil default | grep mosCI001 || trust sudi add snakeoil default mosCI001
+	mkdir SUDI; cp ~/.local/share/machine/trust/keys/snakeoil/manifest/default/sudi/mosCI001/* SUDI/
+	truncate -s 20M sudi.vfat
+	mkfs.vfat -n trust-data sudi.vfat
+	mcopy -i sudi.vfat SUDI/cert.pem ::cert.pem
+	mcopy -i sudi.vfat SUDI/privkey.pem ::privkey.pem
+	qemu-img create -f qcow2 ${TMPD}/livecd.qcow2 120G
+	machine init ${VMNAME} << EOF
+    name: ${VMNAME}
+    type: kvm
+    ephemeral: false
+    description: A fresh VM booting trust LiveCD in SecureBoot mode with TPM
+    config:
+      name: ${VMNAME}
+      uefi: true
+      uefi-vars: $HOME/.local/share/machine/trust/keys/snakeoil/bootkit/ovmf-vars.fd
+      cdrom: provision.iso
+      boot: cdrom
+      tpm: true
+      gui: false
+      serial: true
+      tpm-version: 2.0
+      secure-boot: true
+      disks:
+          - file: ${TMPD}/livecd.qcow2
+            type: ssd
+            size: 120G
+          - file: ${TMPD}/sudi.vfat
+            format: raw
+            type: hdd
+EOF
+	machine info ${VMNAME}
+	machine start ${VMNAME}
+	wait_for_vm
+	machine info ${VMNAME}
+	sleep 3s
+
+	expect <<EOF
+spawn machine console ${VMNAME}
+set timeout 120
+expect {
+	"provisioned successfully" {
+		puts "success"
+	}
+	"XXX FAIL XXX" {
+		puts "${VMNAME} failed"
+		exit 1
+	}
+	timeout {
+		puts "timed out"
+		exit 1
+	}
+}
+send "\n"
+expect "#"
+puts "syncing..."
+send "sync\n"
+expect "#"
+puts "powering off..."
+send "poweroff -f\n"
+expect {
+	"Power down" { puts "powered down" }
+	timeout {
+		puts "timed out"
+		exit 1
+	}
+}
+EOF
+	wait_for_vm_down
+
+	# We've provisioned.  Create install iso
+	cp ${ORIG}/tests/livecd2/install-stacker.yaml .
+	cp ${ORIG}/tests/livecd2/mos-install* .
+	cp ${ORIG}/tests/livecd2/console-helper .
+	cp ${ORIG}/tests/livecd2/zot-config.json .
+	cp ${ORIG}/tests/livecd2/zot.service .
+	export ZOT_VERSION=1.4.3
+	stacker build -f install-stacker.yaml --layer-type=squashfs \
+		--substitute ZOT_VERSION=1.4.3 \
+		--substitute "ROOTFS_VERSION=${ROOTFS_VERSION}"
+	./build-livecd-rfs --layer oci:oci:install-rootfs-squashfs \
+		--output install.iso --tlayer oci:oci:target-rootfs-squashfs
+
+	cat > sed1.bash << EOF
+#!/bin/bash
+sed -i 's/provision.iso/install.iso/' \$*
+EOF
+	chmod 755 sed1.bash
+	VISUAL=$(pwd)/sed1.bash machine edit "${VMNAME}"
+	machine start "${VMNAME}"
+	wait_for_vm
+	machine info "${VMNAME}"
+	sleep 3s
+
+	expect <<EOF
+spawn machine console ${VMNAME}
+set timeout 120
+expect {
+	"installed successfully" {
+		puts "installed successfully"
+	}
+	"XXX FAIL XXX" {
+		puts "${VMNAME} failed"
+		exit 1
+	}
+	timeout {
+		puts "timed out"
+		exit 1
+	}
+
+}
+send "\n"
+expect "#"
+puts "syncing..."
+send "sync\n"
+expect "#"
+puts "powering off..."
+send "poweroff -f\n"
+expect {
+	"Power down" { puts "powered down" }
+	timeout {
+		puts "timed out"
+		exit 1
+	}
+}
+EOF
+	wait_for_vm_down
+
+	# we've installed.  Now try to boot
+	cat > sed2.bash << EOF
+#!/bin/bash
+sed -i '/boot:/d;/cdrom:/d' \$*
+EOF
+	chmod 755 sed2.bash
+	VISUAL=$(pwd)/sed2.bash machine edit "${VMNAME}"
+	machine start "${VMNAME}"
+	wait_for_vm
+	machine info "${VMNAME}"
+	sleep 3s
+
+	expect <<EOF
+spawn machine console ${VMNAME}
+set timeout 120
+send "\n"
+expect {
+	"localhost login" { puts "got login prompt" }
+	timeout {
+		puts "timed out at final boot"
+		exit 1
+	}
+}
+send "root\n"
+expect {
+	"assword" { puts "got password prompt" }
+	timeout {
+		puts "timed out waiting for password prompt on final boot"
+		exit 1
+	}
+}
+send "passw0rd\n"
+expect {
+        "bash" { puts "got shell prompt" }
+	timeout {
+		puts "timed out waiting for password prompt on final boot"
+		exit 1
+	}
+}
+send "poweroff -f\n"
+expect "Power down"
+EOF
+	wait_for_vm_down
+}

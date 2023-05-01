@@ -1,0 +1,11 @@
+[Unit]
+Description=OCI Distribution Registry
+After=network.target local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/zot serve /etc/zot/config.json
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

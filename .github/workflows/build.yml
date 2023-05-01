@@ -87,6 +87,7 @@ jobs:
           chmod go+rx /run/user/1001/containers
           timeout 20m make test
           timeout 20m bats tests/livecd1.bats
+          timeout 20m bats tests/livecd2.bats
 
       - name: Release
         uses: softprops/action-gh-release@v1

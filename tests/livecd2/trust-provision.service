@@ -1,0 +1,15 @@
+[Unit]
+Description=Run the tpm stuff.
+#After=network-online.target
+After=getty.target multi-user.target local-fs.target
+Conflicts=getty@tty1.service
+OnFailure=trust-provision-failed.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/usr/bin/trust-provision
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target
