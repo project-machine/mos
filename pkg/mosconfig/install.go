@@ -182,7 +182,7 @@ func InitializeMos(ctx *cli.Context, opts InstallOpts) error {
 const StartupNSH = `
 fs0:
 cd fs0:/efi/boot/
-shim.efi kernel.efi root=soci:name=mosboot,repo=local
+shim.efi kernel.efi root=soci:name=mosboot,repo=local console=ttyS0
 `
 
 func (mos *Mos) InstallNewBoot(boot Target) error {
