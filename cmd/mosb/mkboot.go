@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -96,10 +97,16 @@ func doMkBoot(ctx *cli.Context) error {
 }
 
 // pick first unused port >= min
-// https://github.com/phayes/freeport
-// TODO - lol just use 55581 for tonight
 func unusedPort(min int) int {
-	return 55581
+	port := min
+	for {
+		s, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if err == nil {
+			_ = s.Close()
+			return port
+		}
+		port++
+	}
 }
 
 const zotconf = `
