@@ -586,17 +586,13 @@ func doPartition(opts mosconfig.InstallOpts) error {
 		return errors.Wrapf(err, "Failed mounting newly created store")
 	}
 
-	// create and mount /scratch-writes
+	// create /scratch-writes.  Don't mount it, though, because
+	// /proc/self/mounts already shows existing /scratch-writes mounts
+	// in the lower partition.  We'd have to copy and remount all of
+	// those
 	scratchPath := pathForPartition(disk.Path, byName[scratchPart].Number)
 	if err := makeFileSystemEXT4(scratchPath, scratchPart); err != nil {
 		return errors.Wrapf(err, "Failed creating ext4 on %s", scratchPath)
-	}
-	dest = filepath.Join(opts.RFS, "scratch-writes")
-	if err := mosconfig.EnsureDir(dest); err != nil {
-		return errors.Wrapf(err, "Failed creating mount path %s", dest)
-	}
-	if err := syscall.Mount(scratchPath, dest, "ext4", 0, ""); err != nil {
-		return errors.Wrapf(err, "Failed mounting newly created scratch-writes")
 	}
 
 	return nil
