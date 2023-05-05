@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -240,7 +241,31 @@ func (mos *Mos) InstallNewBoot(boot Target) error {
 
 	os.RemoveAll("/boot/efi/EFI/BOOT.BAK")
 
+	if err := efiBootMgrSetup(); err != nil {
+		log.Warnf("Error using efibootmgr to set up boot: %#v", err)
+	}
+
 	return nil
+}
+
+func efiBootMgrSetup() error {
+	_, err := exec.LookPath("efibootmgr")
+	if err != nil {
+		log.Warnf("efibootmgr command not found")
+		return errors.Wrapf(err, "efibootmgr command not found")
+	}
+	if err := efiClearBootEntries(); err != nil {
+		log.Warnf("failed clearing existing boot entries")
+		return errors.Wrapf(err, "Failed clearing existing boot entries")
+	}
+
+	if err := WriteBootEntry(); err != nil {
+		log.Warnf("failed writing new boot entries")
+		return errors.Wrapf(err, "Failed writing EFI boot entries")
+	}
+
+	return nil
+
 }
 
 // PublishManifest is used by mosctl to convert and publish a

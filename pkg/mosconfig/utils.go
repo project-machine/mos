@@ -2,6 +2,7 @@ package mosconfig
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -299,4 +300,30 @@ func WriteTempFile(dir, prefix, contents string) (string, error) {
 	_, err = f.Write([]byte(contents))
 	defer f.Close()
 	return name, errors.Wrapf(err, "Failed writing contents to tempfile")
+}
+
+func RunCommandWithOutputErrorRc(args ...string) ([]byte, []byte, int) {
+	cmd := exec.Command(args[0], args[1:]...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	return stdout.Bytes(), stderr.Bytes(), GetCommandErrorRC(err)
+}
+
+func RunWithStdin(stdinString string, args ...string) error {
+	cmd := exec.Command(args[0], args[1:]...)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return errors.Errorf("%s: %s", strings.Join(args, " "), err)
+	}
+	go func() {
+		defer stdin.Close()
+		io.WriteString(stdin, stdinString)
+	}()
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Errorf("%s: %s: %s", strings.Join(args, " "), err, string(output))
+	}
+	return nil
 }
