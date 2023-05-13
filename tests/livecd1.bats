@@ -20,9 +20,8 @@ function teardown() {
 	stacker --debug build --layer-type=squashfs \
 		--stacker-file ${ORIG}/tests/livecd1/livecd-stacker.yaml \
 		--substitute TMPD=${TMPD} \
-		--substitute ROOTFS_VERSION=0.0.5.230327-squashfs
+		--substitute ROOTFS_VERSION=${ROOTFS_VERSION}
 	export PATH=${TMPD}:$PATH
-	export ROOTFS_VERSION=0.0.5.230327-squashfs
 	cp ${ORIG}/tests/livecd1/build-livecd-rfs .
 	cp ${ORIG}/tests/livecd1/hello* .
 	./build-livecd-rfs
