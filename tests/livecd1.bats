@@ -56,8 +56,8 @@ EOF
 
 	expect <<EOF
 spawn machine console ${VMNAME}
+set timeout 120
 expect {
-	set timeout 120
 	"hello, world: success" {
 		puts "success"
 		exit 0
