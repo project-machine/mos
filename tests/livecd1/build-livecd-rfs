@@ -58,8 +58,6 @@ product_uuid() {
   echo $uuid
 }
 
-BOOTKIT_URL="${BOOTKIT_URL:-docker://zothub.io/machine/bootkit/rootfs:$ROOTFS_VERSION}"
-
 product=$(product_uuid $project)
 rm -f manifest.yaml
 cat > manifest.yaml << EOF

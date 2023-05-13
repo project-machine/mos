@@ -2,7 +2,7 @@ base:
   build_only: true
   from:
     type: docker
-    url: "docker://zothub.io/machine/bootkit/rootfs:${{ROOTFS_VERSION}}"
+    url: "docker://zothub.io/machine/bootkit/rootfs:${{ROOTFS_VERSION}}-squashfs"
 
 rootfs-pkg:
   build_only: true
