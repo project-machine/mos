@@ -242,9 +242,9 @@ func WriteBootEntry() error {
 	}
 
 	shimPath := "\\efi\\boot\\shim.efi"
-	argsPath := "\\efi\\boot\\kernel.efi root=soci:name=mosboot,repo=local"
+	argsString := "\\efi\\boot\\kernel.efi root=soci:name=mosboot,repo=local console=tty0 console=ttyS0,115200n8"
 
-	kname, err := toUCS2(argsPath)
+	kname, err := toUCS2(argsString)
 	if err != nil {
 		return errors.Wrapf(err, "Failure getting UCS2 converted shim arguments")
 	}
