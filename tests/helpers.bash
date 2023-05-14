@@ -32,23 +32,17 @@ function common_setup {
 	mkdir -p "$TMPD/config" "$TMPD/atomfs-store" "$TMPD/scratch-writes" "$TMPD/bin"
 
 	# setup a trust keyset
-	export topdir="$(git rev-parse --show-toplevel)"
-	export PATH="$PATH:${topdir}/hack/tools/bin"
-	[ -e ${topdir}/hack/tools/trust ] || {
-		mkdir -p ${topdir}/hack/tools
-		wget -O ${topdir}/hack/tools/trust https://github.com/project-machine/trust/releases/download/0.0.3/trust
-		chmod 755 ${topdir}/hack/tools/trust
+	export PATH="$PATH:${TOPDIR}/hack/tools/bin"
+	[ -e ${TOPDIR}/hack/tools/trust ] || {
+		mkdir -p ${TOPDIR}/hack/tools
+		wget -O ${TOPDIR}/hack/tools/trust https://github.com/project-machine/trust/releases/download/0.0.3/trust
+		chmod 755 ${TOPDIR}/hack/tools/trust
 	}
 	trust keyset list | grep snakeoil || trust keyset add snakeoil
 	export CA_PEM=~/.local/share/machine/trust/keys/snakeoil/manifest-ca/cert.pem
 	export M_CERT=~/.local/share/machine/trust/keys/snakeoil/manifest/default/cert.pem
 	export M_KEY=~/.local/share/machine/trust/keys/snakeoil/manifest/default/privkey.pem
 }
-
-if [ -z "$ZOT" ]; then
-	export topdir="$(git rev-parse --show-toplevel)"
-	export PATH="$PATH:${topdir}/hack/tools/bin"
-fi
 
 function zot_setup {
 	export ZOT_HOST=127.0.0.1
