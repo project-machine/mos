@@ -172,7 +172,7 @@ expect {
 		exit 1
 	}
 }
-send "passw0rd\n"
+send "xxx\n"
 expect {
         "bash" { puts "got shell" }
         "root@localhost:" { puts "got shell" }
