@@ -16,10 +16,10 @@ GO_SRC=$(shell find cmd pkg  -name "*.go")
 all: mosctl mosb $(ZOT) $(ORAS)
 
 mosctl: .made-gofmt $(GO_SRC)
-	go build -tags "$(BUILD_TAGS)" ./cmd/mosctl
+	go build -tags "$(BUILD_TAGS)" -ldflags "-s -w" ./cmd/mosctl
 
 mosb: .made-gofmt $(GO_SRC)
-	go build -tags "$(BUILD_TAGS)" ./cmd/mosb
+	go build -tags "$(BUILD_TAGS)" -ldflags "-s -w" ./cmd/mosb
 
 $(ZOT):
 	mkdir -p $(TOOLSDIR)/bin
