@@ -111,7 +111,7 @@ func unusedPort(min int) int {
 
 const zotconf = `
 {
-  "distSpecVersion": "1.0.1-dev",
+  "distSpecVersion": "1.1.0-dev",
   "storage": {
     "rootDirectory": "%s",
     "gc": false

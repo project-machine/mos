@@ -49,7 +49,7 @@ function zot_setup {
 	export ZOT_PORT=5000
 	cat > $TMPD/zot-config.json << EOF
 {
-  "distSpecVersion": "1.0.1-dev",
+  "distSpecVersion": "1.1.0-dev",
   "storage": {
     "rootDirectory": "$TMPD/zot",
     "gc": false
@@ -84,6 +84,8 @@ EOF
 		echo "Timed out waiting for zot"
 		exit 1
 	fi
+  # setup a OCI client
+  regctl registry set --tls=disabled $ZOT_HOST:$ZOT_PORT
 }
 
 function common_teardown {

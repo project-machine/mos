@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	pubkeyArtifact = "vnd.machine.pubkeycrt"
-	sigArtifact    = "vnd.machine.signature"
+	pubkeyArtifact = "application/vnd.machine.pubkeycrt"
+	sigArtifact    = "application/vnd.machine.signature"
 )
 
 type DistUrl struct {

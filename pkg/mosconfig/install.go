@@ -95,15 +95,15 @@ func (is *InstallSource) SaveToZot(zotport int, name string) error {
 
 	// Post install.json as manifest
 	dest := repo + "/" + name
-	mDigest, mSize, err := PostManifest(is.FilePath, dest)
+	mDigest, mSize, err := PostManifest(is.FilePath, dest, "application/vnd.machine.install")
 	if err != nil {
 		return errors.Wrapf(err, "Failed writing install.json to %s", dest)
 	}
 
-	if err = PostArtifact(mDigest, mSize, is.CertPath, "vnd.machine.pubkeycrt", dest); err != nil {
+	if err = PostArtifact(mDigest, mSize, is.CertPath, "application/vnd.machine.pubkeycrt", dest); err != nil {
 		return errors.Wrapf(err, "Failed writing certificate to %s", dest)
 	}
-	if err = PostArtifact(mDigest, mSize, is.SignPath, "vnd.machine.signature", dest); err != nil {
+	if err = PostArtifact(mDigest, mSize, is.SignPath, "application/vnd.machine.signature", dest); err != nil {
 		return errors.Wrapf(err, "Failed writing signature to %s", dest)
 	}
 
@@ -375,7 +375,7 @@ func PublishManifest(ctx *cli.Context) error {
 	}
 
 	dest := repo + "/" + destpath
-	mDigest, mSize, err := PostManifest(filePath, dest)
+	mDigest, mSize, err := PostManifest(filePath, dest, "application/vnd.machine.install")
 	if err != nil {
 		return errors.Wrapf(err, "Failed writing install.json to %s", dest)
 	}
@@ -384,10 +384,10 @@ func PublishManifest(ctx *cli.Context) error {
 	if err != nil {
 		return errors.Wrapf(err, "Failed getting manifest signing cert")
 	}
-	if err = PostArtifact(mDigest, mSize, cert, "vnd.machine.pubkeycrt", dest); err != nil {
+	if err = PostArtifact(mDigest, mSize, cert, "application/vnd.machine.pubkeycrt", dest); err != nil {
 		return errors.Wrapf(err, "Failed writing certificate to %s", dest)
 	}
-	if err = PostArtifact(mDigest, mSize, signPath, "vnd.machine.signature", dest); err != nil {
+	if err = PostArtifact(mDigest, mSize, signPath, "application/vnd.machine.signature", dest); err != nil {
 		return errors.Wrapf(err, "Failed writing signature to %s", dest)
 	}
 
@@ -424,7 +424,7 @@ func getSizeDigestOCI(inUrl string) (string, int64, error) {
 // PostManifest: Post an install.json.  Return the digest and size
 // of the *manifest* describing the install.json blob, as that will
 // be needed for the referring artifacts.
-func PostManifest(path, dest string) (digest.Digest, int64, error) {
+func PostManifest(path, dest, mediatype string) (digest.Digest, int64, error) {
 	r, err := NewDistRepo(dest)
 	if err != nil {
 		return "", 0, errors.Wrapf(err, "Failed parsing destination address")
@@ -446,14 +446,9 @@ func PostManifest(path, dest string) (digest.Digest, int64, error) {
 	}
 
 	// Finally, build an ispec.Manifest
-	config := ispec.Descriptor{
-		MediaType: "application/vnd.unknown.config.v1+json",
-		Digest:    digest.NewDigestFromEncoded(digest.Canonical, "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"),
-		Size:      2,
-	}
 	layers := []ispec.Descriptor{
 		ispec.Descriptor{
-			MediaType:   "vnd.machine.install",
+			MediaType:   mediatype,
 			Digest:      fDigest,
 			Size:        fSize,
 			Annotations: map[string]string{"org.opencontainers.image.title": "index.json"},
@@ -461,11 +456,12 @@ func PostManifest(path, dest string) (digest.Digest, int64, error) {
 	}
 	t := time.Now().Format(time.RFC3339)
 	m := ispec.Manifest{
-		Versioned:   specs.Versioned{SchemaVersion: 2},
-		MediaType:   ispec.MediaTypeImageManifest,
-		Config:      config,
-		Layers:      layers,
-		Annotations: map[string]string{ispec.AnnotationCreated: t},
+		Versioned:    specs.Versioned{SchemaVersion: 2},
+		MediaType:    ispec.MediaTypeImageManifest,
+		ArtifactType: mediatype,
+		Config:       ispec.DescriptorEmptyJSON,
+		Layers:       layers,
+		Annotations:  map[string]string{ispec.AnnotationCreated: t},
 	}
 
 	b, err := json.Marshal(&m)
@@ -515,11 +511,6 @@ func PostArtifact(refDigest digest.Digest, refSize int64, path, mediatype, dest 
 	}
 
 	// Construct an ispec.Manifest referring to the blob
-	config := ispec.Descriptor{
-		MediaType: mediatype,
-		Digest:    digest.NewDigestFromEncoded(digest.Canonical, "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"),
-		Size:      2,
-	}
 	layers := []ispec.Descriptor{
 		ispec.Descriptor{
 			MediaType:   ispec.MediaTypeImageLayer,
@@ -535,12 +526,13 @@ func PostArtifact(refDigest digest.Digest, refSize int64, path, mediatype, dest 
 	}
 	t := time.Now().Format(time.RFC3339)
 	manifest := ispec.Manifest{
-		Versioned:   specs.Versioned{SchemaVersion: 2},
-		MediaType:   ispec.MediaTypeImageManifest,
-		Config:      config,
-		Layers:      layers,
-		Subject:     &subject,
-		Annotations: map[string]string{ispec.AnnotationCreated: t},
+		Versioned:    specs.Versioned{SchemaVersion: 2},
+		MediaType:    ispec.MediaTypeImageManifest,
+		ArtifactType: mediatype,
+		Config:       ispec.DescriptorEmptyJSON,
+		Layers:       layers,
+		Subject:      &subject,
+		Annotations:  map[string]string{ispec.AnnotationCreated: t},
 	}
 
 	b, err := json.Marshal(&manifest)

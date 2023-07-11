@@ -34,11 +34,11 @@ function teardown() {
 }
 EOF
 	skopeo copy --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
-	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
+  regctl artifact put --artifact-type application/vnd.machine.install -f "$TMPD/install.json" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
 	openssl dgst -sha256 -sign "$M_KEY" \
 		-out "$TMPD/install.json.signed" "$TMPD/install.json"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$M_CERT"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
+  regctl artifact put --artifact-type application/vnd.machine.pubkeycrt -f "$M_CERT" --subject $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
+  regctl artifact put --artifact-type application/vnd.machine.signature -f "$TMPD/install.json.signed" --subject $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
 
 	mkdir -p $TMPD/factory/secure
 	cp "$CA_PEM" "$TMPD/factory/secure/manifestCA.pem"
@@ -66,12 +66,12 @@ EOF
   ]
 }
 EOF
-	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json":vnd.machine.install
+  regctl artifact put --artifact-type application/vnd.machine.install -f "$TMPD/install.json" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2
 	skopeo copy --dest-tls-verify=false oci:zothub:busyboxu1-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
 	openssl dgst -sha256 -sign "$M_KEY" \
 		-out "$TMPD/install.json.signed" "$TMPD/install.json"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$M_CERT"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json.signed"
+  regctl artifact put --artifact-type application/vnd.machine.pubkeycrt -f "$M_CERT" --subject $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2
+  regctl artifact put --artifact-type application/vnd.machine.signature -f "$TMPD/install.json.signed" --subject $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2
 	./mosctl update -r $TMPD $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2
 }
 
@@ -110,11 +110,11 @@ EOF
   ]
 }
 EOF
-	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
+  regctl artifact put --artifact-type application/vnd.machine.install -f "$TMPD/install.json" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
 	openssl dgst -sha256 -sign "$M_KEY" \
 		-out "$TMPD/install.json.signed" "$TMPD/install.json"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$M_CERT"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
+  regctl artifact put --artifact-type application/vnd.machine.pubkeycrt -f "$M_CERT" --subject $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
+  regctl artifact put --artifact-type application/vnd.machine.signature -f "$TMPD/install.json.signed" --subject $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
 	skopeo copy --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
 	# In "real life", /factory/secure/ is set up by the signed initrd
 	mkdir -p $TMPD/factory/secure
@@ -167,12 +167,12 @@ EOF
   ]
 }
 EOF
-	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json":vnd.machine.install
+  regctl artifact put --artifact-type application/vnd.machine.install -f "$TMPD/install.json" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2
 	skopeo copy --dest-tls-verify=false oci:zothub:busyboxu1-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
 	openssl dgst -sha256 -sign "$M_KEY" \
 		-out "$TMPD/install.json.signed" "$TMPD/install.json"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$M_CERT"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json.signed"
+  regctl artifact put --artifact-type application/vnd.machine.pubkeycrt -f "$M_CERT" --subject $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2
+  regctl artifact put --artifact-type application/vnd.machine.signature -f "$TMPD/install.json.signed" --subject $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2
 	echo "BEFORE UPDATE"
 	ls -l $TMPD/config/manifest.git
 	(cd $TMPD/config/manifest.git; git status)
@@ -220,11 +220,11 @@ EOF
   ]
 }
 EOF
-	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json":vnd.machine.install
+  regctl artifact put --artifact-type application/vnd.machine.install -f "$TMPD/install.json" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
 	openssl dgst -sha256 -sign "$M_KEY" \
 		-out "$TMPD/install.json.signed" "$TMPD/install.json"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$M_CERT"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0 "$TMPD/install.json.signed"
+  regctl artifact put --artifact-type application/vnd.machine.pubkeycrt -f "$M_CERT" --subject $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
+  regctl artifact put --artifact-type application/vnd.machine.signature -f "$TMPD/install.json.signed" --subject $ZOT_HOST:$ZOT_PORT/machine/install:1.0.0
 	skopeo copy --dest-tls-verify=false oci:zothub:busybox-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
 	mkdir -p $TMPD/factory/secure
 	cp "$CA_PEM" "$TMPD/factory/secure/manifestCA.pem"
@@ -254,11 +254,11 @@ EOF
 }
 EOF
 	skopeo copy --dest-tls-verify=false oci:zothub:busyboxu1-squashfs docker://$ZOT_HOST:$ZOT_PORT/mos:$sum
-	oras push --plain-http --image-spec v1.1-image $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json":vnd.machine.install
+  regctl artifact put --artifact-type application/vnd.machine.install -f "$TMPD/install.json" $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2
 	openssl dgst -sha256 -sign "$M_KEY" \
 		-out "$TMPD/install.json.signed" "$TMPD/install.json"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.pubkeycrt $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$M_CERT"
-	oras attach --plain-http --image-spec v1.1-image --artifact-type vnd.machine.signature $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2 "$TMPD/install.json.signed"
+  regctl artifact put --artifact-type application/vnd.machine.pubkeycrt -f "$M_CERT" --subject $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2
+  regctl artifact put --artifact-type application/vnd.machine.signature -f "$TMPD/install.json.signed" --subject $ZOT_HOST:$ZOT_PORT/machine/install:1.0.2
 	echo "BEFORE UPDATE"
 	ls -l $TMPD/config/manifest.git
 	(cd $TMPD/config/manifest.git; git status)
