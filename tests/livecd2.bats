@@ -17,7 +17,7 @@ function teardown() {
 # expected to be running.
 @test "Build and boot provisioning and install ISOs" {
 	set -ex
-	export ZOT_VERSION=1.4.3
+	export ZOT_VERSION=2.0.0-rc5
 	cp ${ORIG}/mosctl .
 	cp ${ORIG}/tests/livecd2/stacker.yaml .
 	cp ${ORIG}/tests/livecd2/mos-install* .
@@ -27,7 +27,7 @@ function teardown() {
 		--stacker-file ${ORIG}/tests/livecd2/stacker.yaml \
 		--substitute TMPD=${TMPD} \
 		--substitute TOPDIR=${TOPDIR} \
-		--substitute ZOT_VERSION=1.4.3 \
+		--substitute "ZOT_VERSION=${ZOT_VERSION}" \
 		--substitute "ROOTFS_VERSION=${ROOTFS_VERSION}"
 	export PATH=${TMPD}:$PATH
 	cp ${ORIG}/tests/livecd2/build-livecd-rfs .

@@ -3,17 +3,19 @@ TOOLSDIR := $(shell pwd)/hack/tools
 PATH := bin:$(TOOLSDIR)/bin:$(PATH)
 # OCI registry
 ZOT := $(TOOLSDIR)/bin/zot
-ZOT_VERSION := 1.4.3
+ZOT_VERSION := 2.0.0-rc5
 # OCI registry clients
 ORAS := $(TOOLSDIR)/bin/oras
 ORAS_VERSION := 1.0.0-rc.1
+REGCTL := $(TOOLSDIR)/bin/regctl
+REGCTL_VERSION := 0.5.0
 # project-machine trust
 TRUST := $(TOOLSDIR)/bin/trust
 TRUST_VERSION := 0.0.3
 
 GO_SRC=$(shell find cmd pkg  -name "*.go")
 
-all: mosctl mosb $(ZOT) $(ORAS)
+all: mosctl mosb $(ZOT) $(ORAS) $(REGCTL)
 
 mosctl: .made-gofmt $(GO_SRC)
 	go build -tags "$(BUILD_TAGS)" -ldflags "-s -w" ./cmd/mosctl
@@ -37,6 +39,11 @@ $(ORAS):
 	tar xvzf oras.tar.gz -C $(TOOLSDIR)/bin oras
 	rm oras.tar.gz
 
+$(REGCTL):
+	mkdir -p $(TOOLSDIR)/bin
+	curl -Lo $(REGCTL) https://github.com/regclient/regclient/releases/download/v$(REGCTL_VERSION)/regctl-linux-amd64
+	chmod +x $(REGCTL)
+
 .PHONY: gofmt
 gofmt: .made-gofmt
 
@@ -47,7 +54,7 @@ gofmt: .made-gofmt
 	@touch $@
 
 .PHONY: test
-test: mosctl mosb $(ORAS) $(ZOT) $(TRUST)
+test: mosctl mosb $(ORAS) $(REGCTL) $(ZOT) $(TRUST)
 	bats tests/install.bats
 	bats tests/rfs.bats
 	bats tests/activate.bats
