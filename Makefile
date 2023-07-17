@@ -53,8 +53,10 @@ gofmt: .made-gofmt
 	  [ -z "$$o" ] || { echo "gofmt made changes: $$o" 1>&2; exit 1; }
 	@touch $@
 
+deps: mosctl mosb $(ORAS) $(REGCTL) $(ZOT) $(TRUST)
+
 .PHONY: test
-test: mosctl mosb $(ORAS) $(REGCTL) $(ZOT) $(TRUST)
+test: deps
 	bats tests/install.bats
 	bats tests/rfs.bats
 	bats tests/activate.bats
