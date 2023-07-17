@@ -1,4 +1,4 @@
-# mos - machine os
+# mos - machine OS
 
 mos is the systems management portion of project machine.  See
 (this post on OCI based linux)[https://s3hh.wordpress.com/2022/10/27/oci-based-linux/]
