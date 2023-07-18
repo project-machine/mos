@@ -12,6 +12,11 @@ SNAKEOIL="${KEYSDIR}/snakeoil"
 [ -d "${SNAKEOIL}" ] || trust keyset add snakeoil
 
 export TOPDIR="$(git rev-parse --show-toplevel)"
+# If we've built a local mosctl, have bootkit use it.
+export MOSCTL_BINARY="${TOPDIR}/mosctl"
+# If we've downloaded a zot, have bootkit use it.
+export ZOT_BINARY="${TOPDIR}/hack/tools/bin/zot"
+
 LOCAL_BOOTKIT_DIR="${TOPDIR}/../build-bootkit/oci"
 BOOTKIT_KEYSDIR="${SNAKEOIL}/bootkit"
 if [ -e "${LOCAL_BOOTKIT_DIR}" -a -e "${BOOTKIT_KEYSDIR}" ]; then
