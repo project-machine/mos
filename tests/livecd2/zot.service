@@ -6,6 +6,10 @@ After=network.target local-fs.target
 Type=simple
 ExecStart=/usr/bin/zot serve /etc/zot/config.json
 Restart=on-failure
+StandardOutput=journal+console
+StandardError=journal+console
+Environment=XDG_CONFIG_HOME=/root/.zot-xdg-config-home
+ExecStartPre=/bin/mkdir -p /root/.zot-xdg-config-home
 
 [Install]
 WantedBy=multi-user.target
