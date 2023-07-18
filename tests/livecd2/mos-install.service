@@ -9,6 +9,7 @@ Type=oneshot
 ExecStart=/usr/bin/mos-install
 ExecStartPost=/usr/bin/systemctl poweroff
 StandardOutput=journal+console
+StandardError=journal+console
 
 [Install]
 WantedBy=multi-user.target
