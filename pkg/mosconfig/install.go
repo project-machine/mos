@@ -95,15 +95,15 @@ func (is *InstallSource) SaveToZot(zotport int, name string) error {
 
 	// Post install.json as manifest
 	dest := repo + "/" + name
-	mDigest, mSize, err := PostManifest(is.FilePath, dest, "application/vnd.machine.install")
+	mDigest, mSize, err := PostManifest(is.FilePath, dest, installArtifact)
 	if err != nil {
 		return errors.Wrapf(err, "Failed writing install.json to %s", dest)
 	}
 
-	if err = PostArtifact(mDigest, mSize, is.CertPath, "application/vnd.machine.pubkeycrt", dest); err != nil {
+	if err = PostArtifact(mDigest, mSize, is.CertPath, pubkeyArtifact, dest); err != nil {
 		return errors.Wrapf(err, "Failed writing certificate to %s", dest)
 	}
-	if err = PostArtifact(mDigest, mSize, is.SignPath, "application/vnd.machine.signature", dest); err != nil {
+	if err = PostArtifact(mDigest, mSize, is.SignPath, sigArtifact, dest); err != nil {
 		return errors.Wrapf(err, "Failed writing signature to %s", dest)
 	}
 
@@ -375,7 +375,7 @@ func PublishManifest(ctx *cli.Context) error {
 	}
 
 	dest := repo + "/" + destpath
-	mDigest, mSize, err := PostManifest(filePath, dest, "application/vnd.machine.install")
+	mDigest, mSize, err := PostManifest(filePath, dest, installArtifact)
 	if err != nil {
 		return errors.Wrapf(err, "Failed writing install.json to %s", dest)
 	}
@@ -384,10 +384,10 @@ func PublishManifest(ctx *cli.Context) error {
 	if err != nil {
 		return errors.Wrapf(err, "Failed getting manifest signing cert")
 	}
-	if err = PostArtifact(mDigest, mSize, cert, "application/vnd.machine.pubkeycrt", dest); err != nil {
+	if err = PostArtifact(mDigest, mSize, cert, pubkeyArtifact, dest); err != nil {
 		return errors.Wrapf(err, "Failed writing certificate to %s", dest)
 	}
-	if err = PostArtifact(mDigest, mSize, signPath, "application/vnd.machine.signature", dest); err != nil {
+	if err = PostArtifact(mDigest, mSize, signPath, sigArtifact, dest); err != nil {
 		return errors.Wrapf(err, "Failed writing signature to %s", dest)
 	}
 
