@@ -62,8 +62,6 @@ github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYU
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFIImctFaOjnTIavg87rW78vTPkQqLI8=
 github.com/anuvu/disko v0.0.11 h1:WCwKRM2yBQhHsyY3GRpbCzNR0K4i/qOP7/mmh5PjkuE=
 github.com/anuvu/disko v0.0.11/go.mod h1:euLMwXqbuk7o57zVYr4xJlDMXerjChnm+4jgKDRHtbc=
-github.com/anuvu/squashfs v0.0.0-20220228153512-67c8ca12cbf4 h1:Qk94FVz0Di+SKs7QA+jEaB/tnOsulwsRTNee3Eb8608=
-github.com/anuvu/squashfs v0.0.0-20220228153512-67c8ca12cbf4/go.mod h1:t4fv4HFEgFR4DdlVcCBeQCvinbf4GJrR4G5xgx0w7qc=
 github.com/apex/log v1.9.0 h1:FHtw/xuaM8AgmvDDTI9fiwoAL25Sq2cxojnZICUU8l0=
 github.com/apex/log v1.9.0/go.mod h1:m82fZlWIuiWzWP04XCTXmnX0xRkYYbCdYn8jbJeLBEA=
 github.com/apex/logs v1.0.0/go.mod h1:XzxuLZ5myVHDy9SAmYpamKKRNApGj54PfYLcFrXqDwo=
@@ -138,8 +136,8 @@ github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568/go.mod h1:xEzjJPgXI
 github.com/foxboron/go-uefi v0.0.0-20230218004016-d1bb9a12f92c h1:6DovecV+FAekIm7XGpB4J3x+cpk1onzGitYNALBNgpM=
 github.com/foxboron/go-uefi v0.0.0-20230218004016-d1bb9a12f92c/go.mod h1:VdozURTQHi5Rs54l+4Szi3yIJQDMfXXYrRLAjKKowWI=
 github.com/frankban/quicktest v1.11.3/go.mod h1:wRf/ReqHper53s+kmmSZizM8NamnL3IM0I9ntUbOk+k=
-github.com/freddierice/go-losetup v0.0.0-20220331141030-7ad00c49b973 h1:5JLrMrrj3FCPqoI9JsI3ypvJkbAzKbE5Kt6AsMC/BW4=
-github.com/freddierice/go-losetup v0.0.0-20220331141030-7ad00c49b973/go.mod h1:zAk7fcFx45euzK9Az14j6Hd9n8Cwhnjp/NBfhSIAmFg=
+github.com/freddierice/go-losetup v0.0.0-20220711213114-2a14873012db h1:StM6A9LvaVrFS2chAGcfRVDoBB6rHYPIGJ3GknpB25c=
+github.com/freddierice/go-losetup v0.0.0-20220711213114-2a14873012db/go.mod h1:pwuQfHWn6j2Fpl2AWw/bPLlKfojHxIIEa5TeKIgDFW4=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/gliderlabs/ssh v0.2.2 h1:6zsha5zo/TWhRhwqCD3+EarCAgZ2yN28ipRnGPnwkI0=
 github.com/gliderlabs/ssh v0.2.2/go.mod h1:U7qILu1NlMHj9FlMhZLlkCdDnU1DBEAqr0aevW3Awn0=
@@ -361,8 +359,8 @@ github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
 github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
 github.com/letsencrypt/boulder v0.0.0-20230213213521-fdfea0d469b6 h1:unJdfS94Y3k85TKy+mvKzjW5R9rIC+Lv4KGbE7uNu0I=
 github.com/letsencrypt/boulder v0.0.0-20230213213521-fdfea0d469b6/go.mod h1:PUgW5vI9ANEaV6qv9a6EKu8gAySgwf0xrzG9xIB/CK0=
-github.com/lxc/lxd v0.0.0-20230109185737-f7ccf0330640 h1:zqGHDSVp3ZI005OjR93GFKPQHUMK9+Hvjqppy2rGWKU=
-github.com/lxc/lxd v0.0.0-20230109185737-f7ccf0330640/go.mod h1:uX+D3+NM6fM2ZIIbooTFQd3NolZ5S9oVCmAGuj4q608=
+github.com/lxc/lxd v0.0.0-20230130192612-1e882f91a2da h1:nRu/BxIuLq9o3yxpkg8WRtTvHAB/S3BnYU+APkj7BWM=
+github.com/lxc/lxd v0.0.0-20230130192612-1e882f91a2da/go.mod h1:TvC4lIRQBeq96VD7ybdNAhC1VbYZHG6vfSnMzmfqrwA=
 github.com/mailru/easyjson v0.0.0-20190614124828-94de47d64c63/go.mod h1:C1wdFJiN94OJF2b5HbByQZoLdCWB1Yqtg26g4irojpc=
 github.com/mailru/easyjson v0.0.0-20190626092158-b2ccc519800e/go.mod h1:C1wdFJiN94OJF2b5HbByQZoLdCWB1Yqtg26g4irojpc=
 github.com/mailru/easyjson v0.7.6/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
@@ -370,8 +368,8 @@ github.com/mailru/easyjson v0.7.7 h1:UGYAvKxe3sBsEDzO8ZeWOSlIQfWFlxbzLZe7hwFURr0
 github.com/mailru/easyjson v0.7.7/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
 github.com/markbates/oncer v0.0.0-20181203154359-bf2de49a0be2/go.mod h1:Ld9puTsIW75CHf65OeIOkyKbteujpZVXDpWK6YGZbxE=
 github.com/markbates/safe v1.0.1/go.mod h1:nAqgmRi7cY2nqMc92/bSEeQA+R4OheNU2T1kNSCBdG0=
-github.com/martinjungblut/go-cryptsetup v0.0.0-20220314071908-7b9938e4a08c h1:GAbWc5XYdkdSIuiYeLwDNJMtzQYfM2sjqNuZSfEbKOM=
-github.com/martinjungblut/go-cryptsetup v0.0.0-20220314071908-7b9938e4a08c/go.mod h1:gZoZ0+POlM1ge/VUxWpMmZVNPzzMJ7l436CgkQ5+qzU=
+github.com/martinjungblut/go-cryptsetup v0.0.0-20220520180014-fd0874fd07a6 h1:YDjLk3wsL5ZLhLC4TIwIvT2NkSCAdAV6pzzZaRfj4jk=
+github.com/martinjungblut/go-cryptsetup v0.0.0-20220520180014-fd0874fd07a6/go.mod h1:gZoZ0+POlM1ge/VUxWpMmZVNPzzMJ7l436CgkQ5+qzU=
 github.com/matryer/is v1.2.0 h1:92UTHpy8CDwaJ08GqLDzhhuixiBUUD1p3AU6PHddz4A=
 github.com/matryer/is v1.2.0/go.mod h1:2fLPjFQM9rhQ15aVEtbuwhJinnOqrmgXPNdZsdwlWXA=
 github.com/mattn/go-colorable v0.1.1/go.mod h1:FuOcm+DKB9mbwrcAfNl7/TZVBZ6rcnceauSikq3lYCQ=
@@ -547,7 +545,6 @@ github.com/urfave/cli v1.22.4/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtX
 github.com/urfave/cli v1.22.12 h1:igJgVw1JdKH+trcLWLeLwZjU9fEfPesQ+9/e4MQ44S8=
 github.com/urfave/cli v1.22.12/go.mod h1:sSBEIC79qR6OvcmsD4U3KABeOTxDqQtdDnaFuUN30b8=
 github.com/urfave/cli/v2 v2.1.1/go.mod h1:SE9GqnLQmjVa0iPEY0f1w3ygNIYcIJ0OKPMoW2caLfQ=
-github.com/urfave/cli/v2 v2.2.0/go.mod h1:SE9GqnLQmjVa0iPEY0f1w3ygNIYcIJ0OKPMoW2caLfQ=
 github.com/vbatts/go-mtree v0.5.0/go.mod h1:7JbaNHyBMng+RP8C3Q4E+4Ca8JnGQA2R/MB+jb4tSOk=
 github.com/vbatts/go-mtree v0.5.2 h1:d8SAbLJiR1cR3pe1J+FBaalRkCQw95gP12/P+a9PUcA=
 github.com/vbatts/go-mtree v0.5.2/go.mod h1:e0NDJ+bT3jG7ZINeB9HR5AxTvjskCsOR54+9KoaXyDc=
@@ -740,7 +737,6 @@ golang.org/x/sys v0.0.0-20200501052902-10377860bb8e/go.mod h1:h1NjWce9XRLGQEsW7w
 golang.org/x/sys v0.0.0-20200511232937-7e40ca221e25/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200515095857-1151b9dac4a9/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200523222454-059865788121/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
-golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200803210538-64077c9b5642/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200905004654-be1d3432aa8f/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
@@ -987,5 +983,5 @@ honnef.co/go/tools v0.0.1-2020.1.4/go.mod h1:X/FiERA/W4tHapMX5mGpAtMSVEeEUOyHaw9
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
 rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
-stackerbuild.io/stacker v0.40.2-0.20230121032931-06affd857c1c h1:8DaknMVRbMdcgigY+8WhbIGY0/aq7y2tvHJBOdJLOug=
-stackerbuild.io/stacker v0.40.2-0.20230121032931-06affd857c1c/go.mod h1:AFYVPDewAdekJa/+pM1FIg7o7kvWS04oRsHHiCE5Q+Y=
+stackerbuild.io/stacker v1.0.0-rc4.0.20230721004419-db121052a5bd h1:qc4EiZRoK0wg9enDHMg5rfQ0bLCwPNZTgZhFGGMRjSo=
+stackerbuild.io/stacker v1.0.0-rc4.0.20230721004419-db121052a5bd/go.mod h1:EENzDtAPc3Kc1L9tMZEdRhgWP4Br2tupncCvRExFrRc=

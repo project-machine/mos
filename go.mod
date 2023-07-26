@@ -5,7 +5,7 @@ require (
 	github.com/apex/log v1.9.0
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/jsipprell/keyctl v1.0.4
-	github.com/lxc/lxd v0.0.0-20230109185737-f7ccf0330640
+	github.com/lxc/lxd v0.0.0-20230130192612-1e882f91a2da
 	github.com/msoap/byline v1.1.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc4
@@ -17,7 +17,7 @@ require (
 	golang.org/x/sys v0.8.0
 	golang.org/x/text v0.9.0
 	gopkg.in/yaml.v2 v2.4.0
-	stackerbuild.io/stacker v0.40.2-0.20230121032931-06affd857c1c
+	stackerbuild.io/stacker v1.0.0-rc4.0.20230721004419-db121052a5bd
 )
 
 require (
@@ -28,9 +28,8 @@ require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
-	github.com/anuvu/squashfs v0.0.0-20220228153512-67c8ca12cbf4 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
-	github.com/containers/image/v5 v5.16.1 // indirect
+	github.com/containers/image/v5 v5.24.2 // indirect
 	github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 // indirect
 	github.com/containers/ocicrypt v1.1.7 // indirect
 	github.com/containers/storage v1.45.4 // indirect
@@ -45,7 +44,7 @@ require (
 	github.com/emirpasic/gods v1.12.0 // indirect
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3 // indirect
 	github.com/foxboron/go-uefi v0.0.0-20230218004016-d1bb9a12f92c // indirect
-	github.com/freddierice/go-losetup v0.0.0-20220331141030-7ad00c49b973 // indirect
+	github.com/freddierice/go-losetup v0.0.0-20220711213114-2a14873012db // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.3.1 // indirect
 	github.com/go-openapi/analysis v0.21.4 // indirect
@@ -77,7 +76,7 @@ require (
 	github.com/klauspost/pgzip v1.2.6-0.20220930104621-17e8dac29df8 // indirect
 	github.com/letsencrypt/boulder v0.0.0-20230213213521-fdfea0d469b6 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/martinjungblut/go-cryptsetup v0.0.0-20220314071908-7b9938e4a08c // indirect
+	github.com/martinjungblut/go-cryptsetup v0.0.0-20220520180014-fd0874fd07a6 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/miekg/pkcs11 v1.1.1 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
