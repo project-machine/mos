@@ -1,0 +1,46 @@
+#!/bin/bash
+
+mkdir /iso
+mount /dev/sr0 /iso
+cp -r /iso/oci /zot
+umount /iso
+
+mkdir -p /etc/zot
+cat > /etc/zot/config.json << EOF
+{
+  "distSpecVersion": "1.0.1-dev",
+  "storage": {
+    "rootDirectory": "/zot",
+    "gc": false
+  },
+  "http": {
+    "address": "127.0.0.1",
+    "port": "5000"
+  },
+  "log": {
+    "level": "error"
+  }
+}
+
+EOF
+
+cat > /etc/systemd/system/zot.service << EOF
+[Unit]
+Description=OCI Distribution Registry
+After=network.target local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/zot serve /etc/zot/config.json
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl start zot.service
+
+systemctl start udev
+
+modprobe dmverity
+mosctl --debug install --partition docker://127.0.0.1:5000/machine/install:1.0.0

@@ -1,0 +1,4 @@
+config:
+  prerequisites:
+    - provision/stacker.yaml
+    - install/stacker.yaml
