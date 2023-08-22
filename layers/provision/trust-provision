@@ -1,0 +1,40 @@
+#!/bin/sh
+
+fail() { [ $# -eq 0 ] || echo "$@" 1>&2; exit 1; }
+
+name="${0##*/}"
+maxwait=10
+waited=0
+label="trust-data"
+devpath="/dev/disk/by-label/$label"
+
+while [ $waited -lt $maxwait ] && waited=$((waited+1)); do
+    [ -b "$devpath" ] && break
+    udevadm settle
+    [ -b "$devpath" ] && break
+    sleep .5
+done
+
+[ -b "$devpath" ] || {
+    cat<<EOF
+=========
+$0 did not find disk named $label
+========
+EOF
+fail
+}
+
+
+mp="/run/$name"
+mkdir -p "$mp" || fail "failed to mkdir $mp"
+mount "$devpath" "$mp" || fail "failed to mount $devpath to $mp"
+
+missing=""
+for f in cert.pem privkey.pem; do
+    [ -f "$mp/$f" ] || missing="$missing $f"
+done
+[ -z "$missing" ] ||
+    fail "$devpath was found, but did not contain ${missing# }"
+
+exec mosctl provision --disk /dev/sda --wipe \
+    "$mp/cert.pem" "$mp/privkey.pem"

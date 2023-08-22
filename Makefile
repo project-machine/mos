@@ -12,6 +12,7 @@ REGCTL_VERSION := 0.5.0
 # project-machine trust
 TRUST := $(TOOLSDIR)/bin/trust
 TRUST_VERSION := 0.0.6
+ROOTFS_VERSION := 0.0.5.230327
 
 GO_SRC=$(shell find cmd pkg  -name "*.go")
 
@@ -54,6 +55,17 @@ gofmt: .made-gofmt
 	@touch $@
 
 deps: mosctl mosb $(ORAS) $(REGCTL) $(ZOT) $(TRUST)
+
+STACKER_SUBS = \
+	--substitute ROOTFS_VERSION=$(ROOTFS_VERSION) \
+	--substitute ZOT_VERSION=$(ZOT_VERSION)
+
+STACKER_OPTS = --layer-type=squashfs $(STACKER_SUBS)
+
+.PHONY: layers
+layers:
+	stacker build $(STACKER_OPTS) --stacker-file layers/provision/stacker.yaml
+	stacker build $(STACKER_OPTS) --stacker-file layers/install/stacker.yaml
 
 .PHONY: test
 test: deps

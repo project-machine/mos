@@ -119,3 +119,16 @@ jobs:
           files: |
             mosctl
             mosb
+
+      - name: publish provision and install layer
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: project-stacker/stacker-build-push-action@main
+        with:
+          file: 'layers/stacker.yaml'
+          build-args: |
+            ZOT_VERSION=2.0.0-rc5
+            ROOTFS_VERSION=0.0.5.230327
+          url: docker://zothub.io/machine/bootstrap
+          tags: ${{ github.event.release.tag_name }}
+          username: ${{ secrets.ZOTHUB_USERNAME }}
+          password: ${{ secrets.ZOTHUB_PASSWORD }}
