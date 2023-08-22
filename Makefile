@@ -61,6 +61,19 @@ gofmt: .made-gofmt
 
 deps: mosctl mosb $(ORAS) $(REGCTL) $(ZOT) $(TRUST)
 
+ROOTFS_VERSION = v0.0.15.230901
+
+STACKER_SUBS = \
+	--substitute ROOTFS_VERSION=$(ROOTFS_VERSION) \
+	--substitute ZOT_VERSION=$(ZOT_VERSION)
+
+STACKER_OPTS = --layer-type=squashfs $(STACKER_SUBS)
+
+.PHONY: layers
+layers:
+	stacker build $(STACKER_OPTS) --stacker-file layers/provision/stacker.yaml
+	stacker build $(STACKER_OPTS) --stacker-file layers/install/stacker.yaml
+
 .PHONY: test
 test: deps
 	bats tests/install.bats

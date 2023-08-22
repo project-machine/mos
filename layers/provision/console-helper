@@ -1,0 +1,119 @@
+#!/bin/sh
+
+getinput() {
+    local chardev="$1" out="$2" msg="$3"  b=""
+    #echo "kid $$ reporting for $chardev"
+    trap "exit 0" TERM
+    exec 3>&1
+    exec >"$chardev" <"$chardev" 2>&1 || {
+        echo "$name: failed redirect to '$chardev'" >&3
+        exit 2
+    }
+    #echo "redirected to $chardev, now reading" >&3
+    echo "$msg"
+    read b
+    [ $? -eq 0 ] || {
+        echo "$name: read failed" >&3
+        exit 1
+    }
+    echo "$$:$chardev" > "$out" || {
+        echo "$name: write to $out failed" >&3
+    }
+    exit
+}
+
+reap() {
+    local k="" kids=""
+    for k in "$@"; do
+        [ -d "/proc/$k" ] || continue
+        kids="$kids $k"
+    done
+    kids=${kids# }
+    [ -n "$kids" ] || return 0
+    #echo "reaping $kids"
+    kill -TERM $kids
+}
+
+main_sigchld() {
+    local rc=$? pid="" chardev="" line
+    [ -z "$ACTIVE_TTY" ] || return 0
+    #echo "processing sigchild: rc=$rc ($KIDS)"
+    [ -f "$tmpf" ] || { echo "no tmpf '$tmpf'"; exit 1; }
+    while read line; do
+        [ -n "$line" ] || continue
+        #echo "read line=$line"
+        pid=${line%%:*}
+        chardev=${line#*:}
+        [ -n "$chardev" ] && break
+    done < "$tmpf"
+    [ -n "$chardev" ] || return 0
+    ACTIVE_TTY=$chardev
+    #echo "found dev '$chardev' from kid=$pid: KIDS=$KIDS"
+    reap $KIDS
+    KIDS=""
+}
+
+main_sigexit() {
+    reap $KIDS
+    KIDS=""
+    [ -z "$TMPF" ] || rm -f "$TMPF"
+}
+
+main() {
+    ACTIVE_TTY=""
+    KIDS=""
+    local ttys="/dev/ttyS0 /dev/tty1"
+    trap main_sigexit TERM
+    trap main_sigexit EXIT
+    tmpf=$(mktemp) || exit 1
+    TMPF="$tmpf"
+    trap main_sigchld CHLD
+    for tty in $ttys; do
+        "$0" getinput "$tty" "$tmpf" "Press any key to continue..." &
+        KIDS="${KIDS:+${KIDS} }$!"
+    done
+    wait
+    trap "" CHLD
+    if [ -n "$ACTIVE_TTY" ]; then
+        echo "got active=$ACTIVE_TTY"
+    else
+        echo "no active found"
+        return 1
+    fi
+
+    # save/duplicate original stdout to fd 3.
+    exec 3>&2
+    # redirect output to the selected console.
+    exec >"$ACTIVE_TTY" <"$ACTIVE_TTY" 2>&1 || {
+        echo "Failed to open $ACTIVE_TTY" >&3
+        exit 1
+    }
+
+    local msg="selected '$ACTIVE_TTY' as active."
+    local curmsg="selected '$ACTIVE_TTY' (current) as active."
+    [ $# -eq 0 ] || {
+        msg="$msg executing '$1'"
+        curmsg="$curmsg executing '$1'"
+    }
+
+    # If this program's stdout is /dev/console, and user hit enter there,
+    # then we end up writing 'curmsg' o tty1 and 'msg' to /dev/console
+    # so the user will see both.  I don't know how to avoid that.
+    for tty in $ttys; do
+        [ "$tty" = "$ACTIVE_TTY" ] && continue
+        echo "$msg" >"$tty"
+    done
+    # write to program's original stdout.
+    echo "$msg" >&3
+    # write to the selected console.
+    echo "$curmsg"
+
+    [ $# -gt 0 ] || return 0
+    exec "$@"
+}
+
+case "$1" in
+    getinput) shift; getinput "$@"; exit;;
+    main) shift; main "$@"; exit;;
+esac
+main "$@"

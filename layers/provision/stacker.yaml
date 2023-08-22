@@ -1,0 +1,57 @@
+provision-base:
+  build_only: true
+  from:
+    type: docker
+    url: "docker://zothub.io/machine/bootkit/rootfs:${{ROOTFS_VERSION}}-squashfs"
+
+provision-rootfs-pkg:
+  build_only: true
+  from:
+    type: built
+    tag: provision-base
+  run: |
+    pkgtool install udev kmod \
+        libsquashfs-dev tpm2-tools cryptsetup
+
+provision-rootfs:
+  from:
+    type: built
+    tag: provision-rootfs-pkg
+  import:
+    - ${{TOPDIR}}/mosctl
+    - trust-provision
+    - trust-provision.service
+  run: |
+    #!/bin/sh -ex
+    writefile() {
+      mkdir -p "${1%/*}"
+      echo "write $1" 1>&2
+      cat >"$1"
+    }
+
+    writefile /etc/systemd/network/20-wire-enp0s-dhcp.network <<"END"
+    [Match]
+    Name=enp0s*
+    [Network]
+    DHCP=yes
+    END
+
+    cd /stacker
+    cp mosctl trust-provision /usr/bin
+    ( cd /usr/bin && chmod 755 mosctl trust-provision )
+
+    cp trust-provision.service /etc/systemd/system/
+    systemctl enable trust-provision.service
+    systemctl mask serial-getty@ttyS0
+
+    echo provision > /mos-action
+
+  annotations:
+    org.opencontainers.image.title: provision-rootfs
+    org.opencontainers.image.description: Rootfs which performs provisioning
+    org.opencontainers.image.url: https://github.com/project-machine/mos
+    org.opencontainers.image.source: https://github.com/project-machine/mos
+    org.opencontainers.image.version: "n/a"
+    org.opencontainers.image.revision: "n/a"
+    org.opencontainers.image.licenses:  Apache-2.0 GPL-2.0-or-later
+    org.opencontainers.image.vendor: "project-machine"

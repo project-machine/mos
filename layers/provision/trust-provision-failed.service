@@ -1,0 +1,15 @@
+[Unit]
+Description=Run on failure of trust-provision.
+After=getty.target multi-user.target
+Conflicts=getty@tty1.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/usr/bin/console-helper /bin/bash
+StandardInput=tty-force
+StandardOutput=inherit
+StandardError=inherit
+
+[Install]
+WantedBy=multi-user.target
