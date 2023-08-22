@@ -11,7 +11,7 @@ REGCTL := $(TOOLSDIR)/bin/regctl
 REGCTL_VERSION := 0.5.0
 # project-machine trust
 TRUST := $(TOOLSDIR)/bin/trust
-TRUST_VERSION := 0.0.3
+TRUST_VERSION := 0.0.6
 
 GO_SRC=$(shell find cmd pkg  -name "*.go")
 

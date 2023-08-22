@@ -34,9 +34,9 @@ function common_setup {
 	# setup a trust keyset
 	export PATH="$PATH:${TOPDIR}/hack/tools/bin"
 	[ -e ${TOPDIR}/hack/tools/trust ] || {
-		mkdir -p ${TOPDIR}/hack/tools
-		wget -O ${TOPDIR}/hack/tools/trust https://github.com/project-machine/trust/releases/download/0.0.3/trust
-		chmod 755 ${TOPDIR}/hack/tools/trust
+		mkdir -p ${TOPDIR}/hack/tools/bin
+		wget -O ${TOPDIR}/hack/tools/bin/trust https://github.com/project-machine/trust/releases/download/0.0.6/trust-linux-amd64
+		chmod 755 ${TOPDIR}/hack/tools/bin/trust
 	}
 	trust keyset list | grep snakeoil || trust keyset add snakeoil
 	export CA_PEM=~/.local/share/machine/trust/keys/snakeoil/manifest-ca/cert.pem
