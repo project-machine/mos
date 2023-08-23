@@ -28,7 +28,8 @@ jobs:
             libseccomp-dev libsquashfs-dev lxc lxc-dev make mtools\
             openssl pkgconf skopeo socat squashfuse swtpm jq \
             uidmap umoci qemu-utils qemu-system-x86 xorriso \
-            ubuntu-dev-tools make gcc
+            ubuntu-dev-tools make gcc pip
+          pip install virt-firmware
           sudo modprobe kvm
           sudo adduser $(whoami) kvm
           sudo chmod o+rw /dev/kvm
