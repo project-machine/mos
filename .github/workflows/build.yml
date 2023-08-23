@@ -99,7 +99,6 @@ jobs:
           mkdir -p /run/user/$(id -u)/containers
           chmod go+rx /run/user/$(id -u)
           chmod go+rx /run/user/$(id -u)/containers
-          ./tests/setup_local_bootkit
           nohup ~/bin/machined > /tmp/machined.out 2>&1 &
           timeout 20m make test
           timeout 20m bats tests/livecd1.bats

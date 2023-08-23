@@ -9,8 +9,8 @@ set -x
 export PATH=$PATH:.
 
 usage() {
-  echo "Example usage: --project=snakeoil:default --layer=oci:oci:provision-rootfs-squashfs --output provision.iso --help"
-  echo "               --project=snakeoil:default --layer=oci:oci:livecd-rootfs-squashfs --output livecd.iso --help"
+  echo "Example usage: --project=mostest:default --layer=oci:oci:provision-rootfs-squashfs --output provision.iso --help"
+  echo "               --project=mostest:default --layer=oci:oci:livecd-rootfs-squashfs --output livecd.iso --help"
   echo "   For an install cd, specify the target layer, e.g. --tlayer=oci:target-rootfs-squashfs"
 }
 
@@ -20,7 +20,7 @@ o=""
 LAYER=""
 TLAYER=""
 OUTFILE="livecd.iso"
-project=snakeoil:default
+project=mostest:default
 o=$(getopt --name "${0##*/}" --options "${short_opts}" \
 	--long "${long_opts}" -- "$@") && eval set -- "${o}" || { usage; exit 1; }
 while [ $# -ne 0 ]; do

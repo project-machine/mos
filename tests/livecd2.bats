@@ -34,8 +34,8 @@ function teardown() {
 	./build-livecd-rfs --layer oci:oci:provision-rootfs-squashfs \
 	   --output provision.iso
 	cd $TMPD
-	trust sudi list snakeoil default | grep mosCI001 || trust sudi add snakeoil default mosCI001
-	mkdir SUDI; cp ~/.local/share/machine/trust/keys/snakeoil/manifest/default/sudi/mosCI001/* SUDI/
+	trust sudi list mostest default | grep mosCI001 || trust sudi add mostest default mosCI001
+	mkdir SUDI; cp ~/.local/share/machine/trust/keys/mostest/manifest/default/sudi/mosCI001/* SUDI/
 	truncate -s 20M sudi.vfat
 	mkfs.vfat -n trust-data sudi.vfat
 	mcopy -i sudi.vfat SUDI/cert.pem ::cert.pem
@@ -49,7 +49,7 @@ function teardown() {
     config:
       name: ${VMNAME}
       uefi: true
-      uefi-vars: $HOME/.local/share/machine/trust/keys/snakeoil/bootkit/ovmf-vars.fd
+      uefi-vars: $HOME/.local/share/machine/trust/keys/mostest/bootkit/ovmf-vars.fd
       cdrom: provision.iso
       boot: cdrom
       tpm: true

@@ -7,12 +7,7 @@ function common_setup {
 	export TOPDIR="$(git rev-parse --show-toplevel)"
 
 	# Support local testing
-	LOCAL_BOOTKIT_DIR="${TOPDIR}/../build-bootkit/oci"
-	if [ -d "${LOCAL_BOOTKIT_DIR}" ]; then
-		export BOOTKIT_URL="oci:${LOCAL_BOOTKIT_DIR}:bootkit-squashfs"
-	else
-		export BOOTKIT_URL="${BOOTKIT_URL:-docker://zothub.io/machine/bootkit/bootkit:$ROOTFS_VERSION-squashfs}"
-	fi
+	export BOOTKIT_URL="${BOOTKIT_URL:-docker://zothub.io/machine/bootkit/bootkit:${ROOTFS_VERSION}-squashfs}"
 
 	if [ ! -d "${PWD}/zothub" ]; then
 		stacker --oci-dir zothub build --layer-type squashfs
@@ -38,10 +33,10 @@ function common_setup {
 		wget -O ${TOPDIR}/hack/tools/bin/trust https://github.com/project-machine/trust/releases/download/0.0.6/trust-linux-amd64
 		chmod 755 ${TOPDIR}/hack/tools/bin/trust
 	}
-	trust keyset list | grep snakeoil || trust keyset add snakeoil
-	export CA_PEM=~/.local/share/machine/trust/keys/snakeoil/manifest-ca/cert.pem
-	export M_CERT=~/.local/share/machine/trust/keys/snakeoil/manifest/default/cert.pem
-	export M_KEY=~/.local/share/machine/trust/keys/snakeoil/manifest/default/privkey.pem
+	trust keyset list | grep mostest || trust keyset add mostest
+	export CA_PEM=~/.local/share/machine/trust/keys/mostest/manifest-ca/cert.pem
+	export M_CERT=~/.local/share/machine/trust/keys/mostest/manifest/default/cert.pem
+	export M_KEY=~/.local/share/machine/trust/keys/mostest/manifest/default/privkey.pem
 }
 
 function zot_setup {
@@ -235,7 +230,7 @@ function good_install {
 	write_install_yaml "$spectype"
 	./mosb manifest publish \
 		--repo ${ZOT_HOST}:${ZOT_PORT} --name puzzleos/install:1.0.0 \
-		--project snakeoil:default $TMPD/manifest.yaml
+		--project mostest:default $TMPD/manifest.yaml
 	rm $TMPD/manifest.yaml
 	mkdir -p $TMPD/factory/secure
 	cp "$CA_PEM" "$TMPD/factory/secure/manifestCA.pem"
