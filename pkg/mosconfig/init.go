@@ -21,6 +21,8 @@ func systemdStart(unitName string) error {
 	return nil
 }
 
+var Version string
+
 const execServiceTemplate = `
 [Unit]
 Description=%s

@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/apex/log"
+	"github.com/project-machine/mos/pkg/mosconfig"
 	"github.com/urfave/cli"
 )
 
@@ -12,7 +13,7 @@ const Version = "0.1"
 func main() {
 	app := cli.NewApp()
 	app.Name = "mos"
-	app.Version = Version
+	app.Version = mosconfig.Version
 	app.Commands = []cli.Command{
 		createBootFsCmd,
 		activateCmd,
