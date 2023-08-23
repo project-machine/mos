@@ -22,26 +22,18 @@ jobs:
           sudo apt-get update
           sudo add-apt-repository -y ppa:puzzleos/dev
           sudo apt-get -y install \
-            bats cryptsetup-bin expect libacl1-dev libarchive-tools \
-            libcryptsetup-dev libgpgme-dev libcap-dev \
-            libdevmapper-dev liblxc-dev libpam0g-dev \
-            libseccomp-dev libsquashfs-dev lxc lxc-dev make mtools\
-            openssl pkgconf skopeo socat squashfuse swtpm jq \
-            uidmap umoci qemu-utils qemu-system-x86 xorriso \
-            ubuntu-dev-tools make gcc pip
-          pip install virt-firmware
+                bats cryptsetup-bin expect gcc jq libacl1-dev libarchive-tools \
+                libcap-dev libcryptsetup-dev libdevmapper-dev libgpgme-dev \
+                liblxc-dev libpam0g-dev libseccomp-dev libsquashfs-dev lxc \
+                lxc-dev make make mtools openssl pip pkgconf qemu-system-x86 \
+                qemu-utils skopeo socat squashfuse swtpm ubuntu-dev-tools \
+                uidmap umoci xorriso
+          sudo pip install virt-firmware
           sudo modprobe kvm
           sudo adduser $(whoami) kvm
           sudo chmod o+rw /dev/kvm
           sudo systemctl restart user@$(id -u runner)
           sudo systemctl start dbus
-          echo "XXX some debug"
-          cat /proc/self/status
-          ls -l /run/user
-          ls -l /dev/kvm
-          id -u
-          id -u runner
-          ps -ef
       - name: setup lxc
         run: |
           chmod ugo+x $HOME
