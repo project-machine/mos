@@ -13,15 +13,21 @@ REGCTL_VERSION := 0.5.0
 TRUST := $(TOOLSDIR)/bin/trust
 TRUST_VERSION := 0.0.3
 
+MAIN_VERSION ?= $(shell git describe --always --dirty || echo no-git)
+ifeq ($(MAIN_VERSION),$(filter $(MAIN_VERSION), "", no-git))
+$(error "Bad value for MAIN_VERSION: '$(MAIN_VERSION)'")
+endif
+
 GO_SRC=$(shell find cmd pkg  -name "*.go")
 
 all: mosctl mosb $(ZOT) $(ORAS) $(REGCTL)
 
+VERSION_LDFLAGS=-X github.com/project-machine/mos/pkg/mosconfig.Version=$(MAIN_VERSION)
 mosctl: .made-gofmt $(GO_SRC)
-	go build -tags "$(BUILD_TAGS)" -ldflags "-s -w" ./cmd/mosctl
+	go build -tags "$(BUILD_TAGS)" -ldflags "-s -w $(VERSION_LDFLAGS)" ./cmd/mosctl
 
 mosb: .made-gofmt $(GO_SRC)
-	go build -tags "$(BUILD_TAGS)" -ldflags "-s -w" ./cmd/mosb
+	go build -tags "$(BUILD_TAGS)" -ldflags "-s -w $(VERSION_LDFLAGS)" ./cmd/mosb
 
 $(ZOT):
 	mkdir -p $(TOOLSDIR)/bin
@@ -48,7 +54,7 @@ $(REGCTL):
 gofmt: .made-gofmt
 
 .made-gofmt: $(GO_SRC)
-	@o=$$(gofmt -l -w . 2>&1) || \
+	@o=$$(gofmt -l -w cmd pkg 2>&1) || \
 	  { r=$$?; echo "gofmt failed [$$r]: $$o" 1>&2; exit $$r; }; \
 	  [ -z "$$o" ] || { echo "gofmt made changes: $$o" 1>&2; exit 1; }
 	@touch $@
