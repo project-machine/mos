@@ -3,7 +3,8 @@ function run_git {
 }
 
 function common_setup {
-	export ROOTFS_VERSION="${ROOTFS_VERSION:-0.0.5.230327}"
+	export ROOTFS_VERSION="${ROOTFS_VERSION:-v0.0.15.230901}"
+	echo "ROOTFS_VERSION is ${ROOTFS_VERSION}"
 	export TOPDIR="$(git rev-parse --show-toplevel)"
 
 	# Support local testing
@@ -33,12 +34,12 @@ function common_setup {
 
 	# setup a trust keyset
 	export PATH="$PATH:${TOPDIR}/hack/tools/bin"
-	[ -e ${TOPDIR}/hack/tools/trust ] || {
-		mkdir -p ${TOPDIR}/hack/tools
-		wget -O ${TOPDIR}/hack/tools/trust https://github.com/project-machine/trust/releases/download/0.0.3/trust
-		chmod 755 ${TOPDIR}/hack/tools/trust
+	[ -e ${TOPDIR}/hack/tools/bin/trust ] || {
+		mkdir -p ${TOPDIR}/hack/tools/bin
+		wget -O ${TOPDIR}/hack/tools/bin/trust https://github.com/project-machine/trust/releases/download/v0.0.13/trust-linux-amd64
+		chmod 755 ${TOPDIR}/hack/tools/bin/trust
 	}
-	trust keyset list | grep snakeoil || trust keyset add snakeoil
+	trust keyset list | grep snakeoil || trust keyset add --bootkit-version=${ROOTFS_VERSION} snakeoil
 	export CA_PEM=~/.local/share/machine/trust/keys/snakeoil/manifest-ca/cert.pem
 	export M_CERT=~/.local/share/machine/trust/keys/snakeoil/manifest/default/cert.pem
 	export M_KEY=~/.local/share/machine/trust/keys/snakeoil/manifest/default/privkey.pem
