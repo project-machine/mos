@@ -16,7 +16,7 @@ jobs:
       - name: Set up golang
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: 1.21
       - name: install dependencies
         run: |
           sudo apt-get update
@@ -26,7 +26,7 @@ jobs:
             libcryptsetup-dev libgpgme-dev libcap-dev \
             libdevmapper-dev liblxc-dev libpam0g-dev \
             libseccomp-dev libsquashfs-dev lxc lxc-dev make mtools\
-            openssl pkgconf skopeo socat squashfuse swtpm jq \
+            openssl pip pkgconf skopeo socat squashfuse swtpm jq \
             uidmap umoci qemu-utils qemu-system-x86 xorriso \
             ubuntu-dev-tools make gcc
           sudo modprobe kvm
@@ -34,6 +34,7 @@ jobs:
           sudo chmod o+rw /dev/kvm
           sudo systemctl restart user@$(id -u runner)
           sudo systemctl start dbus
+          sudo pip install virt-firmware
           echo "XXX some debug"
           cat /proc/self/status
           ls -l /run/user
@@ -87,7 +88,7 @@ jobs:
 
       - name: test preparation
         run: |
-          wget -O ~/bin/trust --progress=dot:mega https://github.com/project-machine/trust/releases/download/0.0.3/trust
+          wget -O ~/bin/trust --progress=dot:mega https://github.com/project-machine/trust/releases/download/v0.0.12/trust-linux-amd64
           wget -O ~/bin/machine --progress=dot:mega https://github.com/project-machine/machine/releases/download/0.0.4/machine
           wget -O ~/bin/machined --progress=dot:mega https://github.com/project-machine/machine/releases/download/0.0.4/machined
           chmod 755 ~/bin/trust ~/bin/machine ~/bin/machined

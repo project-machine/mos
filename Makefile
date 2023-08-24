@@ -11,7 +11,7 @@ REGCTL := $(TOOLSDIR)/bin/regctl
 REGCTL_VERSION := 0.5.0
 # project-machine trust
 TRUST := $(TOOLSDIR)/bin/trust
-TRUST_VERSION := 0.0.3
+TRUST_VERSION := v0.0.12
 
 MAIN_VERSION ?= $(shell git describe --always --dirty || echo no-git)
 ifeq ($(MAIN_VERSION),$(filter $(MAIN_VERSION), "", no-git))
@@ -36,7 +36,7 @@ $(ZOT):
 
 $(TRUST):
 	mkdir -p $(TOOLSDIR)/bin
-	curl -Lo $(TRUST) https://github.com/project-machine/trust/releases/download/${TRUST_VERSION}/trust
+	curl -Lo $(TRUST) https://github.com/project-machine/trust/releases/download/${TRUST_VERSION}/trust-linux-amd64
 	chmod +x $(TRUST)
 
 $(ORAS):
