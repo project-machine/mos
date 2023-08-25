@@ -375,7 +375,11 @@ func (o *OciBoot) Build() error {
 	if err := os.MkdirAll(filepath.Dir(modSquashDest), 0755); err != nil {
 		return fmt.Errorf("Failed to create directory for modules.squashfs: %v", err)
 	}
-	if err := copyFile(filepath.Join(o.BootKit, "modules.squashfs"), modSquashDest); err != nil {
+	src := filepath.Join(o.BootKit, "kernel", "modules.squashfs")
+	if !PathExists(src) {
+		src = filepath.Join(o.BootKit, "modules.squashfs")
+	}
+	if err := copyFile(src, modSquashDest); err != nil {
 		return fmt.Errorf("Failed to copy modules.squashfs to media: %v", err)
 	}
 
