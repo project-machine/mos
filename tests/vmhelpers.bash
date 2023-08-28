@@ -7,7 +7,6 @@ function vm_setup() {
 	cd $TMPD
 	cp ${ORIG}/mosb .
 	cp ${ORIG}/mosctl .
-	${ORIG}/tests/livecd1/build-bootkit
 }
 
 function vm_teardown() {
