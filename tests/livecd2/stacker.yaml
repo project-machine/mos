@@ -92,6 +92,15 @@ target-rootfs:
 
     systemctl enable serial-getty@ttyS0
 
+bootkit:
+  from:
+    type: scratch
+  import:
+    - path: ${{KEYSDIR}}/bootkit/kernel.efi
+      dest: /bootkit/kernel.efi
+    - path: ${{KEYSDIR}}/bootkit/shim.efi
+      dest: /bootkit/shim.efi
+
 install-rootfs:
   from:
     type: built

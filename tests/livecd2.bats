@@ -27,6 +27,7 @@ function teardown() {
 		--stacker-file ${ORIG}/tests/livecd2/stacker.yaml \
 		--substitute TMPD=${TMPD} \
 		--substitute TOPDIR=${TOPDIR} \
+		--substitute KEYSDIR=~/.local/share/machine/trust/keys/snakeoil \
 		--substitute "ZOT_VERSION=${ZOT_VERSION}" \
 		--substitute "ROOTFS_VERSION=${ROOTFS_VERSION}"
 	export PATH=${TMPD}:$PATH
@@ -99,18 +100,23 @@ EOF
 
 	# We've provisioned.  Create install iso
 	./build-livecd-rfs --layer oci:oci:install-rootfs-squashfs \
+		--bootkit-layer oci:oci:bootkit-squashfs \
 		--output install.iso --tlayer oci:oci:target-rootfs-squashfs
 
+	echo "updating ${VMNAME} to boot from install.iso"
+	echo "yaml before:"
+	machine info "${VMNAME}"
 	cat > sed1.bash << EOF
 #!/bin/bash
 sed -i 's/provision.iso/install.iso/' \$*
 # There has to be a better way than to delete 6 lines...
-sed -i '/sudi.vfat/,+6d' \$*
+sed -i '/sudi.vfat/,+3d' \$*
 EOF
 	chmod 755 sed1.bash
 	VISUAL=$(pwd)/sed1.bash machine edit "${VMNAME}"
 	machine start "${VMNAME}"
 	wait_for_vm
+	echo "about to start provisioned machine to install"
 	machine info "${VMNAME}"
 	sleep 3s
 
