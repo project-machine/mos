@@ -72,13 +72,6 @@ targets:
     nsgroup: "none"
     network:
       type: none
-  - service_name: bootkit
-    source: "$BOOTKIT_URL"
-    version: 1.0.0
-    service_type: fs-only
-    nsgroup: "none"
-    network:
-      type: none
 EOF
 if [ -n "$TLAYER" ]; then
 cat >> manifest.yaml << EOF

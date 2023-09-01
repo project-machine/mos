@@ -7,14 +7,6 @@ function common_setup {
 	echo "ROOTFS_VERSION is ${ROOTFS_VERSION}"
 	export TOPDIR="$(git rev-parse --show-toplevel)"
 
-	# Support local testing
-	LOCAL_BOOTKIT_DIR="${TOPDIR}/../build-bootkit/oci"
-	if [ -d "${LOCAL_BOOTKIT_DIR}" ]; then
-		export BOOTKIT_URL="oci:${LOCAL_BOOTKIT_DIR}:bootkit-squashfs"
-	else
-		export BOOTKIT_URL="${BOOTKIT_URL:-docker://zothub.io/machine/bootkit/bootkit:$ROOTFS_VERSION-squashfs}"
-	fi
-
 	if [ ! -d "${PWD}/zothub" ]; then
 		stacker --oci-dir zothub build --layer-type squashfs
 	fi
