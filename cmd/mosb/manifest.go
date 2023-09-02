@@ -43,5 +43,5 @@ var manifestCmd = cli.Command{
 }
 
 func doPublishManifest(ctx *cli.Context) error {
-	return mosconfig.PublishManifest(ctx)
+	return mosconfig.PublishManifestFromArgs(ctx)
 }
