@@ -21,7 +21,12 @@ func systemdStart(unitName string) error {
 	return nil
 }
 
+// version of mosb and mosctl (defined in Makefile)
 var Version string
+
+// version of the provision and install layers (defined in Makefile)
+// eventually we should probably use just Version for this
+var LayerVersion string
 
 const execServiceTemplate = `
 [Unit]

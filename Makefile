@@ -12,6 +12,7 @@ REGCTL_VERSION := 0.5.0
 # project-machine trust
 TRUST := $(TOOLSDIR)/bin/trust
 TRUST_VERSION := v0.0.13
+TOPDIR := $(shell git rev-parse --show-toplevel)
 
 MAIN_VERSION ?= $(shell git describe --always --dirty || echo no-git)
 ifeq ($(MAIN_VERSION),$(filter $(MAIN_VERSION), "", no-git))
@@ -22,7 +23,8 @@ GO_SRC=$(shell find cmd pkg  -name "*.go")
 
 all: mosctl mosb $(ZOT) $(ORAS) $(REGCTL)
 
-VERSION_LDFLAGS=-X github.com/project-machine/mos/pkg/mosconfig.Version=$(MAIN_VERSION)
+VERSION_LDFLAGS=-X github.com/project-machine/mos/pkg/mosconfig.Version=$(MAIN_VERSION) \
+	-X github.com/project-machine/mos/pkg/mosconfig.LayerVersion=0.0.1
 mosctl: .made-gofmt $(GO_SRC)
 	go build -tags "$(BUILD_TAGS)" -ldflags "-s -w $(VERSION_LDFLAGS)" ./cmd/mosctl
 
@@ -62,15 +64,15 @@ gofmt: .made-gofmt
 deps: mosctl mosb $(ORAS) $(REGCTL) $(ZOT) $(TRUST)
 
 ROOTFS_VERSION = v0.0.15.230901
-
 STACKER_SUBS = \
 	--substitute ROOTFS_VERSION=$(ROOTFS_VERSION) \
+	--substitute TOPDIR=${TOPDIR} \
 	--substitute ZOT_VERSION=$(ZOT_VERSION)
 
 STACKER_OPTS = --layer-type=squashfs $(STACKER_SUBS)
 
 .PHONY: layers
-layers:
+layers: mosctl
 	stacker build $(STACKER_OPTS) --stacker-file layers/provision/stacker.yaml
 	stacker build $(STACKER_OPTS) --stacker-file layers/install/stacker.yaml
 
@@ -85,3 +87,4 @@ test: deps
 clean:
 	rm -f mosb mosctl
 	rm -rf $(TOOLSDIR)
+	stacker clean

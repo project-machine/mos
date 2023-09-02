@@ -13,8 +13,9 @@ func main() {
 	app.Name = "mosb"
 	app.Version = mosconfig.Version
 	app.Commands = []cli.Command{
-		mkBootCmd,
 		manifestCmd,
+		mkBootCmd,
+		mkProvisionCmd,
 	}
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{

@@ -272,7 +272,7 @@ func efiBootMgrSetup() error {
 // import manifest in yaml format to a install manifest in json
 // format, sign it, and post all referenced layers as well as the
 // manifest, cert, and signature to the listed repository.
-func PublishManifest(ctx *cli.Context) error {
+func PublishManifestFromArgs(ctx *cli.Context) error {
 	proj := ctx.String("project")
 	if proj == "" {
 		return fmt.Errorf("Project is required")
@@ -290,16 +290,19 @@ func PublishManifest(ctx *cli.Context) error {
 		return fmt.Errorf("file is a required positional argument")
 	}
 	infile := args[0]
+	return PublishManifest(proj, repo, destpath, infile)
+}
 
-	b, err := os.ReadFile(infile)
+func PublishManifest(project, repo, destpath, manifestpath string) error {
+	b, err := os.ReadFile(manifestpath)
 	if err != nil {
-		return errors.Wrapf(err, "Error reading %s", infile)
+		return errors.Wrapf(err, "Error reading %s", manifestpath)
 	}
 
 	var imports ImportFile
 	err = yaml.Unmarshal(b, &imports)
 	if err != nil {
-		return errors.Wrapf(err, "Error parsing %s", infile)
+		return errors.Wrapf(err, "Error parsing %s", manifestpath)
 	}
 
 	if imports.Version != CurrentInstallFileVersion {
@@ -366,9 +369,9 @@ func PublishManifest(ctx *cli.Context) error {
 
 	signPath := filepath.Join(workdir, "install.json.signed")
 
-	key, err := projectKey(proj)
+	key, err := projectKey(project)
 	if err != nil {
-		return errors.Wrapf(err, "Failed getting manifest signing key")
+		return errors.Wrapf(err, "Failed getting manifest signing key for %q", project)
 	}
 	if err = trust.Sign(filePath, signPath, key); err != nil {
 		return errors.Wrapf(err, "Failed signing file")
@@ -380,7 +383,7 @@ func PublishManifest(ctx *cli.Context) error {
 		return errors.Wrapf(err, "Failed writing install.json to %s", dest)
 	}
 
-	cert, err := projectCert(proj)
+	cert, err := projectCert(project)
 	if err != nil {
 		return errors.Wrapf(err, "Failed getting manifest signing cert")
 	}
