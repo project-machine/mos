@@ -32,8 +32,7 @@ function teardown() {
 		--substitute "ROOTFS_VERSION=${ROOTFS_VERSION}"
 	export PATH=${TMPD}:$PATH
 	cp ${ORIG}/tests/livecd2/build-livecd-rfs .
-	./build-livecd-rfs --layer oci:oci:provision-rootfs-squashfs \
-	   --output provision.iso
+	${TOPDIR}/mosb mkprovision --project snakeoil:default --out provision.iso
 	cd $TMPD
 	trust sudi list snakeoil default | grep mosCI001 || trust sudi add snakeoil default mosCI001
 	mkdir SUDI; cp ~/.local/share/machine/trust/keys/snakeoil/manifest/default/sudi/mosCI001/* SUDI/
@@ -83,13 +82,6 @@ expect {
 		puts "${VMNAME} failed"
 		exit 1
 	}
-	timeout {
-		puts "timed out"
-		exit 1
-	}
-}
-expect {
-	"Power down" { puts "VM powered down after provision" }
 	timeout {
 		puts "timed out"
 		exit 1

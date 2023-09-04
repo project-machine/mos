@@ -33,7 +33,8 @@ function wait_for_vm() {
 
 function wait_for_vm_down() {
 	count=0
-	while [ $count -lt 20 ]; do
+	maxcount=20
+	while [ $count -lt $maxcount ]; do
 		s=$(machine info ${VMNAME} | awk -F\  '/status:/ { print $2 }')
 		if [ "$s" = "stopped" ]; then
 			break
@@ -46,7 +47,7 @@ function wait_for_vm_down() {
 		count=$((count+1))
 		sleep 1
 	done
-	if [ $count -ge 5 ]; then
+	if [ $count -ge $maxcount ]; then
 		echo "failed waiting for test VM to stop"
 		exit 1
 	fi
