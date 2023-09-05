@@ -19,6 +19,7 @@ function teardown() {
 	set -ex
 	export ZOT_VERSION=2.0.0-rc5
 	cp ${ORIG}/mosctl .
+	cp ${ORIG}/trust .
 	cp ${ORIG}/tests/livecd2/stacker.yaml .
 	cp ${ORIG}/tests/livecd2/mos-install* .
 	cp ${ORIG}/tests/livecd2/zot-config.json .
