@@ -1857,8 +1857,8 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3/go.mod h1:o//XUCC/F+yRGJoPO/VU
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.0/go.mod h1:YDZoGHuwE+ov0c8smSH49WLF3F2LaWnYYuDVd+EWrc0=
 github.com/hallyn/image/v5 v5.0.0-20230329035821-bb0673fd450d h1:J/CgvQVzMpKQaMtoflt/yAMU9nJ/t87Z6RnfYrQJgDw=
 github.com/hallyn/image/v5 v5.0.0-20230329035821-bb0673fd450d/go.mod h1:GBjr6Lzt0cQdaVTi9hTNSmSWy3aXRFkRprIWbqYGUKc=
-github.com/hallyn/keyctl v1.0.4-0.20211206210026-67b989e45620 h1:oj7YhbaGdd6o3u+pld/dy3ig/Vr9MpPddxDrbCY/ocE=
-github.com/hallyn/keyctl v1.0.4-0.20211206210026-67b989e45620/go.mod h1:Oehu2vePSY7daRvgeCQZ1QdS2B4CbcTLCbu2W1rCmaU=
+github.com/hallyn/keyctl v1.0.4-0.20230720164202-b9476cd969e8 h1:3Ar9+nx3xcpq4NjFMYHSXcf18qYtCWyanIDyfctYOjQ=
+github.com/hallyn/keyctl v1.0.4-0.20230720164202-b9476cd969e8/go.mod h1:64s6WpBtruURX3w8W/vhWj1/uh+nOm7vUXSJlK5+KMs=
 github.com/hanwen/go-fuse/v2 v2.2.0/go.mod h1:B1nGE/6RBFyBRC1RRnf23UpwCdyJ31eukw34oAKukAc=
 github.com/hashicorp/consul/api v1.1.0/go.mod h1:VmuI/Lkw1nC05EYQWNKwWGbkg+FbDBtguAZLlVdkD9Q=
 github.com/hashicorp/consul/api v1.10.1/go.mod h1:XjsvQN+RJGWI2TWy1/kqaE16HrR2J/FWgkYjdZQsX9M=

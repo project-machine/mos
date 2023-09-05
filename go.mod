@@ -151,6 +151,6 @@ go 1.21
 
 toolchain go1.21.0
 
-replace github.com/jsipprell/keyctl => github.com/hallyn/keyctl v1.0.4-0.20211206210026-67b989e45620
+replace github.com/jsipprell/keyctl => github.com/hallyn/keyctl v1.0.4-0.20230720164202-b9476cd969e8
 
 replace github.com/containers/image/v5 => github.com/hallyn/image/v5 v5.0.0-20230329035821-bb0673fd450d
