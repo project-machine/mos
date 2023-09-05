@@ -164,7 +164,7 @@ jobs:
             ln -s /usr/lib/go/bin/go /usr/bin/go
             ln -s /usr/lib/go/bin/gofmt /usr/bin/gofmt
           run: |
-              git config --global --add safe.directory /home/runner/work/trust/trust
+              git config --global --add safe.directory /home/runner/work/mos/mos
               pwd
               git describe --always --dirty
               go version
