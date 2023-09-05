@@ -15,7 +15,7 @@ import (
 	"github.com/apex/log"
 	"github.com/pkg/errors"
 	"github.com/project-machine/mos/pkg/mosconfig"
-	"github.com/project-machine/trust/pkg/trust"
+	"github.com/project-machine/mos/pkg/trust"
 	"github.com/urfave/cli"
 )
 

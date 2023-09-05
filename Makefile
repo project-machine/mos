@@ -9,10 +9,9 @@ ORAS := $(TOOLSDIR)/bin/oras
 ORAS_VERSION := 1.0.0-rc.1
 REGCTL := $(TOOLSDIR)/bin/regctl
 REGCTL_VERSION := 0.5.0
-# project-machine trust
-TRUST := $(TOOLSDIR)/bin/trust
-TRUST_VERSION := v0.0.13
 TOPDIR := $(shell git rev-parse --show-toplevel)
+BOOTKIT_VERSION ?= "v0.0.15.230901"
+ROOTFS_VERSION = $(BOOTKIT_VERSION)
 
 MAIN_VERSION ?= $(shell git describe --always --dirty || echo no-git)
 ifeq ($(MAIN_VERSION),$(filter $(MAIN_VERSION), "", no-git))
@@ -21,25 +20,26 @@ endif
 
 GO_SRC=$(shell find cmd pkg  -name "*.go")
 
-all: mosctl mosb $(ZOT) $(ORAS) $(REGCTL)
+all: mosctl mosb trust $(ZOT) $(ORAS) $(REGCTL)
 
 VERSION_LDFLAGS=-X github.com/project-machine/mos/pkg/mosconfig.Version=$(MAIN_VERSION) \
-	-X github.com/project-machine/mos/pkg/mosconfig.LayerVersion=0.0.1
+	-X github.com/project-machine/mos/pkg/trust.Version=$(MAIN_VERSION) \
+	-X github.com/project-machine/mos/pkg/mosconfig.LayerVersion=0.0.1 \
+	-X github.com/project-machine/mos/pkg/trust.BootkitVersion=$(BOOTKIT_VERSION)
+
 mosctl: .made-gofmt $(GO_SRC)
 	go build -tags "$(BUILD_TAGS)" -ldflags "-s -w $(VERSION_LDFLAGS)" ./cmd/mosctl
 
 mosb: .made-gofmt $(GO_SRC)
 	go build -tags "$(BUILD_TAGS)" -ldflags "-s -w $(VERSION_LDFLAGS)" ./cmd/mosb
 
+trust: .made-gofmt $(GO_SRC)
+	go build -tags "$(BUILD_TAGS)" -ldflags "-s -w $(VERSION_LDFLAGS)" ./cmd/trust
+
 $(ZOT):
 	mkdir -p $(TOOLSDIR)/bin
 	curl -Lo $(ZOT) https://github.com/project-zot/zot/releases/download/v$(ZOT_VERSION)/zot-linux-amd64-minimal
 	chmod +x $(ZOT)
-
-$(TRUST):
-	mkdir -p $(TOOLSDIR)/bin
-	curl -Lo $(TRUST) https://github.com/project-machine/trust/releases/download/${TRUST_VERSION}/trust-linux-amd64
-	chmod +x $(TRUST)
 
 $(ORAS):
 	mkdir -p $(TOOLSDIR)/bin
@@ -61,11 +61,10 @@ gofmt: .made-gofmt
 	  [ -z "$$o" ] || { echo "gofmt made changes: $$o" 1>&2; exit 1; }
 	@touch $@
 
-deps: mosctl mosb $(ORAS) $(REGCTL) $(ZOT) $(TRUST)
+deps: mosctl mosb trust $(ORAS) $(REGCTL) $(ZOT)
 
-ROOTFS_VERSION = v0.0.15.230901
 STACKER_SUBS = \
-	--substitute ROOTFS_VERSION=$(ROOTFS_VERSION) \
+	--substitute ROOTFS_VERSION=$(BOOTKIT_VERSION) \
 	--substitute TOPDIR=${TOPDIR} \
 	--substitute ZOT_VERSION=$(ZOT_VERSION)
 
@@ -83,8 +82,20 @@ test: deps
 	bats tests/activate.bats
 	bats tests/update.bats
 	bats tests/mount.bats
+	bats tests/keyset.bats
+	bats tests/project.bats
+	bats tests/sudi.bats
+
+# the trust testcases only, for running on amd64.  We need an arm64
+# runner capable of doing nested virt if we're going to have github
+# actions run the mos tests for arm64, and we don't have that.  Yet.
+.PHONY: test-trust
+test-trust: trust
+	bats tests/keyset.bats
+	bats tests/project.bats
+	bats tests/sudi.bats
 
 clean:
-	rm -f mosb mosctl
+	rm -f mosb mosctl trust
 	rm -rf $(TOOLSDIR)
 	stacker clean

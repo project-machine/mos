@@ -28,7 +28,7 @@ jobs:
             libseccomp-dev libsquashfs-dev lxc lxc-dev make mtools\
             openssl pip pkgconf skopeo socat squashfuse swtpm jq \
             uidmap umoci qemu-utils qemu-system-x86 xorriso \
-            ubuntu-dev-tools make gcc
+            ubuntu-dev-tools make gcc squashfs-tools sbsigntool
           sudo modprobe kvm
           sudo adduser $(whoami) kvm
           sudo chmod o+rw /dev/kvm
@@ -81,6 +81,9 @@ jobs:
           wget -O ~/bin/skopeo --progress=dot:mega https://github.com/project-machine/tools/releases/download/v0.0.1/skopeo
           chmod 755 ~/bin/skopeo
           sudo cp -f ~/bin/skopeo /usr/bin/skopeo
+      - name: lint
+        run: |
+          make gofmt
       - name: make
         run: |
           go get -v ./...
@@ -88,10 +91,9 @@ jobs:
 
       - name: test preparation
         run: |
-          wget -O ~/bin/trust --progress=dot:mega https://github.com/project-machine/trust/releases/download/v0.0.13/trust-linux-amd64
           wget -O ~/bin/machine --progress=dot:mega https://github.com/project-machine/machine/releases/download/0.0.4/machine
           wget -O ~/bin/machined --progress=dot:mega https://github.com/project-machine/machine/releases/download/0.0.4/machined
-          chmod 755 ~/bin/trust ~/bin/machine ~/bin/machined
+          chmod 755 ~/bin/machine ~/bin/machined
           mkdir -p ~/.config/systemd/user/
           export  PATH=~/bin:$PATH
       - name: test
@@ -119,6 +121,7 @@ jobs:
           files: |
             mosctl
             mosb
+            trust-linux-amd64
 
       - name: publish provision and install layer
         if: startsWith(github.ref, 'refs/tags/')
@@ -132,3 +135,46 @@ jobs:
           tags: ${{ github.event.release.tag_name }}
           username: ${{ secrets.ZOTHUB_USERNAME }}
           password: ${{ secrets.ZOTHUB_PASSWORD }}
+
+  build_arm64:
+    runs-on: ubuntu-latest
+    name: Build on ubuntu-latest arm64
+    steps:
+      - uses: actions/checkout@v3
+      - uses: uraimo/run-on-arch-action@v2
+        with:
+          arch: aarch64
+          distro: ubuntu22.04
+
+          githubToken: ${{ github.token }}
+
+          install: |
+            apt-get -y update;
+            apt-get install -q -y git golang-go;
+            apt-get install -y bats golang make openssl swtpm tpm2-tools \
+              libcryptsetup-dev libgpgme-dev libcap-dev qemu-kvm \
+              libdevmapper-dev libacl1-dev libarchive-tools pip squashfs-tools \
+              sbsigntool wget
+            pip install virt-firmware
+            mv /usr/lib/go /usr/lib/go.no || true
+            cd /tmp/
+            wget https://go.dev/dl/go1.21.0.linux-arm64.tar.gz
+            tar -C /usr/lib -zvxf go1.21.0.linux-arm64.tar.gz
+            rm /usr/bin/go /usr/bin/gofmt
+            ln -s /usr/lib/go/bin/go /usr/bin/go
+            ln -s /usr/lib/go/bin/gofmt /usr/bin/gofmt
+          run: |
+              git config --global --add safe.directory /home/runner/work/trust/trust
+              pwd
+              git describe --always --dirty
+              go version
+              make trust
+              make test-trust
+      - name: Rename Binary
+        run: |
+          mv trust trust-linux-arm64
+      - name: release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: trust-linux-arm64
