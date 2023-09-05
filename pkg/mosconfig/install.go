@@ -18,7 +18,7 @@ import (
 	ispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/umoci"
 	"github.com/pkg/errors"
-	"github.com/project-machine/trust/pkg/trust"
+	"github.com/project-machine/mos/pkg/trust"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
 

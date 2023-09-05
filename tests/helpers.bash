@@ -2,10 +2,24 @@ function run_git {
     git "$@"
 }
 
+function trust_setup {
+	MDIR=~/.local/share/machine
+	BACKUP=~/.local/share/machine.backup
+	export TOPDIR="$(git rev-parse --show-toplevel)"
+	export PATH=${TOP_DIR}:$PATH
+	if [ -d "$BACKUP" ]; then
+		rm -rf "$BACKUP"
+	fi
+	if [ -d "$MDIR" ]; then
+		mv "$MDIR" "$BACKUP"
+	fi
+}
+
 function common_setup {
+	trust_setup
+
 	export ROOTFS_VERSION="${ROOTFS_VERSION:-v0.0.15.230901}"
 	echo "ROOTFS_VERSION is ${ROOTFS_VERSION}"
-	export TOPDIR="$(git rev-parse --show-toplevel)"
 
 	if [ ! -d "${PWD}/zothub" ]; then
 		stacker --oci-dir zothub build --layer-type squashfs
@@ -24,13 +38,8 @@ function common_setup {
 	export TMPUD=$(mktemp -d "${PWD}/batstest-XXXXX")
 	mkdir -p "$TMPD/config" "$TMPD/atomfs-store" "$TMPD/scratch-writes" "$TMPD/bin"
 
-	# setup a trust keyset
 	export PATH="$PATH:${TOPDIR}/hack/tools/bin"
-	[ -e ${TOPDIR}/hack/tools/bin/trust ] || {
-		mkdir -p ${TOPDIR}/hack/tools/bin
-		wget -O ${TOPDIR}/hack/tools/bin/trust https://github.com/project-machine/trust/releases/download/v0.0.13/trust-linux-amd64
-		chmod 755 ${TOPDIR}/hack/tools/bin/trust
-	}
+
 	trust keyset list | grep snakeoil || trust keyset add --bootkit-version=${ROOTFS_VERSION} snakeoil
 	export CA_PEM=~/.local/share/machine/trust/keys/snakeoil/manifest-ca/cert.pem
 	export M_CERT=~/.local/share/machine/trust/keys/snakeoil/manifest/default/cert.pem
@@ -81,6 +90,15 @@ EOF
   regctl registry set --tls=disabled $ZOT_HOST:$ZOT_PORT
 }
 
+function trust_teardown {
+	if [ -d "$MDIR" ]; then
+		rm -rf "$MDIR"
+	fi
+	if [ -d "$BACKUP" ]; then
+		mv "$BACKUP" "$MDIR"
+	fi
+}
+
 function common_teardown {
 	echo "Deleting $TMPD and $TMPUD"
 	if [ -n $TMPD ]; then
@@ -89,6 +107,7 @@ function common_teardown {
 	if [ -n $TMPUD ]; then
 		lxc-usernsexec -s -- rm -rf $TMPUD
 	fi
+	trust_teardown
 }
 
 function zot_teardown {
