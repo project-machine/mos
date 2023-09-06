@@ -28,7 +28,8 @@ jobs:
             libseccomp-dev libsquashfs-dev lxc lxc-dev make mtools\
             openssl pip pkgconf skopeo socat squashfuse swtpm jq \
             uidmap umoci qemu-utils qemu-system-x86 xorriso \
-            ubuntu-dev-tools make gcc squashfs-tools sbsigntool
+            ubuntu-dev-tools make gcc squashfs-tools sbsigntool \
+            python3-yaml
           sudo modprobe kvm
           sudo adduser $(whoami) kvm
           sudo chmod o+rw /dev/kvm
@@ -153,8 +154,8 @@ jobs:
             apt-get install -q -y git golang-go;
             apt-get install -y bats golang make openssl swtpm tpm2-tools \
               libcryptsetup-dev libgpgme-dev libcap-dev qemu-kvm \
-              libdevmapper-dev libacl1-dev libarchive-tools pip squashfs-tools \
-              sbsigntool wget
+              libdevmapper-dev libacl1-dev libarchive-tools pip python3-yaml \
+              sbsigntool squashfs-tools wget
             pip install virt-firmware
             mv /usr/lib/go /usr/lib/go.no || true
             cd /tmp/
