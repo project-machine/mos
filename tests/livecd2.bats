@@ -33,7 +33,6 @@ function teardown() {
 		--substitute "ROOTFS_VERSION=${ROOTFS_VERSION}"
 	export PATH=${TMPD}:$PATH
 	cp ${ORIG}/tests/livecd2/build-livecd-rfs .
-	${TOPDIR}/mosb mkprovision --project snakeoil:default --out provision.iso
 	cd $TMPD
 	trust sudi list snakeoil default | grep mosCI001 || trust sudi add snakeoil default mosCI001
 	mkdir SUDI; cp ~/.local/share/machine/trust/keys/snakeoil/manifest/default/sudi/mosCI001/* SUDI/
@@ -51,7 +50,7 @@ function teardown() {
       name: ${VMNAME}
       uefi: true
       uefi-vars: $HOME/.local/share/machine/trust/keys/snakeoil/bootkit/ovmf-vars.fd
-      cdrom: provision.iso
+      cdrom: $HOME/.local/share/machine/trust/keys/snakeoil/artifacts/provision.iso
       boot: cdrom
       tpm: true
       gui: false
