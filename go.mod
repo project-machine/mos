@@ -6,6 +6,7 @@ require (
 	github.com/canonical/go-efilib v0.9.4
 	github.com/canonical/go-tpm2 v1.0.0
 	github.com/canonical/tcglog-parser v0.0.0-20230429160108-0d6d239de69d
+	github.com/diskfs/go-diskfs v1.3.0
 	github.com/fatih/color v1.15.0
 	github.com/foxboron/go-uefi v0.0.0-20230218004016-d1bb9a12f92c
 	github.com/go-git/go-git/v5 v5.4.2
@@ -24,6 +25,7 @@ require (
 	github.com/rekby/gpt v0.0.0-20200219180433-a930afbc6edc
 	github.com/stretchr/testify v1.8.2
 	github.com/urfave/cli v1.22.12
+	github.com/urfave/cli/v2 v2.25.7
 	golang.org/x/sys v0.8.0
 	golang.org/x/text v0.9.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -127,6 +129,7 @@ require (
 	github.com/vbatts/tar-split v0.11.3 // indirect
 	github.com/vbauerster/mpb/v8 v8.3.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
+	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	go.etcd.io/bbolt v1.3.7 // indirect
 	go.mongodb.org/mongo-driver v1.11.3 // indirect
 	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352 // indirect

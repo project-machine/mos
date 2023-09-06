@@ -20,7 +20,7 @@ endif
 
 GO_SRC=$(shell find cmd pkg  -name "*.go")
 
-all: mosctl mosb trust $(ZOT) $(ORAS) $(REGCTL)
+all: mosctl mosb trust bkcust $(ZOT) $(ORAS) $(REGCTL)
 
 VERSION_LDFLAGS=-X github.com/project-machine/mos/pkg/mosconfig.Version=$(MAIN_VERSION) \
 	-X github.com/project-machine/mos/pkg/trust.Version=$(MAIN_VERSION) \
@@ -35,6 +35,9 @@ mosb: .made-gofmt $(GO_SRC)
 
 trust: .made-gofmt $(GO_SRC)
 	go build -tags "$(BUILD_TAGS)" -ldflags "-s -w $(VERSION_LDFLAGS)" ./cmd/trust
+
+bkcust: .made-gofmt $(GO_SRC)
+	go build -tags "$(BUILD_TAGS)" -ldflags "-s -w $(VERSION_LDFLAGS)" ./cmd/bkcust
 
 $(ZOT):
 	mkdir -p $(TOOLSDIR)/bin
