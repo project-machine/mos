@@ -1,0 +1,381 @@
+#!/bin/bash
+# shellcheck disable=SC2015,SC2039,SC2166
+
+VERBOSITY=0
+TEMP_D=""
+
+stderr() { echo "$@" 1>&2; }
+fail() { local r=$?;  [ $r -eq 0 ] && r=1; failrc "$r" "$@"; }
+failrc() { local r="$1"; shift; [ $# -eq 0 ] || stderr "$@"; exit "$r"; }
+
+Usage() {
+    cat <<EOF
+Usage: ${0##*/} [ options ]
+
+   build initrd pieces
+
+   options:
+    -v | --verbose     increase verbosity.
+         --modules     create modules.cpio.gz and firmware.cpio.gz
+         --core        create core.cpio.gz
+         --combined    create initrd.img (combined above)
+         --all         build all pieces (modules, core, and combined)
+EOF
+}
+
+bad_Usage() { Usage 1>&2; [ $# -eq 0 ] || stderr "$@"; return 1; }
+cleanup() {
+    [ -z "${TEMP_D}" -o ! -d "${TEMP_D}" ] || rm -Rf "${TEMP_D}"
+}
+
+debug() {
+    local level=${1}; shift;
+    [ "${level}" -gt "${VERBOSITY}" ] && return
+    stderr "${@}"
+}
+
+vflag() {
+    local v="$1" n=0 vf=""
+    [ "$v" -eq 0 ] && return 0
+    while [ "$n" -lt "$v" ] && n=$((n+1)); do
+        vf="${vf}v"
+    done
+    echo -- -$vf
+}
+
+xcp() {
+    local t=${2}
+    [ -d "${t%/*}" ] || mkdir -p "${t%/*}"
+    cp -v "$1" "$2"
+}
+
+shellquote() {
+    # quote the arguments as appropriate for shell.
+    local x="" wrap="" tickset=$'"!$' quoteset=" '" tick="'" cmd=""
+    # shellcheck disable=2295
+    for x in "$@"; do
+        if [ "${x#*[${tickset}]}" != "$x" ]; then
+            wrap="'"
+            x=${x//$tick/$tick\\$tick$tick}
+        elif [ "${x#*[$quoteset]}" != "$x" ]; then
+            wrap='"'
+        else
+            wrap=""
+        fi
+        cmd="${cmd} $wrap$x$wrap"
+    done
+    _RET="${cmd# }"
+}
+
+# shellcheck disable=SC2120
+icpio() {
+    cpio --create --owner=+0:+0 -H newc --quiet "$@"
+}
+
+run_check_dracut() {
+    # dracut often writes ERROR: or FAILED: to output but exits zero.
+    # capture dracut's output and search for these errors.
+    local output="" log="" rc="" patterns=""
+    log=$(mktemp "${TEMP_D}/dracut-output.XXXXXX") || {
+        stderr "failed to create temp file for dracut log"
+        return 1
+    }
+
+    # grep(1) PATTERNS are one or more patterns separated by a newline.
+    patterns=$(echo ERROR: && echo FAILED:) || {
+        stderr "failed to read patterns for errors"
+        return 1
+    }
+
+    if [ ${VERBOSITY} -ge 2 ]; then
+        (
+            set -o pipefail
+            "${@}" 2>&1 | tee "$log"
+        ) 1>&2 || {
+            rc=$?
+            stderr "dracut cmd $* failed [$rc]"
+            return $rc
+        }
+    else
+        "${@}" > "$log" 2>&1 || {
+            stderr "dracut cmd $* failed [$?]: $output"
+            return 1
+        }
+    fi
+
+    if output=$(grep --context=5 "$patterns" "$log"); then
+        stderr "--- dracut errors ---"
+        stderr "$output"
+        stderr "dracut exited 0 but its output contained ERROR: or FAILED:"
+        return 1
+    fi
+
+    return 0
+}
+
+build() {
+    local mode="$1" kver="$2" outd="${3%/}" dracut=""
+    shift 3
+
+    local dout="" dout2="" f=""
+    # dracut may produce either initramfs-kver.img or initrd.img-$kver
+    dout="/boot/initrd.img-$kver"
+    dout2="/boot/initramfs-$kver.img"
+
+    rm -f "$dout" "$dout2" || {
+        stderr "failed removing output files before executing dracut"
+        return 1
+    }
+
+    dracut=( dracut "--kver=$kver" "--reproducible" "--no-hostonly"
+        "--no-compress" )
+    local mtmp="${TEMP_D}/mytmp"
+    local flist="$mtmp/files" xdir="$mtmp/repack"
+    mkdir -p "$mtmp" || {
+        stderr "failed to create tmpdir"
+        return 1
+    }
+    case "$mode" in
+        modules)
+            dracut=( "${dracut[@]}" --kernel-only );;
+        core)
+            dracut=( "${dracut[@]}" --no-kernel --no-early-microcode )
+            out="$outd/core.cpio";;
+    esac
+	shellquote "${dracut[@]}"
+    debug 0 "$mode: creating artifact '$mode' in '$outd' for kver=$kver"
+    debug 1 "$mode: running: $_RET"
+
+    run_check_dracut "${dracut[@]}" || return
+
+    if [ -f "$dout2" ]; then
+        mv "$dout2" "$dout" || {
+            stderr "failed to rename $dout2 -> $dout"
+            return 1
+        }
+    fi
+
+    [ -f "$dout" ] || {
+        stderr "$mode: dracut run did not produce $dout"
+        return 1
+    }
+
+    local incpio="$mtmp/img.cpio" sdir="$PWD"
+    mkdir -p "$xdir" || {
+        stderr "failed to make temp dirs $xdir";
+        return 1;
+    }
+    case "$mode" in
+        modules)
+            mv "$dout" "$incpio" || {
+                stderr "failed to move $dout to $mtmp"
+                return 1
+            }
+            (   n=0
+                while :; do
+                    cd "$xdir" || exit
+                    x=$(printf "%02d" "$n")
+                    mkdir "$x" && cd "$x" || exit 1
+                    out=$(cpio -uid 2>&1) || {
+                        cd .. && rmdir "$x";
+                        break;
+                    }
+                    n=$((n+1))
+                done
+                [ $n -gt 0 ] || {
+                    stderr "no cpio archives extracted from $incpio"
+                    exit 1
+                }
+            ) < "$incpio" || {
+                stderr "failed to extract modules initramfs"
+                return 1
+            }
+
+            cd "$sdir" || return
+            local d="" n=0
+            for d in "$xdir"/*; do
+                [ -d "$d" ] && n=$((n+1))
+            done
+            # the last one is the "core"
+            local mods="" early=""
+            if [ $n -eq 0 -o $n -gt 2 ]; then
+                stderr "Unexpected error: there were $n cpio archives?"
+                return 1
+            elif [ $n -eq 1 ]; then
+                mods="$xdir/00"
+            elif [ $n -eq 2 ]; then
+                mods=""$xdir/01
+                early="$xdir/00"
+            fi
+
+            ( cd "$mods" && find lib/modules ) > "$flist.unsort" &&
+                LANG=C sort < "$flist.unsort" > "$flist" || {
+                stderr "failed to get list of files"
+                return 1
+            }
+            [ -s "$flist" ] || {
+                stderr "no modules in modules artifact?"
+                return 1
+            }
+            out="$outd/modules.cpio"
+            ( cd "$mods" && icpio ) < "$flist" > "$out" || {
+                stderr "failed to create $out from files in $flist"
+                return 1
+            }
+            debug 0 "$mode: created $out"
+
+            if [ -n "$early" ]; then
+                out="$outd/firmware.cpio"
+                d="$early"
+                ( cd "$d" && find . ) > "$flist.unsort" &&
+                    LANG=C sort < "$flist.unsort" > "$flist" || {
+                    stderr "failed to get files in $d"
+                    return 1
+                }
+                [ -s "$flist" ] || {
+                    stderr "$d had no content?"
+                    return 1
+                }
+                ( cd "$d" && icpio ) < "$flist" > "$out" || {
+                    stderr "failed to create $out"
+                    return 1
+                }
+                debug 0 "$mode: created $out"
+            else
+                debug 0 "$mode: no firmware archive found"
+            fi
+            ;;
+        core)
+            debug 0 "$mode: created $out"
+            mv "$dout" "$out";;
+    esac
+
+    rm -f "$dout" || {
+        stderr "$mode: failed to remove $dout"
+        return 1
+    }
+
+    return
+}
+
+matchone() {
+    local check="-f" wc=""
+    [ $# -eq 2 ] && check="$1" && shift
+    wc="$1"
+    # expand the wildcard here.
+    # shellcheck disable=2086
+    set -- $wc
+    [ $# -eq 1 ] || { stderr "$wc matched $#, expected 1: $*"; return 1; }
+    test "$check" "$1" || { stderr "$1 failed 'test $check'"; return 1; }
+    echo "$1"
+}
+
+main_build() {
+    local sopts="ho:v"
+    local lopts="help,all,combined,core,modules,verbose"
+    local name="${0##*/}" out=""
+    out=$(getopt --name "$name" \
+        --options "$sopts" --long "$lopts" -- "$@") &&
+        eval set -- "$out" ||
+        { bad_Usage; return; }
+
+    local modules=false core=false combined=false outd=""
+    while [ $# -ne 0 ]; do
+        cur="$1";
+        case "$cur" in
+            -h|--help) Usage ; exit 0;;
+            -v|--verbose) VERBOSITY=$((VERBOSITY+1));;
+               --modules) modules=true;;
+               --core) core=true;;
+               --combined) combined=true;;
+               --all) modules=true; core=true; combined=true;;
+            --) shift; break;;
+        esac
+        shift;
+    done
+
+    if [ $# -ne 1 ]; then
+        bad_Usage "got $# args, expected 1"
+        return;
+    fi
+
+    # the busybox module expects 'busybox' to be in the PATH, but
+    # Ubuntu's busybox-initramfs is only installed to /usr/lib/initramfs-tools/bin
+    # so if that is present, add it to the PATH.
+    local bboxd="/usr/lib/initramfs-tools/bin"
+    if command -v busybox >/dev/null; then
+        :
+    elif [ -x "$bboxd/busybox" ]; then
+        PATH="$PATH:$bboxd"
+    fi
+
+    local outd="${1%/}" t="" found=""
+    for t in "$modules" "$core" "$combined"; do
+        [ "$t" = "true" ] && found="true" && break
+    done
+    # if no options, default is 'all'
+    if [ "$found" = "false" ]; then
+        modules=true
+        core=true
+        combined=true
+    fi
+
+    local kver="none"
+    if [ "$combined" = "true" -o "$modules" = "true" ]; then
+        t=$(matchone -d "/lib/modules/[45678]*") ||
+            fail "Did not find kernel modules in /lib/modules"
+        kver=${t##*/}
+        depmod "$kver" || fail "failed to run 'depmod $kver'"
+    fi
+
+    mkdir -p "$outd" || {
+        stderr "failed to create $outd"
+        return 1
+    }
+
+    TEMP_D=$(mktemp -d "${TMPDIR:-$outd}/${0##*/}.XXXXXX") ||
+        fail "failed to make tempdir"
+    trap cleanup EXIT
+
+    echo "TEMP_D=$TEMP_D outd=$outd"
+    if [ "$modules" = "true" ]; then
+        build modules "$kver" "$outd/" || {
+            stderr "failed to create modules output for kver '$kver'"
+            return 1
+        }
+    fi
+
+    if [ "$core" = "true" ]; then
+        build core "$kver" "$outd/" || {
+            stderr "failed to build core initrd"
+            return 1
+        }
+    fi
+
+    for f in "$outd"/*.cpio; do
+        [ -f "$f" ] || continue
+        debug 1 "compressing $f -> $f.gz"
+        pigz "$f" || {
+            stderr "failed to compress $f -> $f.gz"
+            return 1
+        }
+        [ -f "$f.gz" ] || {
+            stderr "After compressing $f, $f.gz did not exist"
+            return 1
+        }
+    done
+
+    return 0
+}
+
+case "$1" in
+    build)
+        if command -v fakeroot >/dev/null 2>&1 && [ -z "$FAKEROOTKEY" ]; then
+            exec fakeroot -- "$0" "$@"
+        fi
+        shift;
+        main_build "$@";
+        exit;;
+    *) fail "Unknown argument $1 (try 'build')"; exit 1;;
+esac
+# vi: ts=4 expandtab

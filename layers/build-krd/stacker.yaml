@@ -1,0 +1,84 @@
+config:
+  prerequisites:
+    - ../minbase/stacker.yaml
+
+build-krd-pkg:
+  build_only: true
+  from:
+    type: built
+    tag: minbase
+  run: |
+    #!/bin/bash -ex
+    pkgs=( )
+    # packages used for initrd runtime or dracut initrd build.
+    pkgs=( "${pkgs[@]}" 
+        binutils # strip
+        busybox-initramfs 
+        cpio
+        cryptsetup-bin 
+        curl
+        git
+        kdump-tools 
+        lvm2 
+        squashfs-tools
+        systemd-sysv 
+        tpm2-tools
+        # mosctl
+        libsquashfs1
+        libgpgme11
+    )
+    # packages used by build-initrd
+    pkgs=( "${pkgs[@]}" cpio dracut-core fakeroot pigz )
+    # firmware
+    pkgs=( "${pkgs[@]}" linux-firmware intel-microcode amd64-microcode )
+    # uki tools
+    pkgs=( "${pkgs[@]}" efitools pigz )
+
+    pkgtool install "${pkgs[@]}"
+
+    # allow fakeroot to work so there are no errors when using 'mknod'
+    # dracut unsets LD_LIBRARY_PATH and LD_PRELOAD. The 'sed' here comments
+    # out lines that 'unset' those variables, allowing them to be used from
+    # the caller's environment.
+    sed -i.dist '/^unset LD_\(PRELOAD\|LIBRARY_PATH\)$/s,^,#,' /usr/bin/dracut
+    ret=0
+    out=$(diff -u /usr/bin/dracut.dist /usr/bin/dracut 2>&1) || ret=$?
+    # diff exits 0 on "no differences", 1 on differences, 2 on error.
+    if [ $ret -eq 1 ]; then
+       : # assume the change was correct.
+    elif [ $ret -eq 0 ]; then
+       echo "FAIL: updating /usr/bin/dracut with sed did not make any changes"
+       exit 1
+    else
+       echo "FAIL: checking for differences after patching dracut failed with $ret"
+       exit 1
+    fi
+
+build-krd:
+  build_only: true
+  from:
+    type: built
+    tag: build-krd-pkg
+  import:
+    - ../../tools/build-initrd
+    - ../../tools/create-cpio
+    - dracut/
+  run: |
+
+    for bin in build-initrd create-cpio; do
+      t=$workd/usr/bin/$bin
+      cp -v /stacker/$bin "$t"
+      chmod 755 "$t"
+    done
+
+    ( cd /stacker && cp -v build-initrd create-cpio /usr/local/bin  )
+
+    cp /stacker/dracut/bootkit.conf /etc/dracut.conf.d/dracut-atom.conf
+    for d in /stacker/dracut/*; do
+        [ -d "$d" -a -e "$d/module-setup.sh" ] || continue
+        base=${d##*/}
+        tdir="/usr/lib/dracut/modules.d/91${base}"
+        rm -Rf "$tdir"
+        mkdir -p "$tdir"
+        cp -r "$d"/* "$tdir"
+    done

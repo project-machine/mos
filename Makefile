@@ -1,9 +1,10 @@
+include subs.mk
+
 BUILD_TAGS = containers_image_openpgp
 TOOLSDIR := $(shell pwd)/hack/tools
 PATH := bin:$(TOOLSDIR)/bin:$(PATH)
 # OCI registry
 ZOT := $(TOOLSDIR)/bin/zot
-ZOT_VERSION := 2.0.0-rc5
 # OCI registry clients
 ORAS := $(TOOLSDIR)/bin/oras
 ORAS_VERSION := 1.0.0-rc.1
@@ -11,7 +12,6 @@ REGCTL := $(TOOLSDIR)/bin/regctl
 REGCTL_VERSION := 0.5.0
 TOPDIR := $(shell git rev-parse --show-toplevel)
 BOOTKIT_VERSION ?= "v0.0.15.230901"
-ROOTFS_VERSION = $(BOOTKIT_VERSION)
 
 MAIN_VERSION ?= $(shell git describe --always --dirty || echo no-git)
 ifeq ($(MAIN_VERSION),$(filter $(MAIN_VERSION), "", no-git))
@@ -66,17 +66,22 @@ gofmt: .made-gofmt
 
 deps: mosctl mosb trust $(ORAS) $(REGCTL) $(ZOT)
 
-STACKER_SUBS = \
-	--substitute ROOTFS_VERSION=$(BOOTKIT_VERSION) \
-	--substitute TOPDIR=${TOPDIR} \
-	--substitute ZOT_VERSION=$(ZOT_VERSION)
-
 STACKER_OPTS = --layer-type=squashfs $(STACKER_SUBS)
 
 .PHONY: layers
 layers: mosctl
 	stacker build $(STACKER_OPTS) --stacker-file layers/provision/stacker.yaml
 	stacker build $(STACKER_OPTS) --stacker-file layers/install/stacker.yaml
+	stacker build $(STACKER_OPTS) --stacker-file layers/bootkit/stacker.yaml
+	stacker build $(STACKER_OPTS) --stacker-file layers/build-krd/stacker.yaml
+	stacker build $(STACKER_OPTS) --stacker-file layers/kernel/stacker.yaml
+	stacker build $(STACKER_OPTS) --stacker-file layers/minbase/stacker.yaml
+	stacker build $(STACKER_OPTS) --stacker-file layers/mos/stacker.yaml
+	stacker build $(STACKER_OPTS) --stacker-file layers/ovmf/stacker.yaml
+	stacker build $(STACKER_OPTS) --stacker-file layers/rootfs/stacker.yaml
+	stacker build $(STACKER_OPTS) --stacker-file layers/shim/stacker.yaml
+	stacker build $(STACKER_OPTS) --stacker-file layers/stubby/stacker.yaml
+
 
 .PHONY: test
 test: deps

@@ -30,7 +30,7 @@ function teardown() {
 		--substitute TOPDIR=${TOPDIR} \
 		--substitute KEYSDIR=~/.local/share/machine/trust/keys/snakeoil \
 		--substitute "ZOT_VERSION=${ZOT_VERSION}" \
-		--substitute "ROOTFS_VERSION=${ROOTFS_VERSION}"
+		--substitute "BOOTKIT_VERSION=${BOOTKIT_VERSION}"
 	export PATH=${TMPD}:$PATH
 	cp ${ORIG}/tests/livecd2/build-livecd-rfs .
 	${TOPDIR}/mosb mkprovision --project snakeoil:default --out provision.iso

@@ -1,0 +1,46 @@
+config:
+  prerequisites:
+    - ../kernel/stacker.yaml
+    - ../mos/stacker.yaml
+    - ../ovmf/stacker.yaml
+    - ../shim/stacker.yaml
+    - ../stubby/stacker.yaml
+
+bootkit-assemble:
+  build_only: true
+  from:
+    type: built
+    tag: build-krd
+  import:
+    - stacker://kernel-build/export/initrd.tar
+    - stacker://kernel-build/export/kernel.tar
+    - stacker://mos-build/export/mos.tar
+    - stacker://ovmf-build/export/ovmf.tar
+    - stacker://shim-build/export/shim.tar
+    - stacker://stubby-build/export/stubby.tar
+  run: |
+    #!/bin/bash -ex
+    d=$(mktemp -d)
+    trap "rm -Rf $d" EXIT
+
+    mkdir "$d/bootkit"
+    for f in /stacker/*.tar; do
+        tar -C "$d/bootkit" -xf "$f"
+    done
+
+    mkdir /export
+    tar -C "$d" -cf /export/bootkit.tar bootkit/
+
+bootkit:
+  from:
+    type: tar
+    url: stacker://bootkit-assemble/export/bootkit.tar
+  annotations:
+    org.opencontainers.image.url: "https://github.com/project-machine"
+    org.opencontainers.image.source: "https://github.com/project-machine"
+    org.opencontainers.image.version: "n/a"
+    org.opencontainers.image.revision: "n/a"
+    org.opencontainers.image.vendor: "project-machine"
+    org.opencontainers.image.licenses: "GPLv2 and others"
+    org.opencontainers.image.title: "bootkit"
+    org.opencontainers.image.description: ""

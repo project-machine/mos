@@ -1,0 +1,47 @@
+config:
+  prerequisites:
+    - ../minbase/stacker.yaml
+
+rootfs:
+  from:
+    type: built
+    tag: minbase
+  run: |
+    pkgtool install systemd-sysv
+  annotations:
+    org.opencontainers.image.url: "https://github.com/project-machine/bootkit"
+    org.opencontainers.image.source: "https://github.com/project-machine/bootkit"
+    org.opencontainers.image.version: "n/a"
+    org.opencontainers.image.revision: "n/a"
+    org.opencontainers.image.vendor: "project-machine"
+    org.opencontainers.image.licenses: "GPLv2 and others"
+    org.opencontainers.image.title: "rootfs"
+    org.opencontainers.image.description: "A minimal bootable root filesystem"
+
+rootfs-demo:
+  from:
+    type: built
+    tag: rootfs
+  run: |
+    password='gocubsgo'
+    echo "root:$password" | chpasswd
+
+    cat > /etc/rc.local <<EOF
+    #!/bin/sh
+    read up idle </proc/uptime
+    echo "rc.local was run at uptime \$up seconds"
+    msg() { printf "\n\n---- Login to this DEMO as root:$password ----\n\n"; }
+    msg
+    msg >/dev/ttyS0
+    msg >/dev/tty0
+    EOF
+    chmod 755 /etc/rc.local
+  annotations:
+    org.opencontainers.image.url: "https://github.com/project-machine/bootkit"
+    org.opencontainers.image.source: "https://github.com/project-machine/bootkit"
+    org.opencontainers.image.version: "n/a"
+    org.opencontainers.image.revision: "n/a"
+    org.opencontainers.image.vendor: "project-machine"
+    org.opencontainers.image.licenses: "GPLv2 and others"
+    org.opencontainers.image.title: "rootfs-demo"
+    org.opencontainers.image.description: "A DEMO ONLY root filesystem with well known root password"

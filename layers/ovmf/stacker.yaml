@@ -1,0 +1,30 @@
+config:
+  prerequisites:
+    - ../minbase/stacker.yaml
+
+ovmf-build-env:
+  build_only: true
+  from:
+    type: built
+    tag: minbase
+  run: |
+    pkgtool install ovmf
+
+ovmf-build:
+  build_only: true
+  from:
+    type: built
+    tag: ovmf-build-env
+  run: |
+    d=$(mktemp -d)
+    trap "rm -Rf $d" EXIT
+
+    mkdir "$d/ovmf"
+
+    codef=/usr/share/OVMF/OVMF_CODE.secboot.fd
+    varsf=/usr/share/OVMF/OVMF_VARS.fd
+    cp "$codef" "$d/ovmf/ovmf-code.fd"
+    cp "$varsf" "$d/ovmf/ovmf-vars.fd"
+
+    mkdir /export
+    tar -C "$d" -cvf /export/ovmf.tar ovmf

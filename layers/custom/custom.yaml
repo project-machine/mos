@@ -1,0 +1,137 @@
+config:
+  prerequisites:
+    - ../minbase/stacker.yaml
+
+build-customize:
+  build_only: true
+  from:
+    type: built
+    tag: minbase
+  run: |
+    pkgtool install binutils cpio efitools pigz python3 python3-pip
+    pip install virt-firmware
+
+custom-bootkit-input:
+  build_only: true
+  from:
+    type: docker
+    url: ${{CUSTOM_BOOTKIT_INPUT:oci:${{STACKER_OCI_DIR}}:bootkit}}
+
+## bootkit artifacts have no key data in them and are not signed.
+## customized uses bootkit artifacts and key access to create
+## signed artifacts that have databases populated.
+## It produces:
+##   ovmf-code.fd (unmodified, ovmf-code and ovmf-vars are always kept as a pair)
+##   ovmf-vars.fd with uefi-pk, uefi-kek and uefi-db populated.
+##   shim.efi with uki-limited, uki-production, uki-tpm populated.
+##   kernel.efi with manifest-ca
+customized:
+  build_only: true
+  from:
+    type: built
+    tag: build-customize
+  import:
+    - path: ../../tools/custbk
+    - path: ../../pkg/bkcust
+    - path: ${{KEYSET_D}}/
+      dest: /import/keys/
+    - path: stacker://custom-bootkit-input/bootkit
+  run: |
+    d=$(mktemp -d)
+    trap "rm -Rf $d" EXIT
+
+    cp /stacker/custbk /usr/local/bin/custbk
+    chmod 755 /usr/local/bin/custbk
+
+    workdir=$d/workd
+    bkdir="/stacker/bootkit"
+    outdir="$d/customized"
+
+    [ -d "$bkdir" ] ||
+        { echo "$bkdir is not a directory"; exit 1; }
+
+    find $bkdir ! -type d | xargs ls -altr
+
+    keydir=$(echo /import/keys/*)
+    [ -d "$keydir" ] ||
+        { echo "did not find keydir in /import/keys/*"; exit 1; }
+
+    mkdir "$outdir" "$workdir"
+
+    ### ovmf
+    cp "$bkdir/ovmf/ovmf-code.fd" "$outdir/ovmf-code.fd"
+    /stacker/bkcust virtfw secure-boot \
+        --output=$outdir/ovmf-vars.fd \
+        "--platform=$keydir/uefi-pk" \
+        "--kek=$keydir/uefi-kek" \
+        "--db=$keydir/uefi-db" \
+        "$bkdir/ovmf/ovmf-vars.fd"
+
+    ## ovmf custbk (shell)
+    # custbk virt-fw-vars \
+    #  "--set-pk=keydir:$keydir/uefi-pk/" \
+    #  "--add-kek=keydir:$keydir/uefi-kek/" \
+    #  "--add-db=keydir:$keydir/uefi-db/" \
+    #  "--input=$bkdir/ovmf/ovmf-vars.fd" \
+    #  "--output=$outdir/ovmf-vars.fd" \
+    #  "--secure-boot" \
+    #  "--no-microsoft"
+
+    ### shim
+    /stacker/bkcust shim set-db \
+        --output="$outdir/shim.efi" \
+        "$bkdir/shim/shim.efi" \
+        "$keydir/uki-limited" \
+        "$keydir/uki-production" \
+        "$keydir/uki-tpm"
+    /stacker/bkcust sign-efi "$outdir/shim.efi" \
+        "$keydir/uefi-db/cert.pem" "$keydir/uefi-db/privkey.pem"
+
+    ## shim custbk (shell) commands.
+    # custbk build-esl "$workdir/db.esl" \
+    #     "keydir:$keydir/uki-limited" \
+    #     "keydir:$keydir/uki-production" \
+    #     "keydir:$keydir/uki-tpm"
+    # custbk shim-set-db "$outdir/shim.efi" "$bkdir/shim/shim.efi" "$workdir/db.esl"
+    # sbsign "--cert=$keydir/uefi-db/cert.pem" \
+    #     "--key=$keydir/uefi-db/privkey.pem" \
+    #     "--output=$outdir/shim.efi" "$outdir/shim.efi"
+
+    ### kernel
+    ## TODO: implement bkcust (golang path)
+    ## kernel custbk (shell) commands
+    ixdir="$workdir/initrd-extra"
+    mkdir "$ixdir"
+    cp "$keydir/manifest-ca/cert.pem" "$ixdir/manifestCA.pem"
+    cp -r "$keydir/pcr7data" "$ixdir/pcr7data"
+    custbk initrd-join \
+        "--microcode=$bkdir/initrd/firmware.cpio.gz" \
+        "$workdir/initrd.img" \
+        "$bkdir/initrd/core.cpio.gz" \
+        "$bkdir/kernel/initrd-modules.cpio.gz" \
+        "$bkdir/mos/initrd-mos.cpio.gz" \
+        "dir:$ixdir"
+    rm -Rf "$ixdir"
+
+    ### uki / smoosh
+    /stacker/bkcust stubby smoosh --cmdline="" \
+        "$outdir/kernel.efi" "$bkdir/stubby/stubby.efi" \
+        "$bkdir/kernel/boot/vmlinuz" \
+        "$workdir/initrd.img"
+    /stacker/bkcust sign-efi "$outdir/kernel.efi" \
+        "$keydir/uki-production/cert.pem" "$keydir/uki-production/privkey.pem"
+
+    ## uki custbk (shell) commands
+    # custbk smoosh \
+    #     --cmdline="" \
+    #     "$outdir/kernel.efi" \
+    #     "$bkdir/stubby/stubby.efi" \
+    #     "$bkdir/kernel/boot/vmlinuz" \
+    #     "$workdir/initrd.img"
+    # sbsign \
+    #     "--cert=$keydir/uki-production/cert.pem" \
+    #     "--key=$keydir/uki-production/privkey.pem" \
+    #     "--output=$outdir/kernel.efi" "$outdir/kernel.efi"
+
+    mkdir /export
+    tar -C "$outdir/.." -cf /export/customized.tar "${outdir##*/}"

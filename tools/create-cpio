@@ -1,0 +1,47 @@
+#!/bin/bash
+fail() { [ $# -eq 0 ] || stderr "$@"; exit 1; }
+stderr() { echo "$@" 1>&2; }
+Usage() {
+    cat <<EOF
+${0##*/} [options] dir output.cpio.gz
+
+    create a compressed cpio archive in output.cpio.gz
+    that has the contents of dir.
+
+    the path 'dir' will not be present inside the archive,
+    only content under it.
+EOF
+}
+
+[ "$1" = "--help" -o "$1" = "-h" ] && {
+    Usage
+    exit 0
+}
+
+[ $# -eq 2 ] || {
+    Usage 1>&2
+    fail "$0: expected 2 args, got $#"
+}
+
+dir="$1"
+out="$2"
+
+[ -d "$dir" ] || fail "$dir: not a directory"
+if [ "$out" != "-" ]; then
+    outd=$(dirname "$out")
+    [ -d "$outd" ] || mkdir -p "$outd" ||
+        fail "failed to create '$outd' for output $out"
+    exec >"$out" ||
+        fail "failed to open '$out' for writing"
+fi
+
+command -v pigz >/dev/null 2>&1 && cprog=pigz || cprog=gzip
+set -o pipefail
+cd "$dir" || fail "failed cd to $dir"
+find * |
+    cpio --create --owner=+0:+0 -H newc --quiet |
+        $cprog --to-stdout || {
+        rc=$?
+        rm -f "$out"
+        exit $rc
+    }

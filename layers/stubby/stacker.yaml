@@ -1,0 +1,44 @@
+config:
+  prerequisites:
+    - ../minbase/stacker.yaml
+
+stubby-build-env:
+  build_only: true
+  from:
+    type: built
+    tag: minbase
+  run: |
+    pkgtool install binutils gcc git gnu-efi libc6-dev make tar
+
+stubby-build:
+  build_only: true
+  from:
+    type: built
+    tag: stubby-build-env
+  import:
+    - "https://github.com/puzzleos/stubby/archive/refs/tags/v1.0.1.tar.gz"
+  run: |
+    #!/bin/bash -ex
+    tarball=$(echo /stacker/v*.tar.gz)
+    [ -f "$tarball" ] || { echo "no stubby tarball found in /stacker"; exit 1; }
+    tar -xvf "$tarball"
+    # expecting tarball named 'vX.Y.Z.tar.gz', so strip suffix and leading 'v' to get version.
+    t=${tarball##*/}
+    t=${t%.tar.*}
+    version=${t#v}
+    cd stubby* || {
+      echo "stubby tarball did not create a single dir matching stubby*:" stubby*;
+      exit 1;
+    }
+    make
+
+    tmpd=$(mktemp -d)
+    trap "rm -Rf $tmpd" EXIT
+
+    d="$tmpd/stubby"
+    mkdir "$d"
+    echo "$version" > "$d/version"
+    cp stubby.efi stubby-smash.2.sh sbat.csv "$d/"
+
+    mkdir /export
+    tar -cf /export/stubby.tar -C "$tmpd" stubby/

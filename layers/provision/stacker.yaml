@@ -2,7 +2,7 @@ provision-base:
   build_only: true
   from:
     type: docker
-    url: "docker://zothub.io/machine/bootkit/rootfs:${{ROOTFS_VERSION}}-squashfs"
+    url: "docker://zothub.io/machine/bootkit/rootfs:${{BOOTKIT_VERSION}}-squashfs"
 
 provision-rootfs-pkg:
   build_only: true

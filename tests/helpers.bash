@@ -18,8 +18,8 @@ function trust_setup {
 function common_setup {
 	trust_setup
 
-	export ROOTFS_VERSION="${ROOTFS_VERSION:-v0.0.15.230901}"
-	echo "ROOTFS_VERSION is ${ROOTFS_VERSION}"
+	export BOOTKIT_VERSION="${BOOTKIT_VERSION:-v0.0.15.230901}"
+	echo "BOOTKIT_VERSION is ${BOOTKIT_VERSION}"
 
 	if [ ! -d "${PWD}/zothub" ]; then
 		stacker --oci-dir zothub build --layer-type squashfs
@@ -40,7 +40,7 @@ function common_setup {
 
 	export PATH="$PATH:${TOPDIR}/hack/tools/bin"
 
-	trust keyset list | grep snakeoil || trust keyset add --bootkit-version=${ROOTFS_VERSION} snakeoil
+	trust keyset list | grep snakeoil || trust keyset add --bootkit-version=${BOOTKIT_VERSION} snakeoil
 	export CA_PEM=~/.local/share/machine/trust/keys/snakeoil/manifest-ca/cert.pem
 	export M_CERT=~/.local/share/machine/trust/keys/snakeoil/manifest/default/cert.pem
 	export M_KEY=~/.local/share/machine/trust/keys/snakeoil/manifest/default/privkey.pem
