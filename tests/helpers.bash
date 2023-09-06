@@ -6,7 +6,7 @@ function trust_setup {
 	MDIR=~/.local/share/machine
 	BACKUP=~/.local/share/machine.backup
 	export TOPDIR="$(git rev-parse --show-toplevel)"
-	export PATH=${TOP_DIR}:$PATH
+	export PATH=${TOPDIR}:$PATH
 	if [ -d "$BACKUP" ]; then
 		rm -rf "$BACKUP"
 	fi
@@ -38,9 +38,10 @@ function common_setup {
 	export TMPUD=$(mktemp -d "${PWD}/batstest-XXXXX")
 	mkdir -p "$TMPD/config" "$TMPD/atomfs-store" "$TMPD/scratch-writes" "$TMPD/bin"
 
+	export TOPDIR="$(git rev-parse --show-toplevel)"
 	export PATH="$PATH:${TOPDIR}/hack/tools/bin"
 
-	trust keyset list | grep snakeoil || trust keyset add --bootkit-version=${ROOTFS_VERSION} snakeoil
+	trust keyset list | grep snakeoil || trust keyset add --bootkit-version=${ROOTFS_VERSION} --mosctl-path=${TOPDIR}/mosctl snakeoil
 	export CA_PEM=~/.local/share/machine/trust/keys/snakeoil/manifest-ca/cert.pem
 	export M_CERT=~/.local/share/machine/trust/keys/snakeoil/manifest/default/cert.pem
 	export M_KEY=~/.local/share/machine/trust/keys/snakeoil/manifest/default/privkey.pem

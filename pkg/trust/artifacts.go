@@ -161,7 +161,12 @@ func UpdateShim(inShim, newShim, keysetPath string) error {
 	return nil
 }
 
-func SetupBootkit(keysetName, bootkitVersion string) error {
+// SetupBootkit: create a custom bootkit for a keyset.
+// bootkitVersion specifies the version of bootkit to download from
+// zothub.io.  mosctlPath is a custom mosctl to insert - this is for
+// testing.  Normally "" will be passed, and the mosctl used by bootkit
+// will remain in use.
+func SetupBootkit(keysetName, bootkitVersion, mosctlPath string) error {
 	// TODO - we have to fix this by
 	// a. having bootkit generate arm64
 	// b. changing the bootkit layer naming to reflect arch
@@ -235,7 +240,7 @@ func SetupBootkit(keysetName, bootkitVersion string) error {
 	}
 
 	// break apart kernel.efi to replace the manifestCA.pem
-	newKernel, err := ReplaceManifestCert(bDir, keysetPath)
+	newKernel, err := ReplaceManifestCert(bDir, keysetPath, mosctlPath)
 	if err != nil {
 		return errors.Wrapf(err, "Failed replacing manifest certificate")
 	}
@@ -345,7 +350,7 @@ func appendToFile(dest, src string) error {
 // initrd, add newcert as /manifestCA.pem.  Build
 // a new kernel.efi and return that filename.  Note that the filename
 // will always be ${dir}/newkernel.efi, but whatever.
-func ReplaceManifestCert(dir, keysetPath string) (string, error) {
+func ReplaceManifestCert(dir, keysetPath, customMostctl string) (string, error) {
 	newCert := filepath.Join(keysetPath, "manifest-ca", "cert.pem")
 
 	pcr7Dir := filepath.Join(keysetPath, "pcr7data")
@@ -387,6 +392,21 @@ func ReplaceManifestCert(dir, keysetPath string) (string, error) {
 		pcr7Cpio,
 		certCpio,
 	}
+	if customMostctl != "" {
+		mosctlDir := filepath.Join(emptydir, "/usr/bin")
+		EnsureDir(mosctlDir)
+		mosctlFile := filepath.Join(mosctlDir, "mosctl")
+		if err := CopyFile(customMostctl, mosctlFile); err != nil {
+			return "", errors.Wrapf(err, "Failed copying custom mosctl")
+		}
+		mosCpio := filepath.Join(dir, "mosctl.cpio")
+		if err := NewCpio(mosCpio, filepath.Join(emptydir, "usr")); err != nil {
+			return "", errors.Wrapf(err, "Failed creating mosctl cpio")
+		}
+		files = append(files, mosCpio)
+		log.Infof("Inserting a custom mosctl into the initrd")
+	}
+
 	for _, f := range files {
 		if strings.HasSuffix(f, ".gz") {
 			if err := RunCommand("gunzip", f); err != nil {

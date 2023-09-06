@@ -260,6 +260,12 @@ var keysetCmd = cli.Command{
 					Usage: "Version of bootkit artifacts to use",
 					Value: trust.BootkitVersion,
 				},
+				cli.StringFlag{
+					Name:   "mosctl-path",
+					Usage:  "A path to a custom mosctl binary to insert",
+					Hidden: true,
+					Value:  "",
+				},
 			},
 		},
 		{
@@ -322,6 +328,8 @@ func doAddKeyset(ctx *cli.Context) error {
 		return errors.New("Please specify keyset name")
 	}
 
+	mosctlPath := ctx.String("mosctl-path")
+
 	bootkitVersion := ctx.String("bootkit-version")
 	Org := ctx.StringSlice("org")
 	if Org == nil {
@@ -354,7 +362,7 @@ func doAddKeyset(ctx *cli.Context) error {
 	}
 
 	// Now create the bootkit artifacts
-	if err = trust.SetupBootkit(keysetName, bootkitVersion); err != nil {
+	if err = trust.SetupBootkit(keysetName, bootkitVersion, mosctlPath); err != nil {
 		return fmt.Errorf("Failed creating bootkit artifacts for keyset %q: (%w)", keysetName, err)
 	}
 
