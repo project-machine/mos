@@ -152,7 +152,7 @@ jobs:
           install: |
             apt-get -y update;
             apt-get install -q -y git golang-go;
-            apt-get install -y bats golang make openssl swtpm tpm2-tools \
+            apt-get install -y bats curl golang make openssl swtpm tpm2-tools \
               libcryptsetup-dev libgpgme-dev libcap-dev qemu-kvm \
               libdevmapper-dev libacl1-dev libarchive-tools pip python3-yaml \
               sbsigntool squashfs-tools wget
@@ -169,7 +169,7 @@ jobs:
               pwd
               git describe --always --dirty
               go version
-              make trust
+              make
               make test-trust
       - name: Rename Binary
         run: |
