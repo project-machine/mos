@@ -8,12 +8,14 @@ import (
 	"io"
 	"io/fs"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/apex/log"
 	"github.com/jsipprell/keyctl"
@@ -326,4 +328,88 @@ func RunWithStdin(stdinString string, args ...string) error {
 		return errors.Errorf("%s: %s: %s", strings.Join(args, " "), err, string(output))
 	}
 	return nil
+}
+
+// pick first unused port >= min
+func unusedPort(min int) int {
+	port := min
+	for {
+		s, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if err == nil {
+			_ = s.Close()
+			return port
+		}
+		port++
+	}
+}
+
+const zotconf = `
+{
+  "distSpecVersion": "1.1.0-dev",
+  "storage": {
+    "rootDirectory": "%s",
+    "gc": false
+  },
+  "http": {
+    "address": "127.0.0.1",
+    "port": "%d"
+  },
+  "log": {
+    "level": "debug"
+  }
+}
+`
+
+// StartZot starts a new zot server on an unused port.  It returns a cleanup
+// function to terminate the zot.
+func StartZot(tmpd, cachedir string) (int, func(), error) {
+	cleanup := func() {}
+	confile := filepath.Join(tmpd, "zot-config.json")
+	zotport := unusedPort(20000)
+
+	log.Infof("Starting zot on port %d", zotport)
+	conf := fmt.Sprintf(zotconf, cachedir, zotport)
+	log.Infof("zot config: %s", conf)
+	if err := os.WriteFile(confile, []byte(conf), 0644); err != nil {
+		return -1, cleanup, err
+	}
+
+	cmd := exec.Command("zot", "serve", confile)
+	if err := cmd.Start(); err != nil {
+		return -1, cleanup, errors.Wrapf(err, "Failed starting zot")
+	}
+	cleanup = func() {
+		cmd.Process.Kill()
+	}
+
+	if err := waitOnZot(zotport); err != nil {
+		return -1, cleanup, errors.Wrapf(err, "Zot did not properly start")
+	}
+
+	return zotport, cleanup, nil
+}
+
+func waitOnZot(port int) error {
+	const maxTries = 5
+	count := 0
+
+	log.Debugf("Attempting to connect to repo on %d: ", port)
+	for {
+		err := pingRepo(port)
+		if err == nil {
+			log.Debugf("... Connected")
+			return nil
+		}
+		if count > maxTries {
+			return errors.Wrapf(err, "Failed connecting to our local distribution repo at port %d", port)
+		}
+		log.Debugf(".")
+		time.Sleep(1 * time.Second)
+		count += 1
+	}
+}
+
+func pingRepo(port int) error {
+	url := fmt.Sprintf("127.0.0.1:%d", port)
+	return PingRepo(url)
 }

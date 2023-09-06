@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/project-machine/mos/pkg/mosconfig"
 	tree "github.com/project-machine/mos/pkg/printdirtree"
 	"github.com/project-machine/mos/pkg/trust"
 	"github.com/urfave/cli"
@@ -356,6 +358,10 @@ func doAddKeyset(ctx *cli.Context) error {
 		return fmt.Errorf("Failed creating bootkit artifacts for keyset %q: (%w)", keysetName, err)
 	}
 
+	if err := buildProvisioner(keysetName); err != nil {
+		return errors.Wrapf(err, "Failed to create provisioning ISO")
+	}
+
 	return nil
 }
 
@@ -547,5 +553,30 @@ func doAddPCR7data(ctx *cli.Context) error {
 	if err := addPcr7data(keysetName, p); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+// Build a provisioning ISO for a new keyset.  We create it for the
+// 'default' project.
+func buildProvisioner(keysetName string) error {
+	if runtime.GOARCH != "amd64" {
+		log.Warnf("Running on %q, so not building bootkit artifacts (only amd64 supported).", runtime.GOARCH)
+		return nil
+	}
+
+	moskeysetPath, err := getMosKeyPath()
+	if err != nil {
+		return err
+	}
+	keyPath := filepath.Join(moskeysetPath, keysetName)
+	outfile := filepath.Join(keyPath, "artifacts", "provision.iso")
+	trust.EnsureDir(filepath.Dir(outfile))
+
+	if err := mosconfig.BuildProvisioner(keysetName, "default", outfile); err != nil {
+		return errors.Wrapf(err, "Failed to create provisioning ISO")
+	}
+
+	log.Infof("Created %q", outfile)
 	return nil
 }
