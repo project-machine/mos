@@ -13,6 +13,15 @@ TOPDIR := $(shell git rev-parse --show-toplevel)
 BOOTKIT_VERSION ?= "v0.0.15.230901"
 ROOTFS_VERSION = $(BOOTKIT_VERSION)
 
+archout = $(shell arch)
+ifeq ("$(archout)", "aarch64")
+arch = arm64
+else ifeq ("$(archout)", "x86_64")
+arch = amd64
+else
+#error "Unsupported architecture: $(archout)"
+endif
+
 MAIN_VERSION ?= $(shell git describe --always --dirty || echo no-git)
 ifeq ($(MAIN_VERSION),$(filter $(MAIN_VERSION), "", no-git))
 $(error "Bad value for MAIN_VERSION: '$(MAIN_VERSION)'")
@@ -38,18 +47,18 @@ trust: .made-gofmt $(GO_SRC)
 
 $(ZOT):
 	mkdir -p $(TOOLSDIR)/bin
-	curl -Lo $(ZOT) https://github.com/project-zot/zot/releases/download/v$(ZOT_VERSION)/zot-linux-amd64-minimal
+	curl -Lo $(ZOT) https://github.com/project-zot/zot/releases/download/v$(ZOT_VERSION)/zot-linux-${arch}-minimal
 	chmod +x $(ZOT)
 
 $(ORAS):
 	mkdir -p $(TOOLSDIR)/bin
-	curl -Lo oras.tar.gz https://github.com/oras-project/oras/releases/download/v$(ORAS_VERSION)/oras_$(ORAS_VERSION)_linux_amd64.tar.gz
+	curl -Lo oras.tar.gz https://github.com/oras-project/oras/releases/download/v$(ORAS_VERSION)/oras_$(ORAS_VERSION)_linux_$(arch).tar.gz
 	tar xvzf oras.tar.gz -C $(TOOLSDIR)/bin oras
 	rm oras.tar.gz
 
 $(REGCTL):
 	mkdir -p $(TOOLSDIR)/bin
-	curl -Lo $(REGCTL) https://github.com/regclient/regclient/releases/download/v$(REGCTL_VERSION)/regctl-linux-amd64
+	curl -Lo $(REGCTL) https://github.com/regclient/regclient/releases/download/v$(REGCTL_VERSION)/regctl-linux-$(arch)
 	chmod +x $(REGCTL)
 
 .PHONY: gofmt
