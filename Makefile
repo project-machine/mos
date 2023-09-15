@@ -33,7 +33,7 @@ all: mosctl mosb trust $(ZOT) $(ORAS) $(REGCTL)
 
 VERSION_LDFLAGS=-X github.com/project-machine/mos/pkg/mosconfig.Version=$(MAIN_VERSION) \
 	-X github.com/project-machine/mos/pkg/trust.Version=$(MAIN_VERSION) \
-	-X github.com/project-machine/mos/pkg/mosconfig.LayerVersion=0.0.1 \
+	-X github.com/project-machine/mos/pkg/mosconfig.LayerVersion=0.0.2 \
 	-X github.com/project-machine/mos/pkg/trust.BootkitVersion=$(BOOTKIT_VERSION)
 
 mosctl: .made-gofmt $(GO_SRC)
