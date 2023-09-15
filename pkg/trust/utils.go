@@ -173,6 +173,15 @@ func RunCommand(args ...string) error {
 }
 
 // UserDataDir returns the user's data directory
+func MachineDir(mname string) (string, error) {
+	p, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(p, ".local", "state", "machine", "machines", mname, mname), nil
+}
+
+// UserDataDir returns the user's data directory
 func UserDataDir() (string, error) {
 	p, err := os.UserHomeDir()
 	if err != nil {
@@ -188,6 +197,16 @@ func getMosKeyPath() (string, error) {
 		return "", err
 	}
 	return filepath.Join(dataDir, "machine", "trust", "keys"), nil
+}
+
+func KeyProjectDir(keyset, project string) (string, string, error) {
+	d, err := getMosKeyPath()
+	if err != nil {
+		return "", "", err
+	}
+	k := filepath.Join(d, keyset)
+	p := filepath.Join(k, "manifest", project)
+	return k, p, nil
 }
 
 // Just create a cpio file.  @path will be the top level directory

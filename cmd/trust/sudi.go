@@ -48,8 +48,6 @@ func doGenSudi(ctx *cli.Context) error {
 	var myUUID string
 	if len(args) == 3 {
 		myUUID = args[2]
-	} else {
-		myUUID = uuid.NewString()
 	}
 
 	trustDir, err := getMosKeyPath()
@@ -66,37 +64,51 @@ func doGenSudi(ctx *cli.Context) error {
 		return fmt.Errorf("Project not found: %s", projName)
 	}
 
-	capath := filepath.Join(keysetPath, "sudi-ca")
-	snPath := filepath.Join(projPath, "sudi", myUUID)
-	prodUUID, err := os.ReadFile(filepath.Join(projPath, "uuid"))
+	if _, err = genSudi(keysetPath, projPath, myUUID); err != nil {
+		return errors.Wrapf(err, "Failed generating SUDI")
+	}
+
+	return nil
+}
+
+// Generate a SUDI key for given uuid.  If uuid is "", then generate a
+// new UUID.  Return the directory path for this new SUDI cert.
+func genSudi(keysetPath, projDir, sudiUUID string) (string, error) {
+	prodUUID, err := os.ReadFile(filepath.Join(projDir, "uuid"))
 	if err != nil {
-		return errors.Wrapf(err, "Failed reading project UUID")
+		return "", errors.Wrapf(err, "Failed reading project UUID")
+	}
+
+	if sudiUUID == "" {
+		sudiUUID = uuid.NewString()
 	}
 
 	// read the project CA certificate
+	capath := filepath.Join(keysetPath, "sudi-ca")
 	caCert, err := readCertificateFromFile(filepath.Join(capath, "cert.pem"))
 	if err != nil {
-		return errors.Wrapf(err, "Failed reading SUDI CA certificate")
+		return "", errors.Wrapf(err, "Failed reading SUDI CA certificate")
 	}
 
 	// read the project CA private key to sign the sudi key with
 	caKey, err := readPrivKeyFromFile(filepath.Join(capath, "privkey.pem"))
 	if err != nil {
-		return errors.Wrapf(err, "Failed reading SUDI CA key")
+		return "", errors.Wrapf(err, "Failed reading SUDI CA key")
 	}
 
-	certTmpl := newCertTemplate(string(prodUUID), myUUID)
+	certTmpl := newCertTemplate(string(prodUUID), sudiUUID)
 
+	snPath := filepath.Join(projDir, "sudi", sudiUUID)
 	if err := trust.EnsureDir(snPath); err != nil {
-		return errors.Wrapf(err, "Failed creating new SUDI directory")
+		return "", errors.Wrapf(err, "Failed creating new SUDI directory")
 	}
 
 	if err := SignCert(&certTmpl, caCert, caKey, snPath); err != nil {
 		os.RemoveAll(snPath)
-		return errors.Wrapf(err, "Failed creating new SUDI keypair")
+		return "", errors.Wrapf(err, "Failed creating new SUDI keypair")
 	}
 
-	return nil
+	return snPath, nil
 }
 
 func newCertTemplate(productUUID, machineUUID string) x509.Certificate {

@@ -28,10 +28,13 @@ func main() {
 		// keyset
 		keysetCmd,
 
+		// launch
+		launchCmd,
+
 		// project
 		projectCmd,
 
-		// sudo
+		// sudi
 		sudiCmd,
 
 		// sign

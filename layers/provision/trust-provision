@@ -36,11 +36,12 @@ done
 [ -z "$missing" ] ||
     fail "$devpath was found, but did not contain ${missing# }"
 
-exec mosctl provision --disk /dev/sda --wipe \
+mosctl provision --disk /dev/sda --wipe \
     "$mp/cert.pem" "$mp/privkey.pem"
 
 if [ $? -eq 0 ]; then
     echo "XXX provisioned successfully XXX"
 else
     echo "XXX FAIL XXX"
+    exit 1
 fi
