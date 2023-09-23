@@ -3,7 +3,7 @@ Description=Run mos installer
 #After=network-online.target
 After=getty.target multi-user.target local-fs.target
 Conflicts=getty@tty1.service
-OnFailure=install-provision-failed.service
+OnFailure=poweroff.target
 
 [Service]
 Type=oneshot
