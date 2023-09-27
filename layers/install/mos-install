@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 mkdir /iso
 mount /dev/sr0 /iso
 cp -r /iso/oci /zot
@@ -43,4 +45,53 @@ systemctl start zot.service
 systemctl start udev
 
 modprobe dmverity
-mosctl --debug install --partition docker://127.0.0.1:5000/machine/install:1.0.0
+
+name="${0##*/}"
+maxwait=10
+waited=0
+label="inst-data"
+devpath="/dev/disk/by-label/$label"
+
+while [ $waited -lt $maxwait ] && waited=$((waited+1)); do
+    [ -b "$devpath" ] && break
+    udevadm settle
+    [ -b "$devpath" ] && break
+    sleep .5
+done
+
+[ -b "$devpath" ] || {
+    cat<<EOF
+=========
+$0 did not find disk named $label
+========
+EOF
+fail
+}
+
+mp="/run/$name"
+mkdir -p "$mp" || fail "failed to mkdir $mp"
+mount "$devpath" "$mp" || fail "failed to mount $devpath to $mp"
+
+systemctl status
+ps -ef
+dhclient
+
+# Wait for networking
+count=0
+while [ $count -lt 5 ]; do
+    [ -n "$(ip route)" ] && break
+    sleep 2
+    count=$((count+1))
+done
+ip link
+ip route
+
+installurl="$(<${mp}/url.txt)"
+mosctl --debug install --partition "${installurl}"
+
+if [ $? -eq 0 ]; then
+    echo "XXX installed successfully XXX"
+else
+    echo "XXX FAIL XXX"
+    exit 1
+fi

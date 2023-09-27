@@ -36,7 +36,7 @@ provision-rootfs:
     DHCP=yes
     END
 
-    cd /stacker
+    cd /stacker/imports
     cp mosctl trust-provision /usr/bin
     ( cd /usr/bin && chmod 755 mosctl trust-provision )
 

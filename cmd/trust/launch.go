@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/apex/log"
 	"github.com/pkg/errors"
 	"github.com/project-machine/mos/pkg/provider"
 	"github.com/project-machine/mos/pkg/trust"
@@ -60,8 +61,12 @@ func doLaunch(ctx *cli.Context) error {
 		return errors.New("A name for the new machine is required")
 	}
 
-	if !ctx.Bool("skip-install") && len(args) != 2 {
-		return errors.New("Install manifest URL is required")
+	installUrl := ""
+	if !ctx.Bool("skip-install") {
+		if len(args) != 2 {
+			return errors.New("Install manifest URL is required")
+		}
+		installUrl = args[1]
 	}
 
 	mtype := ctx.String("type")
@@ -122,6 +127,10 @@ func doLaunch(ctx *cli.Context) error {
 		return errors.Wrapf(err, "Failed creating SUDI disk")
 	}
 
+	if err := makeInstallVFAT(sudiDir, installUrl); err != nil {
+		return errors.Wrapf(err, "Failed creating SUDI disk")
+	}
+
 	m, err := p.New(mname, fullProject, uuid)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to create new machine")
@@ -135,6 +144,15 @@ func doLaunch(ctx *cli.Context) error {
 
 	if err := m.RunProvision(); err != nil {
 		return errors.Wrapf(err, "Failed to run provisioning ISO")
+	}
+
+	if installUrl == "" {
+		log.Infof("Skipping install per user request")
+		return nil
+	}
+
+	if err := m.RunInstall(); err != nil {
+		return errors.Wrapf(err, "Failed to run install ISO")
 	}
 
 	return nil
@@ -169,6 +187,47 @@ func makeSudiVfat(sudiDir string) error {
 	}
 	if err := trust.RunCommand("mcopy", "-i", disk, key, "::privkey.pem"); err != nil {
 		return errors.Wrapf(err, "Failed copying key to sudi disk")
+	}
+
+	return nil
+}
+
+func makeInstallVFAT(sudiDir, url string) error {
+	if url == "" {
+		return nil
+	}
+
+	disk := filepath.Join(sudiDir, "install.vfat")
+	if trust.PathExists(disk) {
+		return errors.Errorf("%q already exists", disk)
+	}
+
+	f, err := os.CreateTemp("", "installfat")
+	if err != nil {
+		return err
+	}
+	urlfile := f.Name()
+	defer os.Remove(urlfile)
+	_, err = f.WriteString(url)
+	f.Close()
+	if err != nil {
+		return err
+	}
+
+	f, err = os.OpenFile(disk, os.O_RDWR|os.O_CREATE, 0600)
+	if err != nil {
+		return errors.Wrapf(err, "Failed creating install disk")
+	}
+	f.Close()
+
+	if err = os.Truncate(disk, 20*1024*1024); err != nil {
+		return errors.Wrapf(err, "Failed truncating install disk")
+	}
+	if err = trust.RunCommand("mkfs.vfat", "-n", "inst-data", disk); err != nil {
+		return errors.Wrapf(err, "Failed formatting install disk")
+	}
+	if err = trust.RunCommand("mcopy", "-i", disk, urlfile, "::url.txt"); err != nil {
+		return errors.Wrapf(err, "Failed copying urlfile to install disk")
 	}
 
 	return nil

@@ -75,7 +75,7 @@ jobs:
           echo "$u veth lxcbr0 100" | sudo tee -a /etc/lxc/lxc-usernet
       - name: install stacker
         run: |
-          wget -O ~/bin/stacker --progress=dot:mega https://github.com/project-stacker/stacker/releases/download/v1.0.0-rc2/stacker
+          wget -O ~/bin/stacker --progress=dot:mega https://github.com/project-stacker/stacker/releases/download/v1.0.0-rc5/stacker
           chmod 755 ~/bin/stacker
       - name: install skopeo
         run: |

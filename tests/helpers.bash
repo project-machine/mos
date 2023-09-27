@@ -3,15 +3,26 @@ function run_git {
 }
 
 function trust_setup {
+	# During tests we move the users's .local/share/machine to
+	# .user, and create a new empty one.  At end of tests, we move
+	# the new one to .fortests, so we can re-use it at next test.
+	# Note that 'make tests' will delete the .fortests at start.
+	# This way we can avoid repeating time-consuming 'keyset add' work
+	# when running all the tests, as in CI.
 	MDIR=~/.local/share/machine
-	BACKUP=~/.local/share/machine.backup
+	TESTMDIR="${MDIR}.fortests"
+	USERMDIR="${MDIR}.user"
 	export TOPDIR="$(git rev-parse --show-toplevel)"
 	export PATH=${TOPDIR}:$PATH
-	if [ -d "$BACKUP" ]; then
-		rm -rf "$BACKUP"
+	if [ -d "${USERMDIR}" ]; then
+		echo "${USERMDIR} exists before tests, I'm not touching this setup"
+		exit 1
 	fi
 	if [ -d "$MDIR" ]; then
-		mv "$MDIR" "$BACKUP"
+		mv "$MDIR" "${USERMDIR}"
+	fi
+	if [ -d "$TESTMDIR" ]; then
+		mv "$TESTMDIR" "$MDIR"
 	fi
 }
 
@@ -87,16 +98,16 @@ EOF
 		echo "Timed out waiting for zot"
 		exit 1
 	fi
-  # setup a OCI client
-  regctl registry set --tls=disabled $ZOT_HOST:$ZOT_PORT
+	# setup a OCI client
+	regctl registry set --tls=disabled $ZOT_HOST:$ZOT_PORT
 }
 
 function trust_teardown {
 	if [ -d "$MDIR" ]; then
-		rm -rf "$MDIR"
+		mv "$MDIR" "$TESTMDIR"
 	fi
-	if [ -d "$BACKUP" ]; then
-		mv "$BACKUP" "$MDIR"
+	if [ -d "${USERMDIR}" ]; then
+		mv "${USERMDIR}" "$MDIR"
 	fi
 }
 
@@ -112,8 +123,8 @@ function common_teardown {
 }
 
 function zot_teardown {
-  killall zot
-  rm -f $TMPD/zot-config.json
+	killall zot
+	rm -f $TMPD/zot-config.json
 }
 
 function manifest_shasum_from {

@@ -161,6 +161,17 @@ func UpdateShim(inShim, newShim, keysetPath string) error {
 	return nil
 }
 
+const bootkitOciTemplate = `
+bootkit:
+  from:
+    type: scratch
+  import:
+    - path: %s/bootkit/kernel.efi
+      dest: /bootkit/kernel.efi
+    - path: %s/bootkit/shim.efi
+      dest: /bootkit/shim.efi
+`
+
 // SetupBootkit: create a custom bootkit for a keyset.
 // bootkitVersion specifies the version of bootkit to download from
 // zothub.io.  mosctlPath is a custom mosctl to insert - this is for
@@ -252,6 +263,32 @@ func SetupBootkit(keysetName, bootkitVersion, mosctlPath string) error {
 	err = RunCommand(cmd...)
 	if err != nil {
 		return errors.Wrapf(err, "failed re-signing shim")
+	}
+
+	// Create a bootkit/oci layer with the kernel and shim, for use
+	// in mosctl install
+	tmpoci := filepath.Join(tmpdir, "ocibuild")
+	if err := EnsureDir(tmpoci); err != nil {
+		return err
+	}
+	yamlString := fmt.Sprintf(bootkitOciTemplate, keysetPath, keysetPath)
+	yamlFile := filepath.Join(tmpoci, "stacker.yaml")
+	if err := os.WriteFile(yamlFile, []byte(yamlString), 0644); err != nil {
+		return err
+	}
+	cmd = []string{
+		"stacker",
+		"--stacker-dir", filepath.Join(tmpoci, ".stacker"),
+		"--oci-dir", filepath.Join(tmpoci, "oci"),
+		"--roots-dir", filepath.Join(tmpoci, "roots"),
+		"build", "-f", yamlFile, "--layer-type", "squashfs"}
+	if err := RunCommand(cmd...); err != nil {
+		return errors.Wrapf(err, "Failed building bootkit OCI layer")
+	}
+	src := filepath.Join(tmpoci, "oci")
+	dest := filepath.Join(destDir, "oci")
+	if err := CopyFiles(src, dest); err != nil {
+		return errors.Wrapf(err, "Failed copying %q to %q", src, dest)
 	}
 
 	// generate a new ovmf-vars.fd

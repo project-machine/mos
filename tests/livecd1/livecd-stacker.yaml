@@ -40,7 +40,7 @@ rootfs:
     DHCP=yes
     END
 
-    cd /stacker
+    cd /stacker/imports
     cp hello-world /usr/bin
     chmod 755 /usr/bin/hello-world
 

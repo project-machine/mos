@@ -2,7 +2,7 @@
 Description=Run the tpm stuff.
 After=getty.target multi-user.target local-fs.target
 Conflicts=getty@tty1.service
-OnFailure=trust-provision-failed.service
+OnFailure=poweroff.target
 
 [Service]
 Type=oneshot

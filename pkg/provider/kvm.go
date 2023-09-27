@@ -10,7 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/apex/log"
 	"github.com/pkg/errors"
+	"github.com/project-machine/machine/pkg/api"
+	"github.com/project-machine/machine/pkg/client"
 	"github.com/project-machine/mos/pkg/trust"
 )
 
@@ -100,7 +103,6 @@ func (p KVMProvider) New(mname, keyproject, UUID string) (Machine, error) {
 		return m, errors.Wrapf(err, "Failed finding keyset path")
 	}
 
-	fmt.Printf("UUID is %q\n", UUID)
 	sudiPath := filepath.Join(projDir, "sudi", UUID, "sudi.vfat")
 
 	// Write a template
@@ -113,7 +115,6 @@ func (p KVMProvider) New(mname, keyproject, UUID string) (Machine, error) {
 	uefiVars := filepath.Join(keysetDir, "bootkit", "ovmf-vars.fd")
 	mData := fmt.Sprintf(KVMTemplate, m.Name, m.Name, uefiVars, provisionISO,
 		qcowPath, sudiPath)
-	fmt.Printf("mdata is:\n%s\n", mData)
 	_, _, err = trust.RunWithStdall(mData, "machine", "init", m.Name)
 	if err != nil {
 		return m, errors.Wrapf(err, "Failed initializing machine")
@@ -176,6 +177,107 @@ func (m KVMMachine) RunProvision() error {
 	return nil
 }
 
+func (m KVMMachine) updateForInstall() error {
+	machine, rc, err := client.GetMachine(m.Name)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to get machine")
+	}
+
+	if rc != 200 {
+		return errors.Errorf("Error retrieving machine, error code %d", rc)
+	}
+	if !strings.HasSuffix(machine.Config.Cdrom, "provision.iso") {
+		return errors.Errorf("Machine's cdrom was %q", machine.Config.Cdrom)
+	}
+	machine.Config.Cdrom = strings.TrimSuffix(machine.Config.Cdrom, "provision.iso")
+	machine.Config.Cdrom = machine.Config.Cdrom + "install.iso"
+
+	newDisks := []api.QemuDisk{}
+	for _, d := range machine.Config.Disks {
+		if strings.HasSuffix(d.File, "sudi.vfat") {
+			_, projDir, err := trust.KeyProjectDir(m.Keyset, m.Project)
+			if err != nil {
+				return errors.Wrapf(err, "Failed finding keyset path")
+			}
+			d.File = filepath.Join(projDir, "sudi", m.UUID, "install.vfat")
+		}
+		newDisks = append(newDisks, d)
+	}
+	machine.Config.Disks = newDisks
+
+	if err = client.PutMachine(machine); err != nil {
+		return errors.Wrapf(err, "Failed to push updated machine")
+	}
+	return nil
+}
+
+func (m KVMMachine) updateForBoot() error {
+	machine, rc, err := client.GetMachine(m.Name)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to get machine")
+	}
+
+	if rc != 200 {
+		return errors.Errorf("Error retrieving machine, error code %d", rc)
+	}
+
+	newDisks := []api.QemuDisk{}
+	for _, d := range machine.Config.Disks {
+		if strings.HasSuffix(d.File, "sudi.vfat") {
+			continue
+		}
+		if strings.HasSuffix(d.File, "install.vfat") {
+			continue
+		}
+		newDisks = append(newDisks, d)
+	}
+	machine.Config.Disks = newDisks
+
+	machine.Config.Boot = "hdd"
+	machine.Config.Cdrom = ""
+
+	if err = client.PutMachine(machine); err != nil {
+		return errors.Wrapf(err, "Failed to push updated machine")
+	}
+	return nil
+}
+
+func (m KVMMachine) RunInstall() error {
+	log.Infof("Setting up to install %q\n", m.Name)
+	if err := m.updateForInstall(); err != nil {
+		return errors.Wrapf(err, "Failed updating %q for install", m.Name)
+	}
+
+	if err := m.Start(); err != nil {
+		return errors.Wrapf(err, "Failed starting %q to install", m.Name)
+	}
+
+	if err := m.waitForState(RUNNING); err != nil {
+		return errors.Wrapf(err, "Error waiting for install to begin")
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get homedir")
+	}
+	mdir := filepath.Join(home, ".local/state/machine/machines", m.Name, m.Name)
+	msock := filepath.Join(mdir, "sockets", "console.sock")
+	time.Sleep(2 * time.Second)
+	if err := waitForUnix(msock, "installed successfully", "XXX FAIL XXX"); err != nil {
+		return errors.Wrapf(err, "Install failed")
+	}
+
+	if err := m.waitForState(STOPPED); err != nil {
+		return errors.Wrapf(err, "Machine did not shut down after install")
+	}
+
+	if err := m.updateForBoot(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Connect to unix socket @sockPath, and waith for either EOF,
 // or for either @good or @string to be seen
 func waitForUnix(sockPath, good, bad string) error {
@@ -188,7 +290,6 @@ func waitForUnix(sockPath, good, bad string) error {
 		return errors.Wrapf(err, "Failed reading console socket")
 	}
 	s := string(b)
-	fmt.Printf("unix socket output: %q\n", s)
 	if strings.Contains(s, good) {
 		return nil
 	}
@@ -207,10 +308,6 @@ func (m KVMMachine) state(desired string) bool {
 	}
 
 	return strings.Contains(string(output), desired)
-}
-
-func (m KVMMachine) RunInstall(url string) error {
-	return errors.Errorf("Not yet implemented")
 }
 
 func (m KVMMachine) Start() error {

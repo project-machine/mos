@@ -370,6 +370,10 @@ func doAddKeyset(ctx *cli.Context) error {
 		return errors.Wrapf(err, "Failed to create provisioning ISO")
 	}
 
+	if err := buildInstaller(keysetName); err != nil {
+		return errors.Wrapf(err, "Failed to create provisioning ISO")
+	}
+
 	return nil
 }
 
@@ -582,6 +586,30 @@ func buildProvisioner(keysetName string) error {
 	trust.EnsureDir(filepath.Dir(outfile))
 
 	if err := mosconfig.BuildProvisioner(keysetName, "default", outfile); err != nil {
+		return errors.Wrapf(err, "Failed to create provisioning ISO")
+	}
+
+	log.Infof("Created %q", outfile)
+	return nil
+}
+
+func buildInstaller(keysetName string) error {
+	if runtime.GOARCH != "amd64" {
+		log.Warnf("Running on %q, so not building bootkit artifacts (only amd64 supported).", runtime.GOARCH)
+		return nil
+	}
+
+	moskeysetPath, err := getMosKeyPath()
+	if err != nil {
+		return err
+	}
+	keyPath := filepath.Join(moskeysetPath, keysetName)
+	outfile := filepath.Join(keyPath, "artifacts", "install.iso")
+	if err := trust.EnsureDir(filepath.Dir(outfile)); err != nil {
+		return errors.Wrapf(err, "Failed creating %q", outfile)
+	}
+
+	if err := mosconfig.BuildInstaller(keysetName, "default", outfile); err != nil {
 		return errors.Wrapf(err, "Failed to create provisioning ISO")
 	}
 

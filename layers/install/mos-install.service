@@ -1,14 +1,14 @@
 [Unit]
 Description=Run mos installer
-#After=network-online.target
-After=getty.target multi-user.target local-fs.target
+After=getty.target multi-user.target local-fs.target network.target
 Conflicts=getty@tty1.service
-OnFailure=install-provision-failed.service
+OnFailure=poweroff.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=true
 ExecStart=/usr/bin/mos-install
+ExecStartPost=/usr/bin/systemctl poweroff
 StandardOutput=journal+console
 
 [Install]
