@@ -33,7 +33,7 @@ all: mosctl mosb trust $(ZOT) $(ORAS) $(REGCTL)
 
 VERSION_LDFLAGS=-X github.com/project-machine/mos/pkg/mosconfig.Version=$(MAIN_VERSION) \
 	-X github.com/project-machine/mos/pkg/trust.Version=$(MAIN_VERSION) \
-	-X github.com/project-machine/mos/pkg/mosconfig.LayerVersion=0.0.2 \
+	-X github.com/project-machine/mos/pkg/mosconfig.LayerVersion=0.0.3 \
 	-X github.com/project-machine/mos/pkg/trust.BootkitVersion=$(BOOTKIT_VERSION)
 
 mosctl: .made-gofmt $(GO_SRC)
@@ -86,14 +86,14 @@ layers: mosctl
 
 .PHONY: test
 test: deps
+	rm -rf ~/.local/share/machine.fortests
 	bats tests/install.bats
 	bats tests/rfs.bats
 	bats tests/activate.bats
 	bats tests/update.bats
 	bats tests/mount.bats
 	bats tests/keyset.bats
-	bats tests/project.bats
-	bats tests/sudi.bats
+	bats tests/launch.bats
 
 # the trust testcases only, for running on amd64.  We need an arm64
 # runner capable of doing nested virt if we're going to have github
@@ -101,8 +101,6 @@ test: deps
 .PHONY: test-trust
 test-trust: trust
 	bats tests/keyset.bats
-	bats tests/project.bats
-	bats tests/sudi.bats
 
 clean:
 	rm -f mosb mosctl trust

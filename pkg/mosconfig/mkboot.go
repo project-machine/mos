@@ -432,13 +432,27 @@ func (o *OciBoot) Build() error {
 //	    "--target=livecd" \
 //	    "--dest=$rootd" \
 //	    "${repo}/$name"
-var manifestTemplate = `
+var provisionManifestTemplate = `
 version: 1
 product: "%s"
 update_type: complete
 targets:
   - service_name: livecd
     source: "docker://zothub.io/machine/bootkit/provision-rootfs:%s-squashfs"
+    version: %s
+    service_type: fs-only
+    nsgroup: "none"
+    network:
+      type: none
+`
+
+var installManifestTemplate = `
+version: 1
+product: "%s"
+update_type: complete
+targets:
+  - service_name: livecd
+    source: "docker://zothub.io/machine/bootkit/install-rootfs:%s-squashfs"
     version: %s
     service_type: fs-only
     nsgroup: "none"
@@ -473,7 +487,66 @@ func BuildProvisioner(keysetName, projectName, isofile string) error {
 	if err != nil {
 		return errors.Wrapf(err, "Failed to read project uuid (%q)", pPath)
 	}
-	manifestText := fmt.Sprintf(manifestTemplate, string(productUUID), LayerVersion, LayerVersion)
+	manifestText := fmt.Sprintf(provisionManifestTemplate, string(productUUID), LayerVersion, LayerVersion)
+
+	manifestpath := filepath.Join(dir, "manifest.yaml")
+	err = os.WriteFile(manifestpath, []byte(manifestText), 0600)
+	if err != nil {
+		return errors.Wrapf(err, "failed writing the manifest file")
+	}
+
+	fullproject := keysetName + ":" + projectName
+	err = PublishManifest(fullproject, repo, name, manifestpath)
+	if err != nil {
+		return errors.Wrapf(err, "Failed writing manifest artifacts to local zot")
+	}
+
+	bootUrl := "docker://" + repo + "/" + name
+	cmdline := "console=ttyS0"
+	o := OciBoot{
+		KeySet:         keysetName,
+		Project:        fullproject,
+		BootURL:        bootUrl,
+		BootStyle:      EFIBootModes[EFIAuto],
+		OutFile:        isofile,
+		Cdrom:          true,
+		Cmdline:        cmdline,
+		BootFromRemote: false,
+		RepoDir:        cacheDir,
+		Files:          map[string]string{},
+		ZotPort:        zotPort,
+	}
+
+	return o.Build()
+}
+
+func BuildInstaller(keysetName, projectName, isofile string) error {
+	dir, err := os.MkdirTemp("", "installiso")
+	if err != nil {
+		return errors.Wrapf(err, "failed creating temporary directory")
+	}
+	defer os.RemoveAll(dir)
+
+	cacheDir := filepath.Join(dir, "cache")
+	zotPort, cleanup, err := StartZot(dir, cacheDir)
+	if err != nil {
+		return errors.Wrapf(err, "failed starting a local zot")
+	}
+	defer cleanup()
+
+	repo := fmt.Sprintf("127.0.0.1:%d", zotPort)
+	name := "machine/livecd:1.0.0"
+
+	keyPath, err := MosKeyPath()
+	if err != nil {
+		return errors.Wrapf(err, "Failed finding mos key path")
+	}
+	pPath := filepath.Join(keyPath, keysetName, "manifest", projectName, "uuid")
+	productUUID, err := os.ReadFile(pPath)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to read project uuid (%q)", pPath)
+	}
+	manifestText := fmt.Sprintf(installManifestTemplate, string(productUUID), LayerVersion, LayerVersion)
 
 	manifestpath := filepath.Join(dir, "manifest.yaml")
 	err = os.WriteFile(manifestpath, []byte(manifestText), 0600)

@@ -44,7 +44,7 @@ target-rootfs:
     DHCP=yes
     END
 
-    cd /stacker
+    cd /stacker/imports
     cp mosctl /usr/bin
     ( cd /usr/bin && chmod 755 mosctl )
     echo root:passw0rd | chpasswd
@@ -86,15 +86,15 @@ install-rootfs:
     DHCP=yes
     END
 
-    cd /stacker
+    cd /stacker/imports
     cp mosctl mos-install /usr/bin
     ( cd /usr/bin && chmod 755 mosctl mos-install )
-    cp /stacker/zot-linux-amd64-minimal /usr/bin/zot
+    cp /stacker/imports/zot-linux-amd64-minimal /usr/bin/zot
     chmod 755 /usr/bin/zot
-    cp /stacker/zot.service /etc/systemd/system
+    cp /stacker/imports/zot.service /etc/systemd/system
     mkdir -p /etc/zot
     mkdir /iso
-    cp /stacker/zot-config.json /etc/zot/config.json
+    cp /stacker/imports/zot-config.json /etc/zot/config.json
 
     cp mos-install.service /etc/systemd/system/
     systemctl enable mos-install.service

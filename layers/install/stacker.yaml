@@ -10,16 +10,32 @@ install-rootfs-pkg:
     type: built
     tag: install-base
   run: |
+    #!/bin/sh -ex
     pkgtool install \
         cryptsetup \
         dosfstools \
         e2fsprogs \
+        iproute2 \
+        isc-dhcp-client \
         keyutils \
         kmod \
         libsquashfs-dev \
         parted \
         tpm2-tools \
         udev
+
+    writefile() {
+      mkdir -p "${1%/*}"
+      echo "write $1" 1>&2
+      cat >"$1"
+    }
+
+    writefile /etc/systemd/network/20-wire-enp0s-dhcp.network <<"END"
+    [Match]
+    Name=enp0s*
+    [Network]
+    DHCP=yes
+    END
 
 # The rootfs which we want to run on the system
 # Note this is for demo purposes only.  No one should ever
@@ -45,13 +61,19 @@ demo-target-rootfs:
     [Network]
     DHCP=yes
     END
+    writefile /etc/systemd/network/20-wire-eth0s-dhcp.network <<"END"
+    [Match]
+    Name=eth0*
+    [Network]
+    DHCP=yes
+    END
 
-    cd /stacker
+    cd /stacker/imports
     cp mosctl console-helper /usr/bin
     ( cd /usr/bin && chmod 755 mosctl console-helper )
 
-    systemctl enable debug-shell.service # Danger - don't leave this
-    systemctl mask serial-getty@ttyS0
+    echo root:passw0rd | chpasswd
+    systemctl enable serial-getty@ttyS0
   annotations:
     org.opencontainers.image.title: demo-target-rootfs
     org.opencontainers.image.description: Unsafe demo rootfs to install
@@ -71,8 +93,6 @@ install-rootfs:
     - https://github.com/project-zot/zot/releases/download/v${{ZOT_VERSION}}/zot-linux-amd64-minimal
     - mos-install
     - mos-install.service
-    - mos-install-failed.service
-    - ../provision/console-helper
   run: |
     #!/bin/sh -ex
     writefile() {
@@ -87,25 +107,24 @@ install-rootfs:
     [Network]
     DHCP=yes
     END
+    writefile /etc/systemd/network/20-wire-eth0s-dhcp.network <<"END"
+    [Match]
+    Name=eth0*
+    [Network]
+    DHCP=yes
+    END
 
-    cd /stacker
-    cp mosctl mos-install console-helper /usr/bin
-    ( cd /usr/bin && chmod 755 mosctl console-helper mos-install )
-    cp /stacker/zot-linux-amd64-minimal /usr/bin/zot
+    cp /stacker/imports/mosctl /stacker/imports/mos-install /usr/bin
+    chmod 755 /usr/bin/mosctl /usr/bin/mos-install
+    cp /stacker/imports/zot-linux-amd64-minimal /usr/bin/zot
     chmod 755 /usr/bin/zot
 
-    cp mos-install.service mos-install-failed.service \
-        /etc/systemd/system/
-
-    cd /etc/systemd/system/
-    for s in mos-install*.service; do
-      systemctl enable ${s}
-    done
-    ls -ltr /etc/systemd/system/*.service
-
-    systemctl enable debug-shell.service
+    cp /stacker/imports/mos-install.service /etc/systemd/system/
+    systemctl enable mos-install.service
     systemctl mask serial-getty@ttyS0
+
     echo install > /mos-action
+
   annotations:
     org.opencontainers.image.title: install-rootfs
     org.opencontainers.image.description: Rootfs which performans an install

@@ -20,7 +20,7 @@ type Provider interface {
 
 type Machine interface {
 	RunProvision() error
-	RunInstall(url string) error
+	RunInstall() error
 	Start() error
 	Stop() error
 }
