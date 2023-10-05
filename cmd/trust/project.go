@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"github.com/project-machine/mos/pkg/trust"
+	"github.com/project-machine/mos/pkg/utils"
 	"github.com/urfave/cli"
 )
 
@@ -40,14 +40,14 @@ func doAddProject(ctx *cli.Context) error {
 	keysetName := args[0]
 	projName := args[1]
 
-	trustDir, err := getMosKeyPath()
+	trustDir, err := utils.GetMosKeyPath()
 	if err != nil {
 		return err
 	}
 
 	keysetPath := filepath.Join(trustDir, keysetName)
 	projPath := filepath.Join(keysetPath, "manifest", projName)
-	if PathExists(projPath) {
+	if utils.PathExists(projPath) {
 		return fmt.Errorf("Project %s already exists", projName)
 	}
 
@@ -62,7 +62,7 @@ func doAddProject(ctx *cli.Context) error {
 		return errors.Wrapf(err, "Failed creating new project")
 	}
 
-	if err := trust.EnsureDir(filepath.Join(projPath, "sudi")); err != nil {
+	if err := utils.EnsureDir(filepath.Join(projPath, "sudi")); err != nil {
 		os.RemoveAll(projPath)
 		return errors.Wrapf(err, "Failed creating sudi directory for new project")
 	}
@@ -78,17 +78,17 @@ func doListProjects(ctx *cli.Context) error {
 	}
 
 	keysetName := args[0]
-	trustDir, err := getMosKeyPath()
+	trustDir, err := utils.GetMosKeyPath()
 	if err != nil {
 		return err
 	}
 	keysetPath := filepath.Join(trustDir, keysetName)
-	if !PathExists(keysetPath) {
+	if !utils.PathExists(keysetPath) {
 		return fmt.Errorf("Keyset not found: %s", keysetName)
 	}
 
 	keysetPath = filepath.Join(keysetPath, "manifest")
-	if !PathExists(keysetPath) {
+	if !utils.PathExists(keysetPath) {
 		fmt.Printf("No projects found")
 		return nil
 	}

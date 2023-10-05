@@ -16,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/project-machine/mos/pkg/mosconfig"
 	"github.com/project-machine/mos/pkg/trust"
+	"github.com/project-machine/mos/pkg/utils"
 	"github.com/urfave/cli"
 )
 
@@ -205,7 +206,7 @@ func makeFileSystemEFI(path string, ssize int) error {
 		cmd = append(cmd, fmt.Sprintf("-S%d", ssize))
 	}
 	cmd = append(cmd, path)
-	return mosconfig.RunCommand(cmd...)
+	return utils.RunCommand(cmd...)
 }
 
 func makeFileSystemEXT4(path, label string) error {
@@ -249,7 +250,7 @@ type MkExt4Opts struct {
 }
 
 func MkExt4FS(path string, opts MkExt4Opts) error {
-	conf, err := mosconfig.WriteTempFile("/tmp", "mkfsconf-", mke2fsConf)
+	conf, err := utils.WriteTempFile("/tmp", "mkfsconf-", mke2fsConf)
 	if err != nil {
 		return err
 	}
@@ -270,7 +271,8 @@ func MkExt4FS(path string, opts MkExt4Opts) error {
 	}
 
 	cmd = append(cmd, path)
-	return mosconfig.RunCommandEnv(append(os.Environ(), "MKE2FS_CONFIG="+conf), cmd...)
+	env := []string{"MKE2FS_CONFIG=" + conf}
+	return utils.RunCommandEnv(cmd, env)
 }
 
 func sortedPartNums(pSet *disko.PartitionSet) []uint {
@@ -316,7 +318,7 @@ func wipeDiskParts(disk disko.Disk, skipPart func(disko.Disk, uint) bool) error 
 		return errors.Wrap(err, "Failed to close a filehandle?")
 	}
 
-	if err := mosconfig.RunCommand("udevadm", "settle"); err != nil {
+	if err := utils.RunCommand("udevadm", "settle"); err != nil {
 		log.Warnf("Failed udevadm settle after wipingParts")
 	}
 
@@ -476,7 +478,7 @@ func findInstallDisk(disks disko.DiskSet) (disko.Disk, error) {
 // Obviously this should become a lot more flexible.  What's here
 // suffices for enabling/testing the core functionality.
 func doPartition(opts mosconfig.InstallOpts) error {
-	luksKey, err := mosconfig.ReadKeyFromUserKeyring("machine:luks")
+	luksKey, err := utils.ReadKeyFromUserKeyring("machine:luks")
 	if err != nil {
 		return err
 	}
@@ -554,7 +556,7 @@ func doPartition(opts mosconfig.InstallOpts) error {
 		return errors.Wrapf(err, "Failed creating EFI partition")
 	}
 	dest := filepath.Join(opts.RFS, "boot/efi")
-	if err := mosconfig.EnsureDir(dest); err != nil {
+	if err := utils.EnsureDir(dest); err != nil {
 		return errors.Wrapf(err, "Failed creating boot/EFI")
 	}
 	if err := syscall.Mount(efiPath, dest, "vfat", 0, ""); err != nil {
@@ -566,7 +568,7 @@ func doPartition(opts mosconfig.InstallOpts) error {
 	if err := makeFileSystemEXT4(configPath, configPart); err != nil {
 		return errors.Wrapf(err, "Failed creating ext4 on %s", configPath)
 	}
-	if err := mosconfig.EnsureDir(opts.ConfigDir); err != nil {
+	if err := utils.EnsureDir(opts.ConfigDir); err != nil {
 		return errors.Wrapf(err, "Failed creating mount path %s", opts.ConfigDir)
 	}
 	if err := syscall.Mount(configPath, opts.ConfigDir, "ext4", 0, ""); err != nil {
@@ -579,7 +581,7 @@ func doPartition(opts mosconfig.InstallOpts) error {
 	if err := makeFileSystemEXT4(storePath, storePart); err != nil {
 		return errors.Wrapf(err, "Failed creating ext4 on %s", storePath)
 	}
-	if err := mosconfig.EnsureDir(opts.StoreDir); err != nil {
+	if err := utils.EnsureDir(opts.StoreDir); err != nil {
 		return errors.Wrapf(err, "Failed creating mount path %s", opts.StoreDir)
 	}
 	if err := syscall.Mount(storePath, opts.StoreDir, "ext4", 0, ""); err != nil {
@@ -617,13 +619,13 @@ func doInstall(ctx *cli.Context) error {
 			return errors.Wrapf(err, "Failed partitioning")
 		}
 	} else {
-		if !mosconfig.PathExists(opts.CaPath) {
+		if !utils.PathExists(opts.CaPath) {
 			return errors.Errorf("Install manifest CA (%s) missing", opts.CaPath)
 		}
-		if !mosconfig.PathExists(opts.ConfigDir) {
+		if !utils.PathExists(opts.ConfigDir) {
 			return errors.Errorf("Configuration directory (%s) missing", opts.ConfigDir)
 		}
-		if !mosconfig.PathExists(opts.StoreDir) {
+		if !utils.PathExists(opts.StoreDir) {
 			return errors.Errorf("Storage cache dir (%s) missing", opts.StoreDir)
 		}
 	}

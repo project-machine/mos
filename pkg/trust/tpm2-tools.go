@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/apex/log"
+	"github.com/project-machine/mos/pkg/utils"
 )
 
 // This is the tpm2 backend using tpm2-tools.
@@ -41,7 +42,7 @@ func readHostPcr7() ([]byte, error) {
 	defer os.Remove(name)
 	cmd := []string{"tpm2_pcrread", "sha256:7", "-o", name}
 	env := []string{"TPM2TOOLS_TCTI=device:/dev/tpm0"}
-	err = runEnv(cmd, env)
+	err = utils.RunCommandEnv(cmd, env)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -52,7 +53,7 @@ func readHostPcr7() ([]byte, error) {
 func curPcr7() (string, error) {
 	var c []byte
 	var err error
-	if PathExists(RootfsPCRFile) {
+	if utils.PathExists(RootfsPCRFile) {
 		c, err = ioutil.ReadFile(RootfsPCRFile)
 	} else {
 		c, err = readHostPcr7()
@@ -110,7 +111,7 @@ func (c *tpm2V3Context) Tpm2LoadExternal(pubkeyPath string) error {
 
 func Tpm2NVIndexLength(nvindex NVIndex) (int, error) {
 	log.Debugf("Tpm2NVIndexLength(nvindex=%s)\n", nvindex.String())
-	stdout, stderr, rc := runCapture("tpm2_nvreadpublic", nvindex.String())
+	stdout, stderr, rc := utils.RunCommandWithOutputErrorRc("tpm2_nvreadpublic", nvindex.String())
 	if rc != 0 {
 		return 0, fmt.Errorf("Reading index %s failed:\nstderr: %s\nstdout: %s\n", nvindex, stderr, stdout)
 	}
@@ -209,7 +210,7 @@ func (c *tpm2V3Context) Tpm2Read(nvindex NVIndex, size int) (string, error) {
 		cmd = append(cmd, "--auth=session:"+c.sessionFile)
 	}
 
-	stdout, stderr, rc := runCapture(cmd...)
+	stdout, stderr, rc := utils.RunCommandWithOutputErrorRc(cmd...)
 	if rc != 0 {
 		return "", fmt.Errorf("Reading %d bytes at index %s failed:\nstderr: %s\nstdout: %s\n",
 			size, nvindex, stderr, stdout)
@@ -219,7 +220,7 @@ func (c *tpm2V3Context) Tpm2Read(nvindex NVIndex, size int) (string, error) {
 
 func (c *tpm2V3Context) Tpm2NVWriteAsAdmin(nvindex NVIndex, towrite string) error {
 	cmd := []string{"tpm2_nvwrite", optHierarchyOwner, "--auth=" + c.adminPwd, optInputStdin, nvindex.String()}
-	stdout, stderr, rc := runCaptureStdin(towrite, cmd...)
+	stdout, stderr, rc := utils.RunWithStdinRC(towrite, cmd...)
 	if rc != 0 {
 		return fmt.Errorf("Failed running %s [%d]\nError: %s\nOutput: %s\n", cmd, rc, stderr, stdout)
 	}
@@ -274,7 +275,7 @@ func (c *tpm2V3Context) Tpm2NVWriteWithPolicy(nvindex NVIndex, towrite string) e
 		optInputStdin,
 		nvindex.String(),
 	}
-	stdout, stderr, rc := runCaptureStdin(towrite, cmd...)
+	stdout, stderr, rc := utils.RunWithStdinRC(towrite, cmd...)
 	if rc != 0 {
 		return fmt.Errorf("Failed running %s [%d]\nError: %s\nOutput: %s\n", cmd, rc, stderr, stdout)
 	}
@@ -288,7 +289,7 @@ func (c *tpm2V3Context) Tpm2PolicyNV(towrite string) (string, error) {
 	f.Close()
 
 	cmd := []string{"tpm2_policynv", "--session=" + c.sessionFile, optInputStdin, TPM2IndexEAVersion.String(), "eq", "--policy=" + fname}
-	stdout, stderr, rc := runCaptureStdin(towrite, cmd...)
+	stdout, stderr, rc := utils.RunWithStdinRC(towrite, cmd...)
 	if rc != 0 {
 		return "", fmt.Errorf("Failed running %s [%d]\nError: %s\nOutput: %s\n", cmd, rc, stderr, stdout)
 	}
@@ -323,7 +324,7 @@ func (c *tpm2V3Context) StorePublic(idx NVIndex, value string) error {
 }
 
 func getTpmBufsize() (int, error) {
-	out, rc := RunCommandWithRc("tpm2_getcap", "properties-fixed")
+	out, rc := utils.RunCommandWithRc("tpm2_getcap", "properties-fixed")
 	if rc != 0 {
 		return 0, fmt.Errorf("error %d", rc)
 	}
@@ -380,7 +381,7 @@ func (c *tpm2V3Context) Tpm2PolicyAuthorizeTicket(policyDigest, ticketFile strin
 
 func Tpm2Read(nvindex NVIndex, size int) (string, error) {
 	log.Debugf("Tpm2Read(nvindex=%s size=%d)\n", nvindex.String(), size)
-	stdout, stderr, rc := RunCommandWithOutputErrorRc("tpm2_nvread", "-s", fmt.Sprintf("%d", size), nvindex.String())
+	stdout, stderr, rc := utils.RunCommandWithOutputErrorRc("tpm2_nvread", "-s", fmt.Sprintf("%d", size), nvindex.String())
 	if rc != 0 {
 		return "", fmt.Errorf("Reading %d bytes at index %s failed:\nstderr: %s\nstdout: %s\n",
 			size, nvindex, stderr, stdout)
@@ -411,7 +412,7 @@ func (c *tpm2V3Context) Tpm2ReadSession(nvindex NVIndex, offset int, size int) (
 		nvindex.String(),
 	}
 
-	stdout, stderr, rc := RunCommandWithOutputErrorRc(cmd...)
+	stdout, stderr, rc := utils.RunCommandWithOutputErrorRc(cmd...)
 	if rc != 0 {
 		return "", fmt.Errorf("Reading %d bytes at index %s failed:\nstderr: %s\nstdout: %s\n",
 			size, nvindex, stderr, stdout)

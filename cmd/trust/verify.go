@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/project-machine/mos/pkg/trust"
+	"github.com/project-machine/mos/pkg/utils"
 	"github.com/urfave/cli"
 )
 
@@ -39,7 +40,7 @@ func doVerifyEFI(ctx *cli.Context) error {
 	}
 
 	// Make sure efibinary exists
-	if !PathExists(signedefibinary) {
+	if !utils.PathExists(signedefibinary) {
 		return fmt.Errorf("%s does not exist", signedefibinary)
 	}
 
@@ -50,7 +51,7 @@ func doVerifyEFI(ctx *cli.Context) error {
 	}
 
 	// Make sure the cert exists
-	if !PathExists(cert) {
+	if !utils.PathExists(cert) {
 		return fmt.Errorf("%s does not exist", cert)
 	}
 

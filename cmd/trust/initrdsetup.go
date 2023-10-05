@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/project-machine/mos/pkg/trust"
+	"github.com/project-machine/mos/pkg/utils"
 	"github.com/urfave/cli"
 )
 
@@ -14,7 +15,7 @@ var initrdSetupCmd = cli.Command{
 }
 
 func doInitrdSetup(ctx *cli.Context) error {
-	if !PathExists("/dev/tpm0") {
+	if !utils.PathExists("/dev/tpm0") {
 		return fmt.Errorf("No TPM.  No other subsystems have been implemented")
 	}
 

@@ -16,6 +16,7 @@ import (
 	"github.com/project-machine/mos/pkg/mosconfig"
 	tree "github.com/project-machine/mos/pkg/printdirtree"
 	"github.com/project-machine/mos/pkg/trust"
+	"github.com/project-machine/mos/pkg/utils"
 	"github.com/urfave/cli"
 )
 
@@ -102,12 +103,12 @@ func initkeyset(keysetName string, Org []string) error {
 		return errors.New("keyset parameter is missing")
 	}
 
-	moskeysetPath, err := getMosKeyPath()
+	moskeysetPath, err := utils.GetMosKeyPath()
 	if err != nil {
 		return err
 	}
 	keysetPath := filepath.Join(moskeysetPath, keysetName)
-	if PathExists(keysetPath) {
+	if utils.PathExists(keysetPath) {
 		return fmt.Errorf("%s keyset already exists", keysetName)
 	}
 
@@ -191,11 +192,11 @@ func initkeyset(keysetName string, Org []string) error {
 
 	// Generate sample uuid, manifest key and cert
 	mName := filepath.Join(keysetPath, "manifest", "default")
-	if err = trust.EnsureDir(mName); err != nil {
+	if err = utils.EnsureDir(mName); err != nil {
 		return errors.Wrapf(err, "Failed creating default project directory")
 	}
 	sName := filepath.Join(mName, "sudi")
-	if err = trust.EnsureDir(sName); err != nil {
+	if err = utils.EnsureDir(sName); err != nil {
 		return errors.Wrapf(err, "Failed creating default sudi directory")
 	}
 
@@ -337,13 +338,13 @@ func doAddKeyset(ctx *cli.Context) error {
 	}
 
 	// See if keyset exists
-	mosKeyPath, err := getMosKeyPath()
+	mosKeyPath, err := utils.GetMosKeyPath()
 	if err != nil {
 		return err
 	}
 
 	keysetPath := filepath.Join(mosKeyPath, keysetName)
-	if PathExists(keysetPath) {
+	if utils.PathExists(keysetPath) {
 		return fmt.Errorf("%s keyset already exists", keysetName)
 	}
 
@@ -381,7 +382,7 @@ func doListKeysets(ctx *cli.Context) error {
 	if len(ctx.Args()) != 0 {
 		return fmt.Errorf("Wrong number of arguments (please see \"--help\")")
 	}
-	moskeysetPath, err := getMosKeyPath()
+	moskeysetPath, err := utils.GetMosKeyPath()
 	if err != nil {
 		return err
 	}
@@ -407,13 +408,13 @@ func doShowKeyset(ctx *cli.Context) error {
 		return fmt.Errorf("Please specify keyset name. Select from 'trust keyset list'")
 	}
 
-	moskeysetPath, err := getMosKeyPath()
+	moskeysetPath, err := utils.GetMosKeyPath()
 	if err != nil {
 		return err
 	}
 
 	keysetPath := filepath.Join(moskeysetPath, keysetName)
-	if !PathExists(keysetPath) {
+	if !utils.PathExists(keysetPath) {
 		return fmt.Errorf("Unknown keyset '%s', cannot find keyset at path: %q", keysetName, keysetPath)
 	}
 
@@ -453,14 +454,14 @@ func doShowKeyset(ctx *cli.Context) error {
 	}
 
 	keyPath := filepath.Join(keysetPath, keyName)
-	if !PathExists(keyPath) {
+	if !utils.PathExists(keyPath) {
 		return fmt.Errorf("Keyset %s key %q does not exist at %q", keysetName, keyName, keyPath)
 	}
 
 	if len(ctx.Args()) > 2 {
 		item := ctx.Args()[2]
 		fullPath := filepath.Join(keyPath, item)
-		if !PathExists(fullPath) {
+		if !utils.PathExists(fullPath) {
 			return fmt.Errorf("Failed reading keyset %s key %s item %s at %q: %w", keysetName, keyName, item, fullPath, err)
 		}
 
@@ -524,10 +525,10 @@ func doAddPCR7data(ctx *cli.Context) error {
 	if limited == "" || tpm == "" || prod == "" {
 		return errors.New("PCR7 values are missing")
 	}
-	if !PathExists(limited) || !PathExists(tpm) || !PathExists(prod) {
+	if !utils.PathExists(limited) || !utils.PathExists(tpm) || !utils.PathExists(prod) {
 		return errors.New("Some PCR7 files do not exist")
 	}
-	if !PathExists(passwdPolicy) || !PathExists(luksPolicy) {
+	if !utils.PathExists(passwdPolicy) || !utils.PathExists(luksPolicy) {
 		return errors.New("Some policy digest files do not exist")
 	}
 
@@ -577,13 +578,13 @@ func buildProvisioner(keysetName string) error {
 		return nil
 	}
 
-	moskeysetPath, err := getMosKeyPath()
+	moskeysetPath, err := utils.GetMosKeyPath()
 	if err != nil {
 		return err
 	}
 	keyPath := filepath.Join(moskeysetPath, keysetName)
 	outfile := filepath.Join(keyPath, "artifacts", "provision.iso")
-	trust.EnsureDir(filepath.Dir(outfile))
+	utils.EnsureDir(filepath.Dir(outfile))
 
 	if err := mosconfig.BuildProvisioner(keysetName, "default", outfile); err != nil {
 		return errors.Wrapf(err, "Failed to create provisioning ISO")
@@ -599,13 +600,13 @@ func buildInstaller(keysetName string) error {
 		return nil
 	}
 
-	moskeysetPath, err := getMosKeyPath()
+	moskeysetPath, err := utils.GetMosKeyPath()
 	if err != nil {
 		return err
 	}
 	keyPath := filepath.Join(moskeysetPath, keysetName)
 	outfile := filepath.Join(keyPath, "artifacts", "install.iso")
-	if err := trust.EnsureDir(filepath.Dir(outfile)); err != nil {
+	if err := utils.EnsureDir(filepath.Dir(outfile)); err != nil {
 		return errors.Wrapf(err, "Failed creating %q", outfile)
 	}
 

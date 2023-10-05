@@ -14,6 +14,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	ispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/project-machine/mos/pkg/utils"
 )
 
 const (
@@ -334,7 +335,7 @@ func (disturl *DistUrl) Post(path string) (int64, digest.Digest, error) {
 // I think requiring a proper install makes sense at that point.
 // Which means this is only used for livecds.
 func (mos *Mos) remoteManifest(url string) (*InstallFile, error) {
-	if PathExists(filepath.Join(mos.opts.ConfigDir, "manifest.git")) {
+	if utils.PathExists(filepath.Join(mos.opts.ConfigDir, "manifest.git")) {
 		return &InstallFile{}, errors.Errorf("Opening remote manifest on installed host is unsupported")
 	}
 

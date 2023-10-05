@@ -20,28 +20,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/project-machine/mos/pkg/trust"
+	"github.com/project-machine/mos/pkg/utils"
 )
 
-// PathExists checks for existense of specified path
-func PathExists(d string) bool {
-	_, err := os.Stat(d)
-	if err != nil && os.IsNotExist(err) {
-		return false
-	}
-	return true
-}
-
-func getTrustPath() (string, error) {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
-	}
-	path := filepath.Join(configDir, "machine", "trust")
-	return path, os.MkdirAll(path, 0755)
-}
-
 func getSudiDir() (string, error) {
-	dataDir, err := UserDataDir()
+	dataDir, err := utils.UserDataDir()
 	if err != nil {
 		return "", err
 	}
@@ -49,40 +32,13 @@ func getSudiDir() (string, error) {
 	return sudiPath, os.MkdirAll(sudiPath, 0755)
 }
 
-// UserDataDir returns the user's data directory
-func UserDataDir() (string, error) {
-	p, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(p, ".local", "share"), nil
-}
-
-// ConfPath returns the user's config directory
-func ConfPath(cluster string) string {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(configDir, "machine", cluster, "machine.yaml")
-}
-
-// Get the location where keysets are stored
-func getMosKeyPath() (string, error) {
-	dataDir, err := UserDataDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dataDir, "machine", "trust", "keys"), nil
-}
-
 func KeysetExists(keysetname string) bool {
-	mosKeyPath, err := getMosKeyPath()
+	mosKeyPath, err := utils.GetMosKeyPath()
 	if err != nil {
 		return false
 	}
 	keysetPath := filepath.Join(mosKeyPath, keysetname)
-	if PathExists(keysetPath) {
+	if utils.PathExists(keysetPath) {
 		return true
 	} else {
 		return false
@@ -92,7 +48,7 @@ func KeysetExists(keysetname string) bool {
 // SignCert creates a CA signed certificate and keypair in destdir
 func SignCert(template, CAcert *x509.Certificate, CAkey any, destdir string) error {
 	// Check if credentials already exist
-	if PathExists(filepath.Join(destdir, "privkey.pem")) {
+	if utils.PathExists(filepath.Join(destdir, "privkey.pem")) {
 		return fmt.Errorf("credentials already exist in %s", destdir)
 	}
 
@@ -202,19 +158,19 @@ func readPrivKeyFromFile(keypath string) (any, error) {
 
 func getCA(CAname, keysetName string) (*x509.Certificate, any, error) {
 	// locate the keyset
-	keysetPath, err := getMosKeyPath()
+	keysetPath, err := utils.GetMosKeyPath()
 	if err != nil {
 		return nil, nil, err
 	}
 	keysetPath = filepath.Join(keysetPath, keysetName)
-	if !PathExists(keysetPath) {
+	if !utils.PathExists(keysetPath) {
 		return nil, nil, fmt.Errorf("keyset %s, does not exist", keysetName)
 	}
 
 	CAcert, err := readCertificateFromFile(filepath.Join(keysetPath, CAname, "cert.pem"))
 	// See if the CA exists
 	CApath := filepath.Join(keysetPath, CAname)
-	if !PathExists(CApath) {
+	if !utils.PathExists(CApath) {
 		return nil, nil, fmt.Errorf("%s CA does not exist", CAname)
 	}
 
@@ -492,12 +448,12 @@ func addPcr7data(keysetName string, pdata pcr7Data) error {
 	if keysetName == "" {
 		return errors.New("Please specify a keyset name")
 	}
-	moskeypath, err = getMosKeyPath()
+	moskeypath, err = utils.GetMosKeyPath()
 	if err != nil {
 		return err
 	}
 	keysetPath := filepath.Join(moskeypath, keysetName)
-	if !PathExists(keysetPath) {
+	if !utils.PathExists(keysetPath) {
 		return fmt.Errorf("The keyset, %s, does not exist.", keysetName)
 	}
 
@@ -512,7 +468,7 @@ func addPcr7data(keysetName string, pdata pcr7Data) error {
 	// Create pcr7data directory if it does not exist.
 	// Its ok if pcr7data dir already exists. We might be adding additional signdata
 	pcr7dataPath := filepath.Join(keysetPath, "pcr7data/policy-2")
-	if !PathExists(pcr7dataPath) {
+	if !utils.PathExists(pcr7dataPath) {
 		err = os.MkdirAll(keysetPath, 0750)
 		if err != nil {
 			return err
@@ -531,8 +487,8 @@ func addPcr7data(keysetName string, pdata pcr7Data) error {
 	// Check to see if public keys already exist for this keyset, if not
 	// then extract public keys and save them to pcr7data dir.
 	pcr7dataPubkeys := filepath.Join(pcr7dataPath, "pubkeys")
-	if !PathExists(pcr7dataPubkeys) {
-		if err = trust.EnsureDir(pcr7dataPubkeys); err != nil {
+	if !utils.PathExists(pcr7dataPubkeys) {
+		if err = utils.EnsureDir(pcr7dataPubkeys); err != nil {
 			return errors.New("Failed to create directory for public keys")
 		}
 	}
@@ -574,7 +530,7 @@ func addPcr7data(keysetName string, pdata pcr7Data) error {
 			return err
 		}
 		indexdir := filepath.Join(pcr7dataPath, pcrIndex[0:2], pcrIndex[2:])
-		if err = trust.EnsureDir(indexdir); err != nil {
+		if err = utils.EnsureDir(indexdir); err != nil {
 			return err
 		}
 

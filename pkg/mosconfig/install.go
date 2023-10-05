@@ -19,6 +19,7 @@ import (
 	"github.com/opencontainers/umoci"
 	"github.com/pkg/errors"
 	"github.com/project-machine/mos/pkg/trust"
+	"github.com/project-machine/mos/pkg/utils"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
 
@@ -197,7 +198,7 @@ func (mos *Mos) InstallNewBoot(boot Target) error {
 	}
 	defer cleanup()
 
-	mounted, err := IsMountpoint("/boot/efi")
+	mounted, err := utils.IsMountpoint("/boot/efi")
 	if err != nil {
 		return errors.Wrapf(err, "Failed checking whether /boot/efi is mounted")
 	}
@@ -208,30 +209,30 @@ func (mos *Mos) InstallNewBoot(boot Target) error {
 	os.RemoveAll("/boot/efi/EFI/BOOT.BAK")
 
 	defer func() {
-		if PathExists("/boot/efi/EFI/BOOT.BAK") {
+		if utils.PathExists("/boot/efi/EFI/BOOT.BAK") {
 			os.RemoveAll("/boot/efi/EFI/BOOT")
 			if err := os.Rename("/boot/efi/EFI/BOOT.BAK", "/boot/efi/EFI/BOOT"); err != nil {
 				log.Warnf("Failed restoring boot")
 			}
 		}
 	}()
-	if PathExists("/boot/efi/EFI/BOOT") {
+	if utils.PathExists("/boot/efi/EFI/BOOT") {
 		err := os.Rename("/boot/efi/EFI/BOOT", "/boot/efi/EFI/BOOT.BAK")
 		if err != nil {
 			return errors.Wrapf(err, "Failed backing up boot directory")
 		}
 	}
-	if err := EnsureDir("/boot/efi/EFI/BOOT"); err != nil {
+	if err := utils.EnsureDir("/boot/efi/EFI/BOOT"); err != nil {
 		return errors.Wrapf(err, "Failed creating target boot directory")
 	}
 	src := filepath.Join(mp, "bootkit", "shim.efi")
 	dest := "/boot/efi/EFI/BOOT/shim.efi"
-	if err := CopyFileBits(src, dest); err != nil {
+	if err := utils.CopyFileBits(src, dest); err != nil {
 		return errors.Wrapf(err, "Failed copying shim into boot directory")
 	}
 	src = filepath.Join(mp, "bootkit", "kernel.efi")
 	dest = "/boot/efi/EFI/BOOT/kernel.efi"
-	if err := CopyFileBits(src, dest); err != nil {
+	if err := utils.CopyFileBits(src, dest); err != nil {
 		return errors.Wrapf(err, "Failed copying UKI into boot directory")
 	}
 

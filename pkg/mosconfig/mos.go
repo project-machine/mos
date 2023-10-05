@@ -9,6 +9,7 @@ import (
 
 	"github.com/apex/log"
 	"github.com/pkg/errors"
+	"github.com/project-machine/mos/pkg/utils"
 	"golang.org/x/sys/unix"
 )
 
@@ -260,7 +261,7 @@ func (mos *Mos) startFsOnly(t *Target) error {
 		return err
 	}
 	dest := filepath.Join(mos.opts.RootDir, "/mnt/atom", t.ServiceName)
-	if err := EnsureDir(dest); err != nil {
+	if err := utils.EnsureDir(dest); err != nil {
 		return fmt.Errorf("Unable to create directory %s: %w", dest, err)
 	}
 	if err = unix.Mount(src, dest, "", unix.MS_BIND, ""); err != nil {
@@ -303,7 +304,7 @@ func (mos *Mos) writeLxcConfig(t *Target) error {
 	if err := os.RemoveAll(lxcconfigDir); err != nil {
 		return fmt.Errorf("Failed removing pre-existing container config for %q: %w", t.ServiceName, err)
 	}
-	if err := EnsureDir(lxcconfigDir); err != nil {
+	if err := utils.EnsureDir(lxcconfigDir); err != nil {
 		return fmt.Errorf("Failed creating container config dir: %w", err)
 	}
 	if err := os.Chmod(lxcStateDir, 0755); err != nil {
@@ -430,7 +431,7 @@ func (mos *Mos) StopTarget(t *Target) error {
 	unitName := fmt.Sprintf("%s.service", t.ServiceName)
 	switch t.ServiceType {
 	case ContainerService:
-		out, rc := RunCommandWithRc("systemctl", "stop", unitName)
+		out, rc := utils.RunCommandWithRc("systemctl", "stop", unitName)
 		outs := string(out)
 		if rc != 0 && !strings.HasSuffix(outs, "not loaded.\n") {
 			return fmt.Errorf("Failed to stop service %s: %s", t.ServiceName, outs)

@@ -20,6 +20,7 @@ import (
 	"github.com/anuvu/disko/linux"
 	"github.com/apex/log"
 	"github.com/jsipprell/keyctl"
+	"github.com/project-machine/mos/pkg/utils"
 	"github.com/urfave/cli"
 )
 
@@ -71,7 +72,7 @@ func pathForPartition(p *DiskPart) string {
 func (t *tpm2V3Context) mountPlaintextPartition() error {
 	// If /pcr7data exists, use it.  Otherwise, look for a disk partition
 	// with PBFPartitionTypeID and mount it
-	if PathExists(SignDataDir) {
+	if utils.PathExists(SignDataDir) {
 		return nil
 	}
 
@@ -207,7 +208,7 @@ func (t *tpm2V3Context) findDisks() error {
 		return nil
 	}
 
-	if !PathExists("/factory") {
+	if !utils.PathExists("/factory") {
 		dest := "/factory/pbf"
 		err = os.MkdirAll(dest, 0755)
 		if err != nil {
@@ -264,7 +265,7 @@ func setupFactory() (string, error) {
 	// can't move-mount out of a MS_SHARED parent, which / is,
 	// so create a MS_SLAVE parent directory.
 	priv := "/priv"
-	err := EnsureDir(priv)
+	err := utils.EnsureDir(priv)
 	if err != nil {
 		return "", fmt.Errorf("failed creating directory %s: %w", priv, err)
 	}
@@ -278,7 +279,7 @@ func setupFactory() (string, error) {
 	}
 
 	tmpfsDir := filepath.Join(priv, "factory")
-	if err := EnsureDir(tmpfsDir); err != nil {
+	if err := utils.EnsureDir(tmpfsDir); err != nil {
 		return "", fmt.Errorf("Failed creating %q: %w", tmpfsDir, err)
 	}
 
@@ -288,16 +289,16 @@ func setupFactory() (string, error) {
 
 	dest := filepath.Join(tmpfsDir, "secure")
 
-	if err = MountTmpfs(tmpfsDir, "1G"); err != nil {
+	if err = utils.MountTmpfs(tmpfsDir, "1G"); err != nil {
 		return "", fmt.Errorf("Failed creating tmpfs for certs: %w", err)
 	}
 	if err = os.Chmod(tmpfsDir, 0644); err != nil {
 		return "", fmt.Errorf("Failed making tmpfs private: %w", err)
 	}
 
-	if PathExists(PBFMountpoint) {
+	if utils.PathExists(PBFMountpoint) {
 		privpbf := filepath.Join(priv, PBFMountpoint)
-		err = EnsureDir(privpbf)
+		err = utils.EnsureDir(privpbf)
 		if err != nil {
 			log.Warnf("Failed creating %s", privpbf)
 		}
@@ -446,13 +447,13 @@ func (t *tpm2V3Context) PartitionForTPM(disk string, luksPassphrase string, wipe
 	}
 
 	ppartPath := pathForPartition(&pbf)
-	if stdout, stderr, rc := runCapture("mkfs.ext4", ppartPath); rc != 0 {
+	if stdout, stderr, rc := utils.RunCommandWithOutputErrorRc("mkfs.ext4", ppartPath); rc != 0 {
 		return fmt.Errorf("Failed to mkfs.ext4 %s [%d]:\n  out: %s\n  err: %s\n",
 			ppartPath, rc, stdout, stderr)
 	}
 
 	dest := "/factory/secure"
-	err = EnsureDir(dest)
+	err = utils.EnsureDir(dest)
 	if err != nil {
 		return err
 	}
@@ -462,7 +463,7 @@ func (t *tpm2V3Context) PartitionForTPM(disk string, luksPassphrase string, wipe
 	}
 
 	dest = filepath.Join(dest, SignDataDir)
-	err = CopyFiles(SignDataDir, dest)
+	err = utils.CopyFiles(SignDataDir, dest)
 	if err != nil {
 		return fmt.Errorf("Failed saving pcr7data onto new PBF: %w", err)
 	}
@@ -495,12 +496,12 @@ func (t *tpm2V3Context) PartitionForTPM(disk string, luksPassphrase string, wipe
 		return err
 	}
 
-	if stdout, stderr, rc := runCapture("mkfs.ext4", mpath); rc != 0 {
+	if stdout, stderr, rc := utils.RunCommandWithOutputErrorRc("mkfs.ext4", mpath); rc != 0 {
 		return fmt.Errorf("Failed to mkfs.ext4 %s [%d]:\n  out: %s\n  err: %s\n",
 			mpath, rc, stdout, stderr)
 	}
 
-	if stdout, stderr, rc := runCapture("cryptsetup", "close", name); rc != 0 {
+	if stdout, stderr, rc := utils.RunCommandWithOutputErrorRc("cryptsetup", "close", name); rc != 0 {
 		return fmt.Errorf("Failed to close luks device: %s [%d]:\n  out: %s\n  err: %s\n",
 			name, rc, stdout, stderr)
 	}
@@ -655,7 +656,9 @@ func (t *tpm2V3Context) InitrdSetup() error {
 	defer func() {
 		if err := t.ExtendPCR7(); err != nil {
 			log.Warnf("Failed extending PCR 7: %v", err)
-			run("poweroff")
+			if err2 := run("poweroff"); err2 != nil {
+				log.Warnf("poweroff command failed: %v", err2)
+			}
 			log.Fatalf("Failed powering off")
 		}
 		log.Infof("Extended PCR 7")
@@ -717,7 +720,7 @@ func (t *tpm2V3Context) InitrdSetup() error {
 		return fmt.Errorf("Key unlink failed: %w", err)
 	}
 
-	err = CopyFile("/manifestCA.pem", filepath.Join(dest, "manifestCA.pem"))
+	err = utils.CopyFile("/manifestCA.pem", filepath.Join(dest, "manifestCA.pem"))
 	if err != nil {
 		return fmt.Errorf("Failed copying the manifest CA parent: %w", err)
 	}
@@ -725,15 +728,15 @@ func (t *tpm2V3Context) InitrdSetup() error {
 	// But we also need to access this file during initrd, while
 	// it's still under /priv.  We could handle this several ways,
 	// but let's just copy it to /factory/secure/ as well.
-	err = EnsureDir("/factory/secure")
+	err = utils.EnsureDir("/factory/secure")
 	if err != nil {
 		return fmt.Errorf("Failed creating /factory/secure in initrd: %w", err)
 	}
-	err = CopyFile("/priv/factory/secure/server.crt", "/factory/secure/server.crt")
+	err = utils.CopyFile("/priv/factory/secure/server.crt", "/factory/secure/server.crt")
 	if err != nil {
 		return fmt.Errorf("Failed copying the server certificate: %w", err)
 	}
-	err = CopyFile("/manifestCA.pem", "/factory/secure/manifestCA.pem")
+	err = utils.CopyFile("/manifestCA.pem", "/factory/secure/manifestCA.pem")
 	if err != nil {
 		log.Warnf("Failed copying manifest CA parent: %w", err)
 	}
@@ -749,7 +752,9 @@ func (t *tpm2V3Context) PreInstall() error {
 	defer func() {
 		if err := t.ExtendPCR7(); err != nil {
 			log.Warnf("Failed extending PCR 7: %v", err)
-			run("poweroff")
+			if err2 := run("poweroff"); err2 != nil {
+				log.Warnf("poweroff command failed: %v", err2)
+			}
 			log.Fatalf("Failed powering off")
 		}
 		log.Infof("Extended PCR 7")

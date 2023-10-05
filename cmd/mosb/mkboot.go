@@ -9,6 +9,7 @@ import (
 	"github.com/apex/log"
 	"github.com/pkg/errors"
 	"github.com/project-machine/mos/pkg/mosconfig"
+	"github.com/project-machine/mos/pkg/utils"
 	"github.com/urfave/cli"
 )
 
@@ -58,7 +59,7 @@ func doMkBoot(ctx *cli.Context) error {
 	defer os.RemoveAll(tmpd)
 
 	cachedir := filepath.Join(tmpd, "cache")
-	mosconfig.EnsureDir(cachedir)
+	utils.EnsureDir(cachedir)
 	ociboot := mosconfig.OciBoot{
 		KeySet:         s[0],
 		Project:        s[1],

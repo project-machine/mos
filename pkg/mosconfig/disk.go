@@ -13,6 +13,7 @@ import (
 	"github.com/anuvu/disko/partid"
 	"github.com/apex/log"
 	"github.com/pkg/errors"
+	"github.com/project-machine/mos/pkg/utils"
 	"github.com/rekby/gpt"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
@@ -79,7 +80,7 @@ func fetchDiskCandidates() ([]string, error) {
 	existing := []string{}
 
 	for _, p := range candidates {
-		if PathExists(p) {
+		if utils.PathExists(p) {
 			existing = append(existing, p)
 		}
 	}
@@ -185,7 +186,7 @@ func EspBootPartition() (string, int, error) {
 
 func efiClearBootEntries() error {
 	args := []string{"efibootmgr", "-v"}
-	stdout, stderr, rc := RunCommandWithOutputErrorRc(args...)
+	stdout, stderr, rc := utils.RunCommandWithOutputErrorRc(args...)
 	if rc != 0 {
 		return errors.Errorf("Error querying existing boot entries:\nstdout: %s\nstderr: %s", stdout, stderr)
 	}
@@ -200,18 +201,18 @@ func efiClearBootEntries() error {
 			continue
 		}
 		log.Infof("Removing boot entry %d (%s)", num, l)
-		err = RunCommand("efibootmgr", "--bootnum", l[4:8], "--delete-bootnum")
+		err = utils.RunCommand("efibootmgr", "--bootnum", l[4:8], "--delete-bootnum")
 		if err != nil {
 			log.Warnf("(Probably ok) Error removing boot entry: %s", l)
 		}
 	}
 
 	const enoent = "No such file or directory"
-	err := RunCommand("efibootmgr", "--delete-bootnext")
+	err := utils.RunCommand("efibootmgr", "--delete-bootnext")
 	if err != nil && err.Error() != enoent {
 		log.Warnf("(Probably ok) Error running efibootmgr delete-bootnext: '%s'", err.Error())
 	}
-	err = RunCommand("efibootmgr", "--delete-bootorder")
+	err = utils.RunCommand("efibootmgr", "--delete-bootorder")
 	if err != nil && err.Error() != enoent {
 		log.Warnf("(Probably ok) Error running efibootmgr delete-bootorder: '%s'", err.Error())
 	}
@@ -252,5 +253,5 @@ func WriteBootEntry() error {
 	efiPart := fmt.Sprintf("%d", efiPartNum)
 	cmd := []string{"efibootmgr", "-c", "-d", bootDisk, "-p", efiPart,
 		"-L", "mosboot", "-l", shimPath, "-u", "--append-binary-args", "-"}
-	return RunWithStdin(string(kname), cmd...)
+	return utils.RunWithStdin(string(kname), cmd...)
 }

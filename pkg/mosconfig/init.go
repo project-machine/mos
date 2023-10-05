@@ -9,13 +9,14 @@ import (
 	"path/filepath"
 
 	"github.com/apex/log"
+	"github.com/project-machine/mos/pkg/utils"
 )
 
 func systemdStart(unitName string) error {
-	if err := RunCommand("systemctl", "enable", unitName); err != nil {
+	if err := utils.RunCommand("systemctl", "enable", unitName); err != nil {
 		return fmt.Errorf("Failed enabling %s: %w", unitName, err)
 	}
-	if err := RunCommand("systemctl", "start", "--no-block", unitName); err != nil {
+	if err := utils.RunCommand("systemctl", "start", "--no-block", unitName); err != nil {
 		return fmt.Errorf("Failed starting %s: %w", unitName, err)
 	}
 	return nil

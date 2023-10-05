@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"github.com/project-machine/mos/pkg/trust"
+	"github.com/project-machine/mos/pkg/utils"
 	"github.com/urfave/cli"
 )
 
@@ -50,17 +50,17 @@ func doGenSudi(ctx *cli.Context) error {
 		myUUID = args[2]
 	}
 
-	trustDir, err := getMosKeyPath()
+	trustDir, err := utils.GetMosKeyPath()
 	if err != nil {
 		return err
 	}
 	keysetPath := filepath.Join(trustDir, keysetName)
-	if !PathExists(keysetPath) {
+	if !utils.PathExists(keysetPath) {
 		return fmt.Errorf("Keyset not found: %s", keysetName)
 	}
 
 	projPath := filepath.Join(keysetPath, "manifest", projName)
-	if !PathExists(projPath) {
+	if !utils.PathExists(projPath) {
 		return fmt.Errorf("Project not found: %s", projName)
 	}
 
@@ -99,7 +99,7 @@ func genSudi(keysetPath, projDir, sudiUUID string) (string, error) {
 	certTmpl := newCertTemplate(string(prodUUID), sudiUUID)
 
 	snPath := filepath.Join(projDir, "sudi", sudiUUID)
-	if err := trust.EnsureDir(snPath); err != nil {
+	if err := utils.EnsureDir(snPath); err != nil {
 		return "", errors.Wrapf(err, "Failed creating new SUDI directory")
 	}
 
@@ -131,17 +131,17 @@ func doListSudi(ctx *cli.Context) error {
 	}
 	keysetName := args[0]
 	projName := args[1]
-	trustDir, err := getMosKeyPath()
+	trustDir, err := utils.GetMosKeyPath()
 	if err != nil {
 		return err
 	}
 	keysetPath := filepath.Join(trustDir, keysetName)
-	if !PathExists(keysetPath) {
+	if !utils.PathExists(keysetPath) {
 		return fmt.Errorf("Keyset not found: %s", keysetName)
 	}
 
 	projPath := filepath.Join(keysetPath, "manifest", projName)
-	if !PathExists(projPath) {
+	if !utils.PathExists(projPath) {
 		return fmt.Errorf("Project not found: %s", projName)
 	}
 

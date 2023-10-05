@@ -8,7 +8,7 @@ import (
 	"github.com/apex/log"
 	"github.com/pkg/errors"
 	"github.com/project-machine/mos/pkg/provider"
-	"github.com/project-machine/mos/pkg/trust"
+	"github.com/project-machine/mos/pkg/utils"
 	"github.com/urfave/cli"
 )
 
@@ -97,14 +97,14 @@ func doLaunch(ctx *cli.Context) error {
 		return err
 	}
 
-	trustDir, err := getMosKeyPath()
+	trustDir, err := utils.GetMosKeyPath()
 	if err != nil {
 		return err
 	}
 
 	keysetDir := filepath.Join(trustDir, keyset)
 	projDir := filepath.Join(keysetDir, "manifest", project)
-	if !PathExists(projDir) {
+	if !utils.PathExists(projDir) {
 		return errors.Errorf("Project %s not found", fullProject)
 	}
 
@@ -163,10 +163,10 @@ func makeSudiVfat(sudiDir string) error {
 	cert := filepath.Join(sudiDir, "cert.pem")
 	key := filepath.Join(sudiDir, "privkey.pem")
 	disk := filepath.Join(sudiDir, "sudi.vfat")
-	if !trust.PathExists(cert) || !trust.PathExists(key) {
+	if !utils.PathExists(cert) || !utils.PathExists(key) {
 		return errors.Errorf("cert or key does not exist")
 	}
-	if trust.PathExists(disk) {
+	if utils.PathExists(disk) {
 		return errors.Errorf("sudi.vfat already exists")
 	}
 
@@ -179,13 +179,13 @@ func makeSudiVfat(sudiDir string) error {
 	if err := os.Truncate(disk, 20*1024*1024); err != nil {
 		return errors.Wrapf(err, "Failed truncating sudi disk")
 	}
-	if err := trust.RunCommand("mkfs.vfat", "-n", "trust-data", disk); err != nil {
+	if err := utils.RunCommand("mkfs.vfat", "-n", "trust-data", disk); err != nil {
 		return errors.Wrapf(err, "Failed formatting sudi disk")
 	}
-	if err := trust.RunCommand("mcopy", "-i", disk, cert, "::cert.pem"); err != nil {
+	if err := utils.RunCommand("mcopy", "-i", disk, cert, "::cert.pem"); err != nil {
 		return errors.Wrapf(err, "Failed copying cert to sudi disk")
 	}
-	if err := trust.RunCommand("mcopy", "-i", disk, key, "::privkey.pem"); err != nil {
+	if err := utils.RunCommand("mcopy", "-i", disk, key, "::privkey.pem"); err != nil {
 		return errors.Wrapf(err, "Failed copying key to sudi disk")
 	}
 
@@ -198,7 +198,7 @@ func makeInstallVFAT(sudiDir, url string) error {
 	}
 
 	disk := filepath.Join(sudiDir, "install.vfat")
-	if trust.PathExists(disk) {
+	if utils.PathExists(disk) {
 		return errors.Errorf("%q already exists", disk)
 	}
 
@@ -223,10 +223,10 @@ func makeInstallVFAT(sudiDir, url string) error {
 	if err = os.Truncate(disk, 20*1024*1024); err != nil {
 		return errors.Wrapf(err, "Failed truncating install disk")
 	}
-	if err = trust.RunCommand("mkfs.vfat", "-n", "inst-data", disk); err != nil {
+	if err = utils.RunCommand("mkfs.vfat", "-n", "inst-data", disk); err != nil {
 		return errors.Wrapf(err, "Failed formatting install disk")
 	}
-	if err = trust.RunCommand("mcopy", "-i", disk, urlfile, "::url.txt"); err != nil {
+	if err = utils.RunCommand("mcopy", "-i", disk, urlfile, "::url.txt"); err != nil {
 		return errors.Wrapf(err, "Failed copying urlfile to install disk")
 	}
 
