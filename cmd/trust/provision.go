@@ -5,6 +5,7 @@ import (
 
 	"github.com/apex/log"
 	"github.com/project-machine/mos/pkg/trust"
+	"github.com/project-machine/mos/pkg/utils"
 	"github.com/urfave/cli"
 )
 
@@ -32,7 +33,7 @@ func doProvision(ctx *cli.Context) error {
 		log.Warnf("No disk specified. No disk will be provisioned")
 	}
 
-	if !PathExists("/dev/tpm0") {
+	if !utils.PathExists("/dev/tpm0") {
 		return fmt.Errorf("No TPM.  No other subsystems have been implemented")
 	}
 

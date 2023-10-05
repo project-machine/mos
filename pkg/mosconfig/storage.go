@@ -13,6 +13,7 @@ import (
 	"github.com/apex/log"
 	"github.com/opencontainers/umoci"
 	"github.com/pkg/errors"
+	"github.com/project-machine/mos/pkg/utils"
 	"golang.org/x/sys/unix"
 	"stackerbuild.io/stacker/pkg/atomfs"
 	"stackerbuild.io/stacker/pkg/lib"
@@ -81,7 +82,7 @@ func (a *AtomfsStorage) metadataPath() string {
 }
 
 func (a *AtomfsStorage) Mount(t *Target, mountpoint string) (func(), error) {
-	if err := EnsureDir(mountpoint); err != nil {
+	if err := utils.EnsureDir(mountpoint); err != nil {
 		return func() {}, fmt.Errorf("Failed creating mountpoint %q: %w", mountpoint, err)
 	}
 
@@ -199,7 +200,7 @@ func (a *AtomfsStorage) MountedByHash(target *Target) (string, error) {
 		// have their rootfs visible in this mount namespace. let's
 		// look at the specific mountinfo for the container just to be
 		// sure.
-		out, rc := RunCommandWithRc("lxc-info", "-H", "-n", target.ServiceName, "-s")
+		out, rc := utils.RunCommandWithRc("lxc-info", "-H", "-n", target.ServiceName, "-s")
 		if rc != 0 {
 			/* if the service didn't previously exist, it's ok for lxc-ls to fail */
 			return "", nil
@@ -207,7 +208,7 @@ func (a *AtomfsStorage) MountedByHash(target *Target) (string, error) {
 		if strings.TrimSpace(string(out)) != "RUNNING" {
 			return "", nil
 		}
-		out, rc = RunCommandWithRc("lxc-info", "-H", "-n", target.ServiceName, "-p")
+		out, rc = utils.RunCommandWithRc("lxc-info", "-H", "-n", target.ServiceName, "-p")
 		if rc != 0 {
 			/* if the service didn't previously exist, it's ok for lxc-ls to fail */
 			return "", nil
@@ -225,7 +226,7 @@ func (a *AtomfsStorage) MountedByHash(target *Target) (string, error) {
 
 func (a *AtomfsStorage) SetupTarget(t *Target) error {
 	mp := filepath.Join(a.scratchPath, "roots", t.ServiceName)
-	mounted, err := IsMountpoint(mp)
+	mounted, err := utils.IsMountpoint(mp)
 	if err != nil {
 		return fmt.Errorf("Failed checking whether %q is mounted: %w", mp, err)
 	}
@@ -236,7 +237,7 @@ func (a *AtomfsStorage) SetupTarget(t *Target) error {
 		}
 	}
 
-	err = EnsureDir(mp)
+	err = utils.EnsureDir(mp)
 	if err != nil {
 		return fmt.Errorf("Failed creating mountpoint %q: %w", mp, err)
 	}
@@ -269,7 +270,7 @@ func (a *AtomfsStorage) TargetMountdir(t *Target) (string, error) {
 func (a *AtomfsStorage) TearDownTarget(name string) error {
 	log.Warnf("tearing down %q", name)
 	mp := filepath.Join(a.scratchPath, "roots", name)
-	mounted, err := IsMountpoint(mp)
+	mounted, err := utils.IsMountpoint(mp)
 	if err != nil {
 		return fmt.Errorf("Failed checking whether %q is mounted: %w", mp, err)
 	}
@@ -346,7 +347,7 @@ func (a *AtomfsStorage) copyRemote(image string, target *Target) error {
 	log.Debugf("Copying (%#v (image %s) to local storage", target, image)
 	tpath := filepath.Join(a.zotPath, "mos")
 	dest := fmt.Sprintf("oci:%s:%s", tpath, target.Digest)
-	err := EnsureDir(tpath)
+	err := utils.EnsureDir(tpath)
 	if err != nil {
 		return errors.Wrapf(err, "Failed creating local zot directory %q", tpath)
 	}

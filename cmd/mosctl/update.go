@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/project-machine/mos/pkg/mosconfig"
+	"github.com/project-machine/mos/pkg/utils"
 	"github.com/urfave/cli"
 )
 
@@ -23,7 +24,7 @@ var updateCmd = cli.Command{
 
 func doUpdate(ctx *cli.Context) error {
 	rfs := ctx.String("root")
-	if rfs == "" || !mosconfig.PathExists(rfs) {
+	if rfs == "" || !utils.PathExists(rfs) {
 		return fmt.Errorf("A valid root directory must be specified")
 	}
 

@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"github.com/project-machine/mos/pkg/utils"
 )
 
 // getTargetAt: Get the target called @target from the current host manifest,
@@ -52,7 +53,7 @@ func (mos *Mos) Mount(target, dest, url string, ro bool) error {
 		dest = filepath.Join(mos.opts.RootDir, "/mnt/mos", target)
 	}
 
-	if err := EnsureDir(dest); err != nil {
+	if err := utils.EnsureDir(dest); err != nil {
 		return errors.Wrapf(err, "Failed creating mountpoint")
 	}
 

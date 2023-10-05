@@ -13,6 +13,7 @@ import (
 
 	"github.com/canonical/go-efilib"
 	"github.com/canonical/tcglog-parser"
+	"github.com/project-machine/mos/pkg/utils"
 )
 
 const ShimLockGUID = "605dab50-e046-4300-abb6-3dd810dd8b23"
@@ -213,13 +214,13 @@ func ComputePCR7(keysetName string) ([]byte, []byte, []byte, error) {
 	// The value will be the resulting pcr7 value when the cert is extended.
 	var ukiKeys = map[string][]byte{"production": nil, "limited": nil, "tpm": nil}
 
-	moskeysetPath, err := getMosKeyPath()
+	moskeysetPath, err := utils.GetMosKeyPath()
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	keysetPath := filepath.Join(moskeysetPath, keysetName)
-	if !PathExists(keysetPath) {
+	if !utils.PathExists(keysetPath) {
 		return nil, nil, nil, fmt.Errorf("Unknown keyset '%s', cannot find keyset at path: %q", keysetName, keysetPath)
 	}
 

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"github.com/project-machine/mos/pkg/utils"
 )
 
 func (mos *Mos) Update(url string) error {
@@ -24,7 +25,7 @@ func (mos *Mos) Update(url string) error {
 	}
 
 	// TODO - we will drop the git manifest altogether.
-	shaSum, err := ShaSum(is.FilePath)
+	shaSum, err := utils.ShaSum(is.FilePath)
 	if err != nil {
 		return fmt.Errorf("Failed calculating shasum: %w", err)
 	}
@@ -67,17 +68,17 @@ func (mos *Mos) Update(url string) error {
 	defer os.RemoveAll(tmpdir)
 
 	dest := filepath.Join(tmpdir, mFile)
-	if err = CopyFileBits(is.FilePath, dest); err != nil {
+	if err = utils.CopyFileBits(is.FilePath, dest); err != nil {
 		return fmt.Errorf("Failed copying %q to %q: %w", is.FilePath, dest, err)
 	}
 
 	dest = filepath.Join(tmpdir, sFile)
-	if err = CopyFileBits(is.SignPath, dest); err != nil {
+	if err = utils.CopyFileBits(is.SignPath, dest); err != nil {
 		return fmt.Errorf("Failed copying %q to %q: %w", is.SignPath, dest, err)
 	}
 
 	dest = filepath.Join(tmpdir, cFile)
-	if err = CopyFileBits(is.CertPath, dest); err != nil {
+	if err = utils.CopyFileBits(is.CertPath, dest); err != nil {
 		return fmt.Errorf("Failed copying %q to %q: %w", is.CertPath, dest, err)
 	}
 

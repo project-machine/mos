@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/lxc/lxd/shared/idmap"
+	"github.com/project-machine/mos/pkg/utils"
 )
 
 type uidRangeDefaults struct {
@@ -125,11 +126,11 @@ func addUidMapping(set idmap.IdmapSet) error {
 		r := fmt.Sprintf("%d-%d", first, last)
 
 		cmdStr := []string{"usermod", "-v", r, "root"}
-		if err := RunCommand(cmdStr...); err != nil {
+		if err := utils.RunCommand(cmdStr...); err != nil {
 			return fmt.Errorf("Error adding subuid allocation: %w", err)
 		}
 		cmdStr = []string{"usermod", "-w", r, "root"}
-		if err := RunCommand(cmdStr...); err != nil {
+		if err := utils.RunCommand(cmdStr...); err != nil {
 			return fmt.Errorf("Error adding subgid allocation: %w", err)
 		}
 	}

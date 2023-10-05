@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/project-machine/machine/pkg/api"
 	"github.com/project-machine/machine/pkg/client"
-	"github.com/project-machine/mos/pkg/trust"
+	"github.com/project-machine/mos/pkg/utils"
 )
 
 // TODO - can we get machine to auto-detect the uefi-code it needs?
@@ -54,7 +54,7 @@ type KVMMachine struct {
 }
 
 func NewKVMProvider() (KVMProvider, error) {
-	if err := trust.RunCommand("machine", "list"); err != nil {
+	if err := utils.RunCommand("machine", "list"); err != nil {
 		return KVMProvider{}, errors.Wrapf(err, "machined not running?")
 	}
 	return KVMProvider{}, nil
@@ -65,7 +65,7 @@ func (p KVMProvider) Type() ProviderType {
 }
 
 func (p KVMProvider) Exists(mname string) bool {
-	if err := trust.RunCommand("machine", "info", mname); err == nil {
+	if err := utils.RunCommand("machine", "info", mname); err == nil {
 		return true
 	}
 	return false
@@ -84,21 +84,21 @@ func (p KVMProvider) New(mname, keyproject, UUID string) (Machine, error) {
 		UUID:    UUID,
 	}
 
-	machineBaseDir, err := trust.MachineDir(m.Name)
+	machineBaseDir, err := utils.MachineDir(m.Name)
 	if err != nil {
 		return m, errors.Wrapf(err, "Failed getting machine dir")
 	}
-	if err := trust.EnsureDir(machineBaseDir); err != nil {
+	if err := utils.EnsureDir(machineBaseDir); err != nil {
 		return m, errors.Wrapf(err, "Failed getting machine dir")
 	}
 
 	// Create hard drive
 	qcowPath := filepath.Join(machineBaseDir, fmt.Sprintf("%s.qcow2", m.Name))
-	if err := trust.RunCommand("qemu-img", "create", "-f", "qcow2", qcowPath, "600G"); err != nil {
+	if err := utils.RunCommand("qemu-img", "create", "-f", "qcow2", qcowPath, "600G"); err != nil {
 		return m, errors.Wrapf(err, "Failed creating disk")
 	}
 
-	keysetDir, projDir, err := trust.KeyProjectDir(m.Keyset, m.Project)
+	keysetDir, projDir, err := utils.KeyProjectDir(m.Keyset, m.Project)
 	if err != nil {
 		return m, errors.Wrapf(err, "Failed finding keyset path")
 	}
@@ -115,7 +115,7 @@ func (p KVMProvider) New(mname, keyproject, UUID string) (Machine, error) {
 	uefiVars := filepath.Join(keysetDir, "bootkit", "ovmf-vars.fd")
 	mData := fmt.Sprintf(KVMTemplate, m.Name, m.Name, uefiVars, provisionISO,
 		qcowPath, sudiPath)
-	_, _, err = trust.RunWithStdall(mData, "machine", "init", m.Name)
+	_, _, err = utils.RunWithStdall(mData, "machine", "init", m.Name)
 	if err != nil {
 		return m, errors.Wrapf(err, "Failed initializing machine")
 	}
@@ -126,7 +126,7 @@ func (p KVMProvider) New(mname, keyproject, UUID string) (Machine, error) {
 }
 
 func (p KVMProvider) Delete(mname string) error {
-	if err := trust.RunCommand("machine", "delete", mname); err != nil {
+	if err := utils.RunCommand("machine", "delete", mname); err != nil {
 		return errors.Wrapf(err, "Failed deleting %q", mname)
 	}
 	return nil
@@ -195,7 +195,7 @@ func (m KVMMachine) updateForInstall() error {
 	newDisks := []api.QemuDisk{}
 	for _, d := range machine.Config.Disks {
 		if strings.HasSuffix(d.File, "sudi.vfat") {
-			_, projDir, err := trust.KeyProjectDir(m.Keyset, m.Project)
+			_, projDir, err := utils.KeyProjectDir(m.Keyset, m.Project)
 			if err != nil {
 				return errors.Wrapf(err, "Failed finding keyset path")
 			}
@@ -311,14 +311,14 @@ func (m KVMMachine) state(desired string) bool {
 }
 
 func (m KVMMachine) Start() error {
-	if err := trust.RunCommand("machine", "start", m.Name); err != nil {
+	if err := utils.RunCommand("machine", "start", m.Name); err != nil {
 		return errors.Wrapf(err, "Failed starting %q", m.Name)
 	}
 	return nil
 }
 
 func (m KVMMachine) Stop() error {
-	if err := trust.RunCommand("machine", "stop", m.Name); err != nil {
+	if err := utils.RunCommand("machine", "stop", m.Name); err != nil {
 		return errors.Wrapf(err, "Failed stopping %q", m.Name)
 	}
 	return nil

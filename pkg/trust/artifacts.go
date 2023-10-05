@@ -19,6 +19,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/project-machine/bootkit/pkg/cert"
 	"github.com/project-machine/bootkit/pkg/shim"
+	"github.com/project-machine/mos/pkg/utils"
 	"github.com/project-stacker/stacker/container/idmap"
 	"github.com/project-stacker/stacker/lib"
 	stackeroci "github.com/project-stacker/stacker/oci"
@@ -31,7 +32,7 @@ func extractSingleSquash(squashFile string, extractDir string) error {
 	}
 
 	cmd := []string{"unsquashfs", "-f", "-d", extractDir, squashFile}
-	return RunCommand(cmd...)
+	return utils.RunCommand(cmd...)
 }
 
 func unpackSquashLayer(ociDir string, oci casext.Engine, tag string, dest string) error {
@@ -153,7 +154,7 @@ func UpdateShim(inShim, newShim, keysetPath string) error {
 		"--key", filepath.Join(keysetPath, "uefi-db", "privkey.pem"),
 		"--cert", filepath.Join(keysetPath, "uefi-db", "cert.pem"),
 		"--output", newShim, inShim}
-	err = RunCommand(cmd...)
+	err = utils.RunCommand(cmd...)
 	if err != nil {
 		return errors.Wrapf(err, "failed re-signing shim")
 	}
@@ -200,7 +201,7 @@ func SetupBootkit(keysetName, bootkitVersion, mosctlPath string) error {
 	}
 	ociDir := filepath.Join(home, ".cache", "machine", "trust", "bootkit", "oci")
 	bootkitLayer := "bootkit:" + bootkitVersion + "-squashfs"
-	EnsureDir(ociDir)
+	utils.EnsureDir(ociDir)
 	cachedOci := fmt.Sprintf("oci:%s:%s", ociDir, bootkitLayer)
 	err = lib.ImageCopy(lib.ImageCopyOpts{
 		Src:      fmt.Sprintf("docker://zothub.io/machine/bootkit/%s", bootkitLayer),
@@ -227,20 +228,20 @@ func SetupBootkit(keysetName, bootkitVersion, mosctlPath string) error {
 	os.Rename(filepath.Join(bDir, "bootkit"), bDir+".tmp")
 	os.RemoveAll(bDir)
 	os.Rename(bDir+".tmp", bDir)
-	mosKeyPath, err := getMosKeyPath()
+	mosKeyPath, err := utils.GetMosKeyPath()
 	if err != nil {
 		return errors.Wrapf(err, "Failed getting mos keypath")
 	}
 
 	keysetPath := filepath.Join(mosKeyPath, keysetName)
 	destDir := filepath.Join(keysetPath, "bootkit")
-	if err := EnsureDir(destDir); err != nil {
+	if err := utils.EnsureDir(destDir); err != nil {
 		return errors.Wrapf(err, "Failed creating directory %q", destDir)
 	}
 
 	unchanged := []string{"kernel/modules.squashfs", "ovmf/ovmf-code.fd"}
 	for _, f := range unchanged {
-		if err := CopyFile(filepath.Join(bDir, f), filepath.Join(destDir, f)); err != nil {
+		if err := utils.CopyFile(filepath.Join(bDir, f), filepath.Join(destDir, f)); err != nil {
 			return errors.Wrapf(err, "Failed copying %s into new bootkit from %s -> %s", f, bDir, destDir)
 		}
 	}
@@ -260,7 +261,7 @@ func SetupBootkit(keysetName, bootkitVersion, mosctlPath string) error {
 		"--cert", filepath.Join(keysetPath, "uki-production", "cert.pem"),
 		"--output", filepath.Join(destDir, "kernel.efi"),
 		newKernel}
-	err = RunCommand(cmd...)
+	err = utils.RunCommand(cmd...)
 	if err != nil {
 		return errors.Wrapf(err, "failed re-signing shim")
 	}
@@ -268,7 +269,7 @@ func SetupBootkit(keysetName, bootkitVersion, mosctlPath string) error {
 	// Create a bootkit/oci layer with the kernel and shim, for use
 	// in mosctl install
 	tmpoci := filepath.Join(tmpdir, "ocibuild")
-	if err := EnsureDir(tmpoci); err != nil {
+	if err := utils.EnsureDir(tmpoci); err != nil {
 		return err
 	}
 	yamlString := fmt.Sprintf(bootkitOciTemplate, keysetPath, keysetPath)
@@ -282,12 +283,12 @@ func SetupBootkit(keysetName, bootkitVersion, mosctlPath string) error {
 		"--oci-dir", filepath.Join(tmpoci, "oci"),
 		"--roots-dir", filepath.Join(tmpoci, "roots"),
 		"build", "-f", yamlFile, "--layer-type", "squashfs"}
-	if err := RunCommand(cmd...); err != nil {
+	if err := utils.RunCommand(cmd...); err != nil {
 		return errors.Wrapf(err, "Failed building bootkit OCI layer")
 	}
 	src := filepath.Join(tmpoci, "oci")
 	dest := filepath.Join(destDir, "oci")
-	if err := CopyFiles(src, dest); err != nil {
+	if err := utils.CopyFiles(src, dest); err != nil {
 		return errors.Wrapf(err, "Failed copying %q to %q", src, dest)
 	}
 
@@ -319,7 +320,7 @@ func SetupBootkit(keysetName, bootkitVersion, mosctlPath string) error {
 		"--add-kek", kekGuid, filepath.Join(keysetPath, "uefi-kek", "cert.pem"),
 		"--add-db", dbGuid, filepath.Join(keysetPath, "uefi-db", "cert.pem"),
 	}
-	if err := RunCommand(cmd...); err != nil {
+	if err := utils.RunCommand(cmd...); err != nil {
 		return errors.Wrapf(err, "Failed creating new ovmf vars")
 	}
 
@@ -355,7 +356,7 @@ func extractObj(objdump []string, dir string, piece string) error {
 	}
 	objPath := filepath.Join(dir, "kernel.efi")
 	// Yes we could do this all without shelling out...
-	err := RunCommand("dd", "if="+objPath, "of="+outName,
+	err := utils.RunCommand("dd", "if="+objPath, "of="+outName,
 		fmt.Sprintf("skip=%d", offset),
 		fmt.Sprintf("count=%d", size),
 		"iflag=skip_bytes,count_bytes")
@@ -391,12 +392,12 @@ func ReplaceManifestCert(dir, keysetPath, customMostctl string) (string, error) 
 	newCert := filepath.Join(keysetPath, "manifest-ca", "cert.pem")
 
 	pcr7Dir := filepath.Join(keysetPath, "pcr7data")
-	if !PathExists(pcr7Dir) {
+	if !utils.PathExists(pcr7Dir) {
 		return "", fmt.Errorf("No pcr7data found")
 	}
 	pcr7Cpio := pcr7Dir + ".cpio"
-	if !PathExists(pcr7Cpio) {
-		if err := NewCpio(pcr7Cpio, pcr7Dir); err != nil {
+	if !utils.PathExists(pcr7Cpio) {
+		if err := utils.NewCpio(pcr7Cpio, pcr7Dir); err != nil {
 			return "", errors.Wrapf(err, "Failed creating pcr7 cpio for %s", filepath.Base(keysetPath))
 		}
 	}
@@ -412,11 +413,11 @@ func ReplaceManifestCert(dir, keysetPath, customMostctl string) (string, error) 
 	defer os.RemoveAll(emptydir)
 
 	manifestCA := filepath.Join(emptydir, "manifestCA.pem")
-	if err := CopyFile(newCert, manifestCA); err != nil {
+	if err := utils.CopyFile(newCert, manifestCA); err != nil {
 		return "", errors.Wrapf(err, "Failed copying manifest into empty dir")
 	}
 
-	if err := NewCpio(certCpio, manifestCA); err != nil {
+	if err := utils.NewCpio(certCpio, manifestCA); err != nil {
 		return "", errors.Wrapf(err, "Failed creating cpio archive of manifest cert")
 	}
 
@@ -431,13 +432,13 @@ func ReplaceManifestCert(dir, keysetPath, customMostctl string) (string, error) 
 	}
 	if customMostctl != "" {
 		mosctlDir := filepath.Join(emptydir, "/usr/bin")
-		EnsureDir(mosctlDir)
+		utils.EnsureDir(mosctlDir)
 		mosctlFile := filepath.Join(mosctlDir, "mosctl")
-		if err := CopyFile(customMostctl, mosctlFile); err != nil {
+		if err := utils.CopyFile(customMostctl, mosctlFile); err != nil {
 			return "", errors.Wrapf(err, "Failed copying custom mosctl")
 		}
 		mosCpio := filepath.Join(dir, "mosctl.cpio")
-		if err := NewCpio(mosCpio, filepath.Join(emptydir, "usr")); err != nil {
+		if err := utils.NewCpio(mosCpio, filepath.Join(emptydir, "usr")); err != nil {
 			return "", errors.Wrapf(err, "Failed creating mosctl cpio")
 		}
 		files = append(files, mosCpio)
@@ -446,7 +447,7 @@ func ReplaceManifestCert(dir, keysetPath, customMostctl string) (string, error) 
 
 	for _, f := range files {
 		if strings.HasSuffix(f, ".gz") {
-			if err := RunCommand("gunzip", f); err != nil {
+			if err := utils.RunCommand("gunzip", f); err != nil {
 				return "", errors.Wrapf(err, "Failed gunzipping %s", f)
 			}
 		}
@@ -456,7 +457,7 @@ func ReplaceManifestCert(dir, keysetPath, customMostctl string) (string, error) 
 		}
 	}
 
-	if err := RunCommand("gzip", initrd); err != nil {
+	if err := utils.RunCommand("gzip", initrd); err != nil {
 		return "", errors.Wrapf(err, "Failed re-zipping initrd.gz")
 	}
 
@@ -477,7 +478,7 @@ func ReplaceManifestCert(dir, keysetPath, customMostctl string) (string, error) 
 		filepath.Join(dir, "stubby/stubby.efi"),
 		kret,
 	}
-	if err := RunCommand(cmd...); err != nil {
+	if err := utils.RunCommand(cmd...); err != nil {
 		return "", errors.Wrapf(err, "Failed creating kernel.efi")
 	}
 

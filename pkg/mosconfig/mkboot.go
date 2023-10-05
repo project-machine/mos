@@ -10,6 +10,7 @@ import (
 
 	"github.com/apex/log"
 	"github.com/pkg/errors"
+	"github.com/project-machine/mos/pkg/utils"
 	"golang.org/x/sys/unix"
 	"stackerbuild.io/stacker/pkg/lib"
 )
@@ -89,12 +90,12 @@ type OciBoot struct {
 }
 
 func (o *OciBoot) getBootKit() error {
-	trustDir, err := MosKeyPath()
+	trustDir, err := utils.MosKeyPath()
 	if err != nil {
 		return err
 	}
 	keysetPath := filepath.Join(trustDir, o.KeySet)
-	if !PathExists(keysetPath) {
+	if !utils.PathExists(keysetPath) {
 		return fmt.Errorf("Keyset not found: %s", o.KeySet)
 	}
 
@@ -115,7 +116,7 @@ func (o *OciBoot) PopulateEFI(mode BootMode, cmdline string, destd string) error
 
 	if mode == EFIAuto {
 		mode = EFIKernel
-		if PathExists(filepath.Join(o.BootKit, "shim.efi")) {
+		if utils.PathExists(filepath.Join(o.BootKit, "shim.efi")) {
 			mode = EFIShim
 		}
 	}
@@ -248,14 +249,14 @@ func genESP(fname string, baseDir string) error {
 		return fmt.Errorf("Failed to close file %s", fname)
 	}
 
-	if err := RunCommand("mkfs.fat", "-s", "1", "-F", "32", "-n", "EFIBOOT", fname); err != nil {
+	if err := utils.RunCommand("mkfs.fat", "-s", "1", "-F", "32", "-n", "EFIBOOT", fname); err != nil {
 		return fmt.Errorf("mkfs.fat failed: %w", err)
 	}
 
 	cmd := []string{"env", "MTOOLS_SKIP_CHECK=1", "mcopy", "-s", "-v", "-i", fname,
 		filepath.Join(baseDir, "efi"), "::efi"}
 	log.Debugf("Running: %s", strings.Join(cmd, " "))
-	if err := RunCommand(cmd...); err != nil {
+	if err := utils.RunCommand(cmd...); err != nil {
 		return err
 	}
 	return nil
@@ -376,7 +377,7 @@ func (o *OciBoot) Build() error {
 		return fmt.Errorf("Failed to create directory for modules.squashfs: %v", err)
 	}
 	src := filepath.Join(o.BootKit, "kernel", "modules.squashfs")
-	if !PathExists(src) {
+	if !utils.PathExists(src) {
 		src = filepath.Join(o.BootKit, "modules.squashfs")
 	}
 	if err := copyFile(src, modSquashDest); err != nil {
@@ -399,7 +400,7 @@ func (o *OciBoot) Build() error {
 		// XXX TODO yikes, but will zot still be writing stuff out?
 		src := o.RepoDir + "/"
 		dest := filepath.Join(tmpd, "oci")
-		if err := RunCommand("rsync", "-va", src, dest+"/"); err != nil {
+		if err := utils.RunCommand("rsync", "-va", src, dest+"/"); err != nil {
 			return errors.Wrapf(err, "Failed copying zot cache")
 		}
 	}
@@ -416,7 +417,7 @@ func (o *OciBoot) Build() error {
 	cmd = append(cmd, tmpd)
 
 	log.Infof("Executing: %s", strings.Join(cmd, " "))
-	if err := RunCommand(cmd...); err != nil {
+	if err := utils.RunCommand(cmd...); err != nil {
 		return err
 	}
 
@@ -478,7 +479,7 @@ func BuildProvisioner(keysetName, projectName, isofile string) error {
 	repo := fmt.Sprintf("127.0.0.1:%d", zotPort)
 	name := "machine/livecd:1.0.0"
 
-	keyPath, err := MosKeyPath()
+	keyPath, err := utils.MosKeyPath()
 	if err != nil {
 		return errors.Wrapf(err, "Failed finding mos key path")
 	}
@@ -537,7 +538,7 @@ func BuildInstaller(keysetName, projectName, isofile string) error {
 	repo := fmt.Sprintf("127.0.0.1:%d", zotPort)
 	name := "machine/livecd:1.0.0"
 
-	keyPath, err := MosKeyPath()
+	keyPath, err := utils.MosKeyPath()
 	if err != nil {
 		return errors.Wrapf(err, "Failed finding mos key path")
 	}

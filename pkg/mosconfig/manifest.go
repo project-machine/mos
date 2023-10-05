@@ -16,17 +16,18 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/opencontainers/umoci"
 	"github.com/pkg/errors"
+	"github.com/project-machine/mos/pkg/utils"
 )
 
 // Only used during first install.  Create a new $config/manifest.git/
 func (mos *Mos) initManifest(manifestPath, manifestCert, manifestCA, configPath string) error {
-	shaSum, err := ShaSum(manifestPath)
+	shaSum, err := utils.ShaSum(manifestPath)
 	if err != nil {
 		return fmt.Errorf("Failed calculating shasum: %w", err)
 	}
 
 	dir := filepath.Join(configPath, "manifest.git")
-	if PathExists(dir) {
+	if utils.PathExists(dir) {
 		return fmt.Errorf("manifest already exists, chickening out!")
 	}
 
@@ -52,7 +53,7 @@ func (mos *Mos) initManifest(manifestPath, manifestCert, manifestCA, configPath 
 
 	sFile := fmt.Sprintf("%s.json.signed", shaSum)
 	dest := filepath.Join(dir, sFile)
-	err = CopyFileBits(manifestPath+".signed", dest)
+	err = utils.CopyFileBits(manifestPath+".signed", dest)
 	if err != nil {
 		return fmt.Errorf("Failed copying install manifest: %w", err)
 	}
@@ -63,7 +64,7 @@ func (mos *Mos) initManifest(manifestPath, manifestCert, manifestCA, configPath 
 
 	mFile := fmt.Sprintf("%s.json", shaSum)
 	dest = filepath.Join(dir, mFile)
-	err = CopyFileBits(manifestPath, dest)
+	err = utils.CopyFileBits(manifestPath, dest)
 	if err != nil {
 		return fmt.Errorf("Failed copying install manifest: %w", err)
 	}
@@ -74,7 +75,7 @@ func (mos *Mos) initManifest(manifestPath, manifestCert, manifestCA, configPath 
 
 	pFile := fmt.Sprintf("%s.pem", shaSum)
 	dest = filepath.Join(dir, pFile)
-	err = CopyFileBits(manifestCert, dest)
+	err = utils.CopyFileBits(manifestCert, dest)
 	if err != nil {
 		return fmt.Errorf("Failed copying manifest Cert: %w", err)
 	}
@@ -300,7 +301,7 @@ func (mos *Mos) UpdateManifest(manifest *SysManifest, newmanifest *SysManifest, 
 	// Copy any needed source jsons into our tempdir
 	for _, t := range manifest.SysTargets {
 		f := t.Source
-		if PathExists(filepath.Join(newdir, f)) {
+		if utils.PathExists(filepath.Join(newdir, f)) {
 			continue
 		}
 		base := strings.TrimSuffix(f, ".json")
@@ -308,7 +309,7 @@ func (mos *Mos) UpdateManifest(manifest *SysManifest, newmanifest *SysManifest, 
 			fName := base + ext
 			src := filepath.Join(mPath, fName)
 			dest := filepath.Join(newdir, fName)
-			if err := CopyFileBits(src, dest); err != nil {
+			if err := utils.CopyFileBits(src, dest); err != nil {
 				return fmt.Errorf("Failed copying %q out of system manifest repo: %w", src, err)
 			}
 		}
@@ -324,7 +325,7 @@ func (mos *Mos) UpdateManifest(manifest *SysManifest, newmanifest *SysManifest, 
 	// And copy back the files we need
 	for _, t := range newmanifest.SysTargets {
 		f := t.Source
-		if PathExists(filepath.Join(mPath, f)) {
+		if utils.PathExists(filepath.Join(mPath, f)) {
 			continue
 		}
 		base := strings.TrimSuffix(f, ".json")
@@ -332,7 +333,7 @@ func (mos *Mos) UpdateManifest(manifest *SysManifest, newmanifest *SysManifest, 
 			fName := base + ext
 			src := filepath.Join(newdir, fName)
 			dest := filepath.Join(mPath, fName)
-			if err := CopyFileBits(src, dest); err != nil {
+			if err := utils.CopyFileBits(src, dest); err != nil {
 				return fmt.Errorf("Failed copying %q to system manifest repo: %w", src, err)
 			}
 			if _, err = w.Add(fName); err != nil {
@@ -342,7 +343,7 @@ func (mos *Mos) UpdateManifest(manifest *SysManifest, newmanifest *SysManifest, 
 	}
 	src := filepath.Join(newdir, "manifest.json")
 	dest := filepath.Join(mPath, "manifest.json")
-	if err := CopyFileBits(src, dest); err != nil {
+	if err := utils.CopyFileBits(src, dest); err != nil {
 		return fmt.Errorf("Failed copying manifest to final directory")
 	}
 	if _, err = w.Add("manifest.json"); err != nil {
