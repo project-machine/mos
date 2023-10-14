@@ -92,8 +92,8 @@ jobs:
 
       - name: test preparation
         run: |
-          wget -O ~/bin/machine --progress=dot:mega https://github.com/project-machine/machine/releases/download/0.0.4/machine
-          wget -O ~/bin/machined --progress=dot:mega https://github.com/project-machine/machine/releases/download/0.0.4/machined
+          wget -O ~/bin/machine --progress=dot:mega https://github.com/project-machine/machine/releases/download/v0.1.2/machine-linux-amd64
+          wget -O ~/bin/machined --progress=dot:mega https://github.com/project-machine/machine/releases/download/v0.1.2/machined-linux-amd64
           chmod 755 ~/bin/machine ~/bin/machined
           mkdir -p ~/.config/systemd/user/
           export  PATH=~/bin:$PATH
