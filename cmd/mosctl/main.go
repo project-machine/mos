@@ -17,6 +17,7 @@ func main() {
 	app.Commands = []cli.Command{
 		createBootFsCmd,
 		activateCmd,
+		bootCmd,
 		installCmd,
 		mountCmd,
 		updateCmd,

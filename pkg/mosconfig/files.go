@@ -48,12 +48,24 @@ const CurrentInstallFileVersion = 1
 type TargetNetworkType string
 
 const (
-	HostNetwork TargetNetworkType = "host"
-	NoNetwork   TargetNetworkType = "none"
+	HostNetwork   TargetNetworkType = "host"
+	NoNetwork     TargetNetworkType = "none"
+	SimpleNetwork TargetNetworkType = "simple"
 )
 
+// Target Network configuration
+// Type dictates which type
+// Address is an ipv4 or ipv6 address.
+// Ports are ipfilter rules to allow inbound masq.
+//
+// We will likely want to change this to an array of
+// nics, like lxc.net.[i].*.  But for now let's just
+// support one
 type TargetNetwork struct {
-	Type TargetNetworkType `json:"type"`
+	Type     TargetNetworkType `json:"type" yaml:"type"`
+	Address  string            `json:"ipv4" yaml:"ipv4"`
+	Address6 string            `json:"ipv6" yaml:"ipv6"`
+	Ports    []SimplePort      `json:"ports" yaml:"ports"`
 }
 
 // Service type defines how a service is run.
@@ -126,8 +138,14 @@ func (s *SysTargets) Contains(needle SysTarget) (SysTarget, bool) {
 }
 
 type SysManifest struct {
+	// Persistent stored information
 	UidMaps    []IdmapSet  `json:"uidmaps"`
 	SysTargets []SysTarget `json:"targets"`
+
+	// Runtime information
+	DefaultNic string
+	UsedPorts  map[uint]string   // map of hostport -> running target name
+	IpAddrs    map[string]string // map of ip4 ip6 addr -> running target name
 }
 
 func (sm *SysManifest) GetTarget(target string) (*SysTarget, error) {

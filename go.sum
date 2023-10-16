@@ -2691,8 +2691,8 @@ github.com/pquerna/cachecontrol v0.1.0/go.mod h1:NrUG3Z7Rdu85UNR3vm7SOsl1nFIeSiQ
 github.com/prashantv/gostub v1.1.0/go.mod h1:A5zLQHz7ieHGG7is6LLXLz7I8+3LZzsrV0P1IAHhP5U=
 github.com/proglottis/gpgme v0.1.3 h1:Crxx0oz4LKB3QXc5Ea0J19K/3ICfy3ftr5exgUK1AU0=
 github.com/proglottis/gpgme v0.1.3/go.mod h1:fPbW/EZ0LvwQtH8Hy7eixhp1eF3G39dtx7GUN+0Gmy0=
-github.com/project-machine/bootkit v0.0.15 h1:EAeilYMiBnsliLc+3BejqIwN8seir2fQ8aL8Lg93mkY=
-github.com/project-machine/bootkit v0.0.15/go.mod h1:02BdQ6/ClxWdwPOIVYxpRNJIJD2eFcg8iz2Q1phJchU=
+github.com/project-machine/bootkit v0.0.0-20230906152517-964838ab8d93 h1:OfYRKrxfjxyYUOUNCY8bpNaEhE6xk4QcZb+1rRfZmaw=
+github.com/project-machine/bootkit v0.0.0-20230906152517-964838ab8d93/go.mod h1:02BdQ6/ClxWdwPOIVYxpRNJIJD2eFcg8iz2Q1phJchU=
 github.com/project-machine/machine v0.1.2 h1:/detDExvftlN+PvJWP57tUS6NFLPtHWc+m3b4/NhFq4=
 github.com/project-machine/machine v0.1.2/go.mod h1:pjru0EkLoBhdLQ1szLxJIqiMkUgezdwMjsaq/ijBZOw=
 github.com/project-machine/qcli v0.2.1 h1:rIRItjdkeBbD4NIxYyTkxCeJIolGHdniJ51Phfg2Ols=

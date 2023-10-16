@@ -97,6 +97,10 @@ func (mos *Mos) GetUIDMapStr(t *Target) (idmap.IdmapSet, []string, error) {
 	}
 	rangedefs := chooseRangeDefaults()
 
+	if t.NSGroup == "none" {
+		return empty, []string{}, nil
+	}
+
 	for _, u := range manifest.UidMaps {
 		if u.Name == t.NSGroup {
 			uidmap := idmap.IdmapEntry{

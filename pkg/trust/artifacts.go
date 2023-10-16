@@ -171,6 +171,8 @@ bootkit:
       dest: /bootkit/kernel.efi
     - path: %s/bootkit/shim.efi
       dest: /bootkit/shim.efi
+    - path: %s/bootkit/kernel/modules.squashfs
+      dest: /bootkit/modules.squashfs
 `
 
 // SetupBootkit: create a custom bootkit for a keyset.
@@ -272,7 +274,7 @@ func SetupBootkit(keysetName, bootkitVersion, mosctlPath string) error {
 	if err := utils.EnsureDir(tmpoci); err != nil {
 		return err
 	}
-	yamlString := fmt.Sprintf(bootkitOciTemplate, keysetPath, keysetPath)
+	yamlString := fmt.Sprintf(bootkitOciTemplate, keysetPath, keysetPath, keysetPath)
 	yamlFile := filepath.Join(tmpoci, "stacker.yaml")
 	if err := os.WriteFile(yamlFile, []byte(yamlString), 0644); err != nil {
 		return err

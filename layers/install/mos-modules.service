@@ -1,0 +1,12 @@
+[Unit]
+Description=Load mos modules
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/usr/bin/load-mos-modules
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target

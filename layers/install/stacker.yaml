@@ -15,6 +15,7 @@ install-rootfs-pkg:
         cryptsetup \
         dosfstools \
         e2fsprogs \
+        efibootmgr \
         iproute2 \
         isc-dhcp-client \
         keyutils \
@@ -37,6 +38,25 @@ install-rootfs-pkg:
     DHCP=yes
     END
 
+demo-zot:
+  from:
+    type: built
+    tag: install-rootfs-pkg
+  import:
+    - zot-config.json
+    - start-zot
+    - https://github.com/project-zot/zot/releases/download/v${{ZOT_VERSION}}/zot-linux-amd64-minimal
+  entrypoint: /usr/bin/start-zot
+  run: |
+    #!/bin/sh -ex
+    cp /stacker/imports/zot-config.json /etc/
+
+    cp /stacker/imports/start-zot /usr/bin/start-zot
+    chmod 755 /usr/bin/start-zot
+    cp /stacker/imports/zot-linux-amd64-minimal /usr/bin/zot
+    chmod 755 /usr/bin/zot
+
+
 # The rootfs which we want to run on the system
 # Note this is for demo purposes only.  No one should ever
 # use this as the target layer.
@@ -47,6 +67,9 @@ demo-target-rootfs:
   import:
     - ../../mosctl
     - ../provision/console-helper
+    - load-mos-modules
+    - mos-modules.service
+    - mos-boot-setup.service
   run: |
     #!/bin/sh -ex
     writefile() {
@@ -68,9 +91,20 @@ demo-target-rootfs:
     DHCP=yes
     END
 
+    # lxc needed for mosctl to activate a service \\
+    # git needed for mosctl to read manifest
+    pkgtool install git lxc
+
     cd /stacker/imports
     cp mosctl console-helper /usr/bin
     ( cd /usr/bin && chmod 755 mosctl console-helper )
+
+    cp /stacker/imports/load-mos-modules /usr/bin/
+    chmod 755 /usr/bin/load-mos-modules
+    cp /stacker/imports/mos-modules.service /etc/systemd/system/
+    systemctl enable mos-modules.service
+    cp /stacker/imports/mos-boot-setup.service /etc/systemd/system
+    systemctl enable mos-boot-setup.service
 
     echo root:passw0rd | chpasswd
     systemctl enable serial-getty@ttyS0
