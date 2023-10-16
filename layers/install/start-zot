@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [ -n "$IPV4" ]; then
+    sed -i "s/0.0.0.0/${IPV4%/*}/" /etc/zot-config.json
+elif [ -n "$IPV6" ]; then
+    sed -i "s/0.0.0.0/${IPV6%/*}/" /etc/zot-config.json
+fi
+
+# Should mos or lxc be doing this for us?
+ip route add default via 10.0.3.1
+
+exec /usr/bin/zot serve /etc/zot-config.json

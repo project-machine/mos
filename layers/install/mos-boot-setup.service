@@ -1,0 +1,18 @@
+[Unit]
+Description=mos-boot-setup
+After=local-fs.target
+After=systemd-journal-flush.service logs.mount
+Requires=local-fs.target
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/mosctl boot
+StandardOutput=journal+console
+StandardError=journal+console
+
+# Journal namespaces implementation also affects the mount namespaces.
+# Assigning a separate journal namespace to Atomix process hides mount points
+# like /config and /tmp from the "main" user namespace.
+# LogNamespace=atomix
+[Install]
+WantedBy=multi-user.target

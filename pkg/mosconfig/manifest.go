@@ -101,6 +101,8 @@ func (mos *Mos) initManifest(manifestPath, manifestCert, manifestCA, configPath 
 	sysmanifest := SysManifest{
 		UidMaps:    uidmaps,
 		SysTargets: targets,
+		UsedPorts:  make(map[uint]string),
+		IpAddrs:    make(map[string]string),
 	}
 
 	bytes, err := json.Marshal(&sysmanifest)

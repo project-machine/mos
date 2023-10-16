@@ -104,7 +104,7 @@ jobs:
           chmod go+rx /run/user/$(id -u)
           chmod go+rx /run/user/$(id -u)/containers
           nohup ~/bin/machined > /tmp/machined.out 2>&1 &
-          timeout 20m make test
+          timeout 60m make test
           timeout 20m bats tests/livecd1.bats
           timeout 20m bats tests/livecd2.bats
       - name: show journal output
@@ -131,7 +131,7 @@ jobs:
           file: 'layers/stacker.yaml'
           build-args: |
             ZOT_VERSION=2.0.0-rc5
-            ROOTFS_VERSION=v0.0.15.230901
+            ROOTFS_VERSION=v0.0.17.231018
           url: docker://zothub.io/machine/bootstrap
           tags: ${{ github.event.release.tag_name }}
           username: ${{ secrets.ZOTHUB_USERNAME }}

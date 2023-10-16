@@ -29,7 +29,7 @@ function trust_setup {
 function common_setup {
 	trust_setup
 
-	export ROOTFS_VERSION="${ROOTFS_VERSION:-v0.0.15.230901}"
+	export ROOTFS_VERSION="${ROOTFS_VERSION:-v0.0.17.231018}"
 	echo "ROOTFS_VERSION is ${ROOTFS_VERSION}"
 
 	if [ ! -d "${PWD}/zothub" ]; then
@@ -119,6 +119,7 @@ function common_teardown {
 	if [ -n $TMPUD ]; then
 		lxc-usernsexec -s -- rm -rf $TMPUD
 	fi
+
 	trust_teardown
 }
 

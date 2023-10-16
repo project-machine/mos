@@ -26,7 +26,7 @@ const KVMTemplate = `
     config:
       name: %s
       uefi: true
-      uefi-code: /usr/share/OVMF/OVMF_CODE.secboot.fd
+      uefi-code: %s
       uefi-vars: %s
       cdrom: %s
       boot: cdrom
@@ -113,11 +113,12 @@ func (p KVMProvider) New(mname, keyproject, UUID string) (Machine, error) {
 	// that's worth it.
 	provisionISO := filepath.Join(keysetDir, "artifacts", "provision.iso")
 	uefiVars := filepath.Join(keysetDir, "bootkit", "ovmf-vars.fd")
-	mData := fmt.Sprintf(KVMTemplate, m.Name, m.Name, uefiVars, provisionISO,
-		qcowPath, sudiPath)
-	_, _, err = utils.RunWithStdall(mData, "machine", "init", m.Name)
+	uefiCode := filepath.Join(keysetDir, "bootkit", "ovmf", "ovmf-code.fd")
+	mData := fmt.Sprintf(KVMTemplate, m.Name, m.Name, uefiCode, uefiVars,
+		provisionISO, qcowPath, sudiPath)
+	stdout, stderr, err := utils.RunWithStdall(mData, "machine", "init", m.Name)
 	if err != nil {
-		return m, errors.Wrapf(err, "Failed initializing machine")
+		return m, errors.Wrapf(err, "Failed initializing machine %q with data:%q\nOutput: %q\n%q\n", m.Name, mData, stdout, stderr)
 	}
 
 	// Write out the details of the machine to persistent storage
@@ -294,10 +295,10 @@ func waitForUnix(sockPath, good, bad string) error {
 		return nil
 	}
 	if strings.Contains(s, bad) {
-		return errors.Errorf("Action failed, as %q was found", bad)
+		return errors.Errorf("Action failed, as %q was found in %q", bad, s)
 	}
 
-	return errors.Errorf("Action timed out, did not find %q nor %q, in %q", good, bad)
+	return errors.Errorf("Action timed out, did not find %q nor %q, in %q", good, bad, s)
 }
 
 func (m KVMMachine) state(desired string) bool {

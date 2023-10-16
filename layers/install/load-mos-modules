@@ -1,0 +1,16 @@
+#!/bin/bash
+
+mountpoint /lib/modules && { echo "already mounted"; exit 0; }
+
+mkdir -p /bootkit
+mosctl --debug mount --target=bootkit --dest=/bootkit
+mkdir -p /lib/modules
+mount /bootkit/bootkit/modules.squashfs /lib/modules/
+
+systemctl restart systemd-udev-trigger.service
+modprobe virtio-net
+modprobe br_netfilter
+modprobe iptables_nat
+modprobe iptables_mangle
+dhclient
+systemctl start lxc-net

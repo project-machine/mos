@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/apex/log"
@@ -67,6 +68,8 @@ type Mos struct {
 	lockfile *os.File
 
 	Manifest *SysManifest
+
+	NetLock sync.Mutex
 }
 
 func NewMos(configDir, storeDir string) (*Mos, error) {
@@ -164,6 +167,41 @@ func (mos *Mos) Current(name string) (*Target, error) {
 	}
 
 	return nil, errors.Errorf("Target %s not found", name)
+}
+
+// Called at system boot to do basic setup and
+// activate all services
+func (mos *Mos) Boot() error {
+	// For containers to start, /var/lib/lxc needs to be world-x
+	// at each point so that subuids can get to their RFS.
+	p := ""
+	for _, next := range []string{"/", "var", "lib", "lxc"} {
+		p = filepath.Join(p, next)
+		if err := os.Chmod(p, 0755); err != nil {
+			return errors.Wrapf(err, "Failed making %q world-accessible")
+		}
+	}
+
+	// Now start the services
+	return mos.ActivateAll()
+}
+
+// Activate all services
+func (mos *Mos) ActivateAll() error {
+	m, err := mos.CurrentManifest()
+	if err != nil {
+		return errors.Wrapf(err, "Failed opening manifest")
+	}
+	for _, t := range m.SysTargets {
+		if t.Name == "hostfs" || t.Name == "bootkit" {
+			continue
+		}
+		if err := mos.Activate(t.Name); err != nil {
+			return errors.Wrapf(err, "Failed starting %s", t.Name)
+		}
+	}
+
+	return nil
 }
 
 // Activate a target (service):
@@ -284,17 +322,6 @@ func (mos *Mos) setupContainerService(t *Target) error {
 	return nil
 }
 
-func (mos *Mos) SetupNetwork(t *Target) ([]string, error) {
-	switch t.Network.Type {
-	case HostNetwork:
-		return []string{"lxc.net.0.type = none"}, nil
-	case NoNetwork:
-		return []string{"lxc.net.0.type = empty"}, nil
-	default:
-		return []string{}, fmt.Errorf("Unhandled network type: %s", t.Network.Type)
-	}
-}
-
 func (mos *Mos) writeLxcConfig(t *Target) error {
 	// We are guaranteed to have stopped the container before reaching
 	// here
@@ -376,7 +403,7 @@ func (mos *Mos) writeLxcConfig(t *Target) error {
 	}
 	lxcConf = append(lxcConf, "lxc.rootfs.path = "+rfs)
 
-	netconf, err := mos.SetupNetwork(t)
+	netconf, err := mos.SetupTargetNetwork(t)
 	if err != nil {
 		return err
 	}
@@ -392,6 +419,7 @@ func (mos *Mos) writeLxcConfig(t *Target) error {
 	lxcConf = append(lxcConf, "lxc.apparmor.profile = unchanged")
 	lxcConf = append(lxcConf, fmt.Sprintf("lxc.log.file = %s/%s.log", lxclogDir, t.ServiceName))
 
+	lxcConf = append(lxcConf, "lxc.environment = HOME=/root")
 	for _, env := range syst.OCIConfig.Config.Env {
 		lxcConf = append(lxcConf, fmt.Sprintf("lxc.environment = %s", env))
 	}
@@ -435,6 +463,11 @@ func (mos *Mos) StopTarget(t *Target) error {
 		outs := string(out)
 		if rc != 0 && !strings.HasSuffix(outs, "not loaded.\n") {
 			return fmt.Errorf("Failed to stop service %s: %s", t.ServiceName, outs)
+		}
+
+		// TODO What about unhooking network?
+		if err := mos.StopTargetNetwork(t); err != nil {
+			log.Warnf("Failed tearing down network for %q: %v", t.ServiceName, err)
 		}
 	case HostfsService:
 		return fmt.Errorf("Stopping hostfs is not yet supported.  Please poweroff")

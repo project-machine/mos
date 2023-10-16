@@ -36,7 +36,7 @@ function teardown() {
       name: ${VMNAME}
       uefi: true
       uefi-vars: $HOME/.local/share/machine/trust/keys/snakeoil/bootkit/ovmf-vars.fd
-      uefi-code: /usr/share/OVMF/OVMF_CODE.secboot.fd
+      uefi-code: $HOME/.local/share/machine/trust/keys/snakeoil/bootkit/ovmf/ovmf-code.fd
       cdrom: livecd.iso
       boot: cdrom
       tpm: true

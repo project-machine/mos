@@ -10,7 +10,11 @@ ORAS_VERSION := 1.0.0-rc.1
 REGCTL := $(TOOLSDIR)/bin/regctl
 REGCTL_VERSION := 0.5.0
 TOPDIR := $(shell git rev-parse --show-toplevel)
-BOOTKIT_VERSION ?= "v0.0.15.230901"
+#BOOTKIT_VERSION ?= "v0.0.17.231018"
+# We need a bootkit with new mosctl which knows about the new network.
+# So use a manually built one.  Then we can auot-build new bootkit,
+# then update the below to the real v0.0.18.2311XX version.
+BOOTKIT_VERSION ?= "v0.0.18.tmp"
 ROOTFS_VERSION = $(BOOTKIT_VERSION)
 
 archout = $(shell arch)
@@ -33,7 +37,7 @@ all: mosctl mosb trust $(ZOT) $(ORAS) $(REGCTL)
 
 VERSION_LDFLAGS=-X github.com/project-machine/mos/pkg/mosconfig.Version=$(MAIN_VERSION) \
 	-X github.com/project-machine/mos/pkg/trust.Version=$(MAIN_VERSION) \
-	-X github.com/project-machine/mos/pkg/mosconfig.LayerVersion=0.0.3 \
+	-X github.com/project-machine/mos/pkg/mosconfig.LayerVersion=0.0.4 \
 	-X github.com/project-machine/mos/pkg/trust.BootkitVersion=$(BOOTKIT_VERSION)
 
 mosctl: .made-gofmt $(GO_SRC)
