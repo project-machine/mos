@@ -29,7 +29,7 @@ EOF
 cat > /etc/systemd/system/zot.service << EOF
 [Unit]
 Description=OCI Distribution Registry
-After=network.target local-fs.target
+After=network-online.target local-fs.target
 
 [Service]
 Type=simple
