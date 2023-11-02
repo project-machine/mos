@@ -118,6 +118,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-	    trust-linux-arm64
+            trust-linux-arm64
             mosb-linux-arm64
             mosctl-linux-arm64
