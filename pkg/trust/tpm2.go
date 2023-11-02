@@ -16,12 +16,12 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/anuvu/disko"
-	"github.com/anuvu/disko/linux"
 	"github.com/apex/log"
 	"github.com/jsipprell/keyctl"
 	"github.com/project-machine/mos/pkg/utils"
 	"github.com/urfave/cli"
+	"machinerun.io/disko"
+	"machinerun.io/disko/linux"
 )
 
 var nativeEndian binary.ByteOrder

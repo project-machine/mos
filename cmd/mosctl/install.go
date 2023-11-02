@@ -9,15 +9,15 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/anuvu/disko"
-	"github.com/anuvu/disko/linux"
-	"github.com/anuvu/disko/partid"
 	"github.com/apex/log"
 	"github.com/pkg/errors"
 	"github.com/project-machine/mos/pkg/mosconfig"
 	"github.com/project-machine/mos/pkg/trust"
 	"github.com/project-machine/mos/pkg/utils"
 	"github.com/urfave/cli"
+	"machinerun.io/disko"
+	"machinerun.io/disko/linux"
+	"machinerun.io/disko/partid"
 )
 
 var installCmd = cli.Command{
