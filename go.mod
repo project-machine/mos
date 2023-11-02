@@ -1,7 +1,6 @@
 module github.com/project-machine/mos
 
 require (
-	github.com/anuvu/disko v0.0.11
 	github.com/apex/log v1.9.0
 	github.com/canonical/go-efilib v0.9.4
 	github.com/canonical/go-tpm2 v1.0.0
@@ -22,12 +21,13 @@ require (
 	github.com/project-machine/bootkit v0.0.0-20230906152517-964838ab8d93
 	github.com/project-machine/machine v0.1.2
 	github.com/project-stacker/stacker v0.21.2
-	github.com/rekby/gpt v0.0.0-20200219180433-a930afbc6edc
+	github.com/rekby/gpt v0.0.0-20200614112001-7da10aec5566
 	github.com/stretchr/testify v1.8.3
 	github.com/urfave/cli v1.22.12
 	golang.org/x/sys v0.13.0
 	golang.org/x/text v0.13.0
 	gopkg.in/yaml.v2 v2.4.0
+	machinerun.io/disko v0.0.12
 	stackerbuild.io/stacker v1.0.0-rc4.0.20230721004419-db121052a5bd
 )
 

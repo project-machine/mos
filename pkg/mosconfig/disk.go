@@ -10,13 +10,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/anuvu/disko/partid"
 	"github.com/apex/log"
 	"github.com/pkg/errors"
 	"github.com/project-machine/mos/pkg/utils"
 	"github.com/rekby/gpt"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
+	"machinerun.io/disko/partid"
 )
 
 func getBlockDevSize(dev string) (uint64, error) {
