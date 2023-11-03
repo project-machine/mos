@@ -53,9 +53,9 @@ jobs:
 
       - name: Rename Binary
         run: |
-          mv trust trust-linux-amd64
-          mv mosb mosb-linux-amd64
-          mv mosctl mosctl-linux-amd64
+          cp trust trust-linux-amd64
+          cp mosb mosb-linux-amd64
+          cp mosctl mosctl-linux-amd64
 
       - name: Release
         uses: softprops/action-gh-release@v1
