@@ -21,7 +21,7 @@ sudo systemctl restart user@$(id -u runner)
 sudo systemctl start dbus
 sudo pip install virt-firmware
 
-wget -O ~/bin/stacker --progress=dot:mega https://github.com/project-stacker/stacker/releases/download/v1.0.0-rc5/stacker
+wget -O ~/bin/stacker --progress=dot:mega https://github.com/project-stacker/stacker/releases/download/v1.0.0-rc6/stacker
 chmod 755 ~/bin/stacker
 
 wget -O ~/bin/skopeo --progress=dot:mega https://github.com/project-machine/tools/releases/download/v0.0.1/skopeo
