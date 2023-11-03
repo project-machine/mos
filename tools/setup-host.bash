@@ -3,9 +3,6 @@
 # Set up a host to be ready for building and testing project-machine
 mkdir -p ~/bin
 
-echo "options kvm tdp_mmu=N" | sudo tee /etc/modprobe.d/kvm-disable-tdp-mmu.conf
-echo "options kvm_intel dump_invalid_vmcs=Y" | sudo tee /etc/modprobe.d/kvm-enable-dump_invalid_vmcs.conf
-
 sudo apt-get update
 sudo add-apt-repository -y ppa:puzzleos/dev
 sudo apt-get -y install \
