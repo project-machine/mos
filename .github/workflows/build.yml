@@ -71,6 +71,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: project-stacker/stacker-build-push-action@main
         with:
+          version: v1.0.0-rc5
           file: 'layers/stacker.yaml'
           build-args: |
             ZOT_VERSION=2.0.0-rc5
