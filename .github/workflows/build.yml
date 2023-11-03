@@ -26,6 +26,7 @@ jobs:
         run: |
           make gofmt
           TOPDIR=$(git rev-parse --show-toplevel)
+          echo "setting TOPDIR=${TOPDIR}"
           echo "TOPDIR=${TOPDIR}" >> $GITHUB_ENV
 
       - name: make
@@ -74,7 +75,7 @@ jobs:
           build-args: |
             ZOT_VERSION=2.0.0-rc5
             ROOTFS_VERSION=v0.0.17.231018
-            TOPDIR=$TOPDIR
+            TOPDIR=${{ env.TOPDIR }}
           url: docker://zothub.io/machine/bootstrap
           tags: ${{ github.event.release.tag_name }}
           username: ${{ secrets.ZOTHUB_USERNAME }}
