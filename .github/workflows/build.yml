@@ -45,6 +45,9 @@ jobs:
           cat /tmp/machined.out
           sudo dmesg
           sudo df -h
+          touch /tmp/fini
+          # Uncomment the below to check the job after done
+          # while [ ! -f /tmp/shutdown ]; do sleep 5s; done
 
       - name: Rename Binary
         run: |
