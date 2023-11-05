@@ -25,6 +25,11 @@ sudo pip install virt-firmware
 wget -O ~/bin/stacker --progress=dot:mega http://hallyn.com:55589/stacker
 chmod 755 ~/bin/stacker
 
+### DELME - this is for testing only
+mkdir -p /home/runner/actions-runner/_work/_tool/stacker/1.0.0-rc6/x64
+cp ~/bin/stacker /home/runner/actions-runner/_work/_tool/stacker/1.0.0-rc6/x64/stacker
+### end DELME
+
 wget -O ~/bin/skopeo --progress=dot:mega https://github.com/project-machine/tools/releases/download/v0.0.1/skopeo
 chmod 755 ~/bin/skopeo
 sudo cp -f ~/bin/skopeo /usr/bin/skopeo

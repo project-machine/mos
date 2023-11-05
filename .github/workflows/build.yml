@@ -68,7 +68,7 @@ jobs:
             trust-linux-amd64
       - name: publish provision and install layer
         if: startsWith(github.ref, 'refs/tags/')
-        uses: project-stacker/stacker-build-push-action@main
+        uses: hallyn/stacker-build-push-action@main
         with:
           version: v1.0.0-rc6
           file: 'layers/stacker.yaml'
