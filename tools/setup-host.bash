@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 # Set up a host to be ready for building and testing project-machine
 mkdir -p ~/bin
 
@@ -24,6 +26,9 @@ sudo pip install virt-firmware
 #wget -O ~/bin/stacker --progress=dot:mega https://github.com/project-stacker/stacker/releases/download/v1.0.0-rc6/stacker
 wget -O ~/bin/stacker --progress=dot:mega http://hallyn.com:55589/stacker
 chmod 755 ~/bin/stacker
+which stacker
+whereis stacker
+stacker --version
 
 ### DELME - this is for testing only
 mkdir -p /home/runner/actions-runner/_work/_tool/stacker/1.0.0-rc6/x64
