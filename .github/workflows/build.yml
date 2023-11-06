@@ -77,7 +77,7 @@ jobs:
             ROOTFS_VERSION=v0.0.17.231018
             TOPDIR=${{ env.TOPDIR }}
           url: docker://zothub.io/machine/bootstrap
-          tags: ${{ github.event.release.tag_name }}
+          tags: ${{ github.event.release.tag_name }} serge-test1
           username: ${{ secrets.ZOTHUB_USERNAME }}
           password: ${{ secrets.ZOTHUB_PASSWORD }}
 
