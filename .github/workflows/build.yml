@@ -80,6 +80,7 @@ jobs:
             ROOTFS_VERSION=v0.0.17.231018
             TOPDIR=${{ env.TOPDIR }}
           url: docker://zothub.io/machine/bootkit
+          layer-type: squashfs
           tags: ${{ env.RELEASE_VERSION }}
           username: ${{ secrets.ZOTHUB_USERNAME }}
           password: ${{ secrets.ZOTHUB_PASSWORD }}
