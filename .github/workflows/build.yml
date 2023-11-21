@@ -74,7 +74,7 @@ jobs:
         uses: project-stacker/stacker-build-push-action@main
         with:
           version: v1.0.0-rc8
-          file: 'layers/stacker.yaml'
+          dir: 'layers'
           build-args: |
             ZOT_VERSION=2.0.0-rc5
             ROOTFS_VERSION=v0.0.17.231018
