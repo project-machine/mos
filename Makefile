@@ -9,8 +9,6 @@ ORAS := $(TOOLSDIR)/bin/oras
 ORAS_VERSION := 1.0.0-rc.1
 REGCTL := $(TOOLSDIR)/bin/regctl
 REGCTL_VERSION := 0.5.0
-STACKER := $(TOOLSDIR)/bin/stacker
-STACKER_VERSION := v1.0.0-rc8
 TOPDIR := $(shell git rev-parse --show-toplevel)
 #BOOTKIT_VERSION ?= "v0.0.17.231018"
 # We need a bootkit with new mosctl which knows about the new network.
@@ -67,11 +65,6 @@ $(REGCTL):
 	curl -Lo $(REGCTL) https://github.com/regclient/regclient/releases/download/v$(REGCTL_VERSION)/regctl-linux-$(arch)
 	chmod +x $(REGCTL)
 
-$(STACKER):
-	mkdir -p $(TOOLSDIR)/bin
-	curl -Lo $(STACKER) https://github.com/project-stacker/stacker/releases/download/$(STACKER_VERSION)/stacker
-	chmod +x $(STACKER)
-
 .PHONY: gofmt
 gofmt: .made-gofmt
 
@@ -91,13 +84,9 @@ STACKER_SUBS = \
 STACKER_OPTS = --layer-type=squashfs $(STACKER_SUBS)
 
 .PHONY: layers
-layers: mosctl $(STACKER)
-	$(STACKER) build $(STACKER_OPTS) --stacker-file layers/provision/stacker.yaml
-	$(STACKER) build $(STACKER_OPTS) --stacker-file layers/install/stacker.yaml
-
-.PHONY: publish
-publish: layers
-	$(STACKER) publish $(STACKER_OPTS) --stacker-file layers/provision/stacker.yaml --url $(URL) --username $(USERNAME) --password $(PASSWORD)
+layers: mosctl
+	stacker build $(STACKER_OPTS) --stacker-file layers/provision/stacker.yaml
+	stacker build $(STACKER_OPTS) --stacker-file layers/install/stacker.yaml
 
 .PHONY: test
 test: deps
