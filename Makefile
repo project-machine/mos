@@ -10,11 +10,7 @@ ORAS_VERSION := 1.0.0-rc.1
 REGCTL := $(TOOLSDIR)/bin/regctl
 REGCTL_VERSION := 0.5.0
 TOPDIR := $(shell git rev-parse --show-toplevel)
-#BOOTKIT_VERSION ?= "v0.0.17.231018"
-# We need a bootkit with new mosctl which knows about the new network.
-# So use a manually built one.  Then we can auot-build new bootkit,
-# then update the below to the real v0.0.18.2311XX version.
-BOOTKIT_VERSION ?= "v0.0.18.tmp"
+BOOTKIT_VERSION ?= "v0.0.18.231121"
 ROOTFS_VERSION = $(BOOTKIT_VERSION)
 
 archout = $(shell arch)
