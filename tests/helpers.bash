@@ -260,7 +260,7 @@ function good_install {
 	write_install_yaml "$spectype"
 	./mosb manifest publish \
 		--repo ${ZOT_HOST}:${ZOT_PORT} --name puzzleos/install:1.0.0 \
-		--project snakeoil:default $TMPD/manifest.yaml
+		--project snakeoil:default --skip-bootkit $TMPD/manifest.yaml
 	rm $TMPD/manifest.yaml
 	mkdir -p $TMPD/factory/secure
 	cp "$CA_PEM" "$TMPD/factory/secure/manifestCA.pem"

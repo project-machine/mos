@@ -22,6 +22,7 @@ else
 #error "Unsupported architecture: $(archout)"
 endif
 
+CLEAN_VERSION ?= $(shell git describe --abbrev=0)
 MAIN_VERSION ?= $(shell git describe --always --dirty || echo no-git)
 ifeq ($(MAIN_VERSION),$(filter $(MAIN_VERSION), "", no-git))
 $(error "Bad value for MAIN_VERSION: '$(MAIN_VERSION)'")
@@ -33,6 +34,7 @@ all: mosctl mosb trust $(ZOT) $(ORAS) $(REGCTL)
 
 VERSION_LDFLAGS=-X github.com/project-machine/mos/pkg/mosconfig.Version=$(MAIN_VERSION) \
 	-X github.com/project-machine/mos/pkg/trust.Version=$(MAIN_VERSION) \
+	-X github.com/project-machine/mos/pkg/trust.RelVersion=$(CLEAN_VERSION) \
 	-X github.com/project-machine/mos/pkg/mosconfig.LayerVersion=0.0.4 \
 	-X github.com/project-machine/mos/pkg/trust.BootkitVersion=$(BOOTKIT_VERSION)
 

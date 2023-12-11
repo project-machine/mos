@@ -37,6 +37,10 @@ var manifestCmd = cli.Command{
 					Usage: "Password to authenticate to OCI repository.  Taken from stdin if user but no password is provided",
 					Value: "",
 				},
+				cli.BoolFlag{
+					Name:  "skip-boot, skip-bootkit",
+					Usage: "Do not add in a bootkit layer",
+				},
 			},
 		},
 	},

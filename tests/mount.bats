@@ -31,7 +31,7 @@ EOF
 @test "mount ro livecd filesystem" {
 	write_install_yaml "livecd"
 
-	./mosb manifest publish --product snakeoil:default \
+	./mosb manifest publish --product snakeoil:default --skip-bootkit \
 		--repo ${ZOT_HOST}:${ZOT_PORT} --name machine/livecd:1.0.0 \
 		$TMPD/manifest.yaml
 
@@ -59,7 +59,7 @@ EOF
 @test "mount rw livecd filesystem" {
 	write_install_yaml "livecd"
 
-	./mosb manifest publish --product snakeoil:default \
+	./mosb manifest publish --product snakeoil:default --skip-bootkit \
 		--repo ${ZOT_HOST}:${ZOT_PORT} --name machine/livecd:1.0.0 \
 		$TMPD/manifest.yaml
 

@@ -274,6 +274,44 @@ type ImportFile struct {
 	UpdateType UpdateType  `yaml:"update_type"`
 }
 
+func (i *ImportFile) HasTarget(name string) bool {
+	for _, t := range i.Targets {
+		if t.ServiceName == name {
+			return true
+		}
+	}
+	return false
+}
+
+func (i *ImportFile) CompleteTargets(keyProject string) (UserTargets, error) {
+	if !i.HasTarget("hostfs") {
+		s := fmt.Sprintf("docker://zothub.io/machine/bootkit/demo-target-rootfs:%s-squashfs", trust.RelVersion)
+		newT := UserTarget{
+			ServiceName: "hostfs",
+			ServiceType: "hostfs",
+			Source:      s,
+			Version:     trust.BootkitVersion,
+			Network:     TargetNetwork{Type: HostNetwork},
+		}
+		i.Targets = append(i.Targets, newT)
+	}
+	if !i.HasTarget("bootkit") {
+		bootkitDir, err := bootkitDir(keyProject)
+		if err != nil {
+			return UserTargets{}, err
+		}
+		newT := UserTarget{
+			ServiceName: "bootkit",
+			Source:      fmt.Sprintf("oci:%s/oci:bootkit-squashfs", bootkitDir),
+			Version:     "1.0.0",
+			ServiceType: "fs-only",
+			Network:     TargetNetwork{Type: HostNetwork},
+		}
+		i.Targets = append(i.Targets, newT)
+	}
+	return i.Targets, nil
+}
+
 type UserTarget struct {
 	ServiceName string        `yaml:"service_name"` // name of target
 	Source      string        `yaml:"source"`       // docker url from which to fetch

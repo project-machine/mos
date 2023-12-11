@@ -18,18 +18,12 @@ function teardown() {
 	# Publish a manifest pointing at an rfs on zothub.io
 	# TODO - we do need to include a bootkit layer to set up
 	# an ESP.
+	git describe --abbrev=0
 	cat > "${TMPD}/manifest.yaml" << EOF
 version: 1
 product: default
 update_type: complete
 targets:
-  - service_name: hostfs
-    source: "docker://zothub.io/machine/bootkit/demo-target-rootfs:0.0.4-squashfs"
-    version: 1.0.0
-    service_type: hostfs
-    nsgroup: "none"
-    network:
-      type: none
   - service_name: zot
     source: "docker://zothub.io/machine/bootkit/demo-zot:0.0.4-squashfs"
     version: 1.0.0
@@ -41,15 +35,9 @@ targets:
       ports:
         - host: 80
           container: 5000
-  - service_name: bootkit
-    source: "oci:$HOME/.local/share/machine/trust/keys/snakeoil/bootkit/oci:bootkit-squashfs"
-    version: 1.0.0
-    service_type: fs-only
-    nsgroup: "none"
-    network:
-      type: none
 EOF
 
+	cat "${TMPD}/manifest.yaml"
 	mosb --debug manifest publish \
 	  --project snakeoil:default \
 	  --repo 127.0.0.1:${ZOT_PORT} --name machine/install:1.0.0 \

@@ -57,4 +57,5 @@ var SBFPartitionTypeID = [16]byte{
 const MiB, GiB = uint64(1024 * 1024), uint64(1024 * 1024 * 1024)
 
 var Version string
+var RelVersion string
 var BootkitVersion string
