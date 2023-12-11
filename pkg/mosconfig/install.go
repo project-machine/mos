@@ -112,10 +112,11 @@ func (is *InstallSource) SaveToZot(zotport int, name string) error {
 }
 
 type InstallOpts struct {
-	RFS       string
-	CaPath    string
-	ConfigDir string
-	StoreDir  string
+	RFS         string
+	CaPath      string
+	ConfigDir   string
+	StoreDir    string
+	SkipBootkit bool
 }
 
 func InitializeMos(ctx *cli.Context, opts InstallOpts) error {
@@ -291,10 +292,15 @@ func PublishManifestFromArgs(ctx *cli.Context) error {
 		return fmt.Errorf("file is a required positional argument")
 	}
 	infile := args[0]
-	return PublishManifest(proj, repo, destpath, infile)
+	return PublishManifest(proj, repo, destpath, infile, ctx.Bool("skip-bootkit"))
 }
 
-func PublishManifest(project, repo, destpath, manifestpath string) error {
+const (
+	SkipBootkit = true
+	UseBootkit  = false
+)
+
+func PublishManifest(project, repo, destpath, manifestpath string, skipBootkit bool) error {
 	b, err := os.ReadFile(manifestpath)
 	if err != nil {
 		return errors.Wrapf(err, "Error reading %s", manifestpath)
@@ -308,6 +314,13 @@ func PublishManifest(project, repo, destpath, manifestpath string) error {
 
 	if imports.Version != CurrentInstallFileVersion {
 		return errors.Errorf("Unknown import file version: %d (I know about %d)", imports.Version, CurrentInstallFileVersion)
+	}
+
+	if !skipBootkit {
+		imports.Targets, err = imports.CompleteTargets(project)
+		if err != nil {
+			return err
+		}
 	}
 
 	install := InstallFile{
@@ -563,6 +576,19 @@ func PostArtifact(refDigest digest.Digest, refSize int64, path, mediatype, dest 
 		return errors.Wrapf(err, "Repo retunrred error for manifest wrapper.  Response was: %q", resp.Status)
 	}
 	return nil
+}
+
+func bootkitDir(name string) (string, error) {
+	s := strings.SplitN(name, ":", 2)
+	if len(s) != 2 {
+		return "", fmt.Errorf("Invalid project name: use keyset:project")
+	}
+	keyset := s[0]
+	h, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(h, ".local", "share", "machine", "trust", "keys", keyset, "bootkit"), nil
 }
 
 func projectDir(name string) (string, error) {

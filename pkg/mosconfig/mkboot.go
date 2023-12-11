@@ -497,7 +497,7 @@ func BuildProvisioner(keysetName, projectName, isofile string) error {
 	}
 
 	fullproject := keysetName + ":" + projectName
-	err = PublishManifest(fullproject, repo, name, manifestpath)
+	err = PublishManifest(fullproject, repo, name, manifestpath, SkipBootkit)
 	if err != nil {
 		return errors.Wrapf(err, "Failed writing manifest artifacts to local zot")
 	}
@@ -556,7 +556,7 @@ func BuildInstaller(keysetName, projectName, isofile string) error {
 	}
 
 	fullproject := keysetName + ":" + projectName
-	err = PublishManifest(fullproject, repo, name, manifestpath)
+	err = PublishManifest(fullproject, repo, name, manifestpath, SkipBootkit)
 	if err != nil {
 		return errors.Wrapf(err, "Failed writing manifest artifacts to local zot")
 	}
