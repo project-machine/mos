@@ -84,7 +84,13 @@ Most of what mosb and mosctl do is intended to be hidden behind simpler
 6. 'mosctl activate', on an installed and booted system, will start or restart
    a service.
 
-A (not yet written) 'mosctl boot' will start all listed services.
-
 A containerized service will be responsible for periodically fetching
 (TUF-protected) manifest updates.
+
+## Docs
+
+docs/newservice.md shows how to start a new OCI based service in machine.
+
+docs/manifest.md explains the contents of the various configuration files.
+Most of these you don't need to deal with, but they are important if you want
+to understand how the pieces fit together.
