@@ -159,3 +159,16 @@ func pingRepo(port int) error {
 	url := fmt.Sprintf("127.0.0.1:%d", port)
 	return PingRepo(url)
 }
+
+func pathForPartition(diskPath string, ptnum uint) string {
+	base := filepath.Base(diskPath)
+	sep := ""
+	for _, pre := range []string{"loop", "nvme", "nbd"} {
+		if strings.HasPrefix(base, pre) {
+			sep = "p"
+			break
+		}
+	}
+
+	return diskPath + sep + fmt.Sprintf("%d", ptnum)
+}

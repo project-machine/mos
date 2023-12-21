@@ -32,6 +32,10 @@ var launchCmd = cli.Command{
 			Value: "",
 		},
 		cli.BoolFlag{
+			Name:  "debug",
+			Usage: "show console during provision and install",
+		},
+		cli.BoolFlag{
 			Name:  "skip-provisioning",
 			Usage: "Skip provisioning the machine",
 		},
@@ -142,7 +146,7 @@ func doLaunch(ctx *cli.Context) error {
 		}
 	}()
 
-	if err := m.RunProvision(); err != nil {
+	if err := m.RunProvision(ctx.Bool("debug")); err != nil {
 		return errors.Wrapf(err, "Failed to run provisioning ISO")
 	}
 
@@ -151,7 +155,7 @@ func doLaunch(ctx *cli.Context) error {
 		return nil
 	}
 
-	if err := m.RunInstall(); err != nil {
+	if err := m.RunInstall(ctx.Bool("debug")); err != nil {
 		return errors.Wrapf(err, "Failed to run install ISO")
 	}
 

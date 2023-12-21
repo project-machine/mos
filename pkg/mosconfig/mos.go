@@ -12,6 +12,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/project-machine/mos/pkg/utils"
 	"golang.org/x/sys/unix"
+
+	"machinerun.io/disko"
+	"machinerun.io/disko/linux"
 )
 
 type MosOptions struct {
@@ -172,6 +175,10 @@ func (mos *Mos) Current(name string) (*Target, error) {
 // Called at system boot to do basic setup and
 // activate all services
 func (mos *Mos) Boot() error {
+	m, err := mos.CurrentManifest()
+	if err != nil {
+		return errors.Wrapf(err, "Failed opening manifest")
+	}
 	// For containers to start, /var/lib/lxc needs to be world-x
 	// at each point so that subuids can get to their RFS.
 	p := ""
@@ -182,16 +189,43 @@ func (mos *Mos) Boot() error {
 		}
 	}
 
+	if err := mos.SetupStorage(m); err != nil {
+		return errors.Wrapf(err, "Failed setting up storage")
+	}
 	// Now start the services
-	return mos.ActivateAll()
+	return mos.ActivateAll(m)
+}
+
+// Set up the user-requested storage
+func (mos *Mos) SetupStorage(m *SysManifest) error {
+	sys := linux.System()
+	allDisks, err := sys.ScanAllDisks(func(disko.Disk) bool { return true })
+	if err != nil {
+		return err
+	}
+
+	// First delete any non-persistent storage which already exists
+	for _, n := range m.Storage {
+		if !n.Persistent {
+			continue
+		}
+		if err := n.Delete(allDisks, sys); err != nil {
+			return errors.Wrapf(err, "Failed deleting %#v", n)
+		}
+	}
+
+	// Create all needed storage partitions, and mount them
+	for _, n := range m.Storage {
+		if err := n.Create(mos, allDisks, sys); err != nil {
+			return errors.Wrapf(err, "Failed creating %#v", n)
+		}
+	}
+
+	return nil
 }
 
 // Activate all services
-func (mos *Mos) ActivateAll() error {
-	m, err := mos.CurrentManifest()
-	if err != nil {
-		return errors.Wrapf(err, "Failed opening manifest")
-	}
+func (mos *Mos) ActivateAll(m *SysManifest) error {
 	for _, t := range m.SysTargets {
 		if t.Name == "hostfs" || t.Name == "bootkit" {
 			continue
@@ -325,6 +359,7 @@ func (mos *Mos) setupContainerService(t *Target) error {
 func (mos *Mos) writeLxcConfig(t *Target) error {
 	// We are guaranteed to have stopped the container before reaching
 	// here
+	log.Infof("Writing lxc config for %#v", t)
 	lxcStateDir := filepath.Join(mos.opts.RootDir, "var/lib/lxc")
 	lxcconfigDir := filepath.Join(lxcStateDir, t.ServiceName)
 	lxclogDir := filepath.Join(mos.opts.RootDir, "/var/log/lxc")
@@ -350,7 +385,7 @@ func (mos *Mos) writeLxcConfig(t *Target) error {
 		return err
 	}
 
-	idmapset, lxcIdrange, err := mos.GetUIDMapStr(t)
+	idmapset, lxcIdrange, err := mos.GetUIDMapStr(t.NSGroup)
 	if err != nil {
 		return err
 	}
@@ -424,7 +459,20 @@ func (mos *Mos) writeLxcConfig(t *Target) error {
 		lxcConf = append(lxcConf, fmt.Sprintf("lxc.environment = %s", env))
 	}
 
-	// TODO - setup the mounts
+	// setup the storage mounts
+	for _, m := range t.Storage {
+		dest := strings.TrimPrefix(m.Dest, "/")
+		src := filepath.Join("/storage", m.Label)
+		isdir, err := utils.IsDirErr(src)
+		if err != nil {
+			return errors.Wrapf(err, "Source for storage not found: %q", src)
+		}
+		filetype := "file"
+		if isdir {
+			filetype = "dir"
+		}
+		lxcConf = append(lxcConf, fmt.Sprintf("lxc.mount.entry = %s %s none bind,create=%s 0 0", src, dest, filetype))
+	}
 
 	// Write the result
 	lxcConfFile := filepath.Join(lxcconfigDir, "config")

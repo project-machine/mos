@@ -4,10 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"syscall"
 
+	"github.com/apex/log"
 	ispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/project-machine/mos/pkg/trust"
+	"github.com/project-machine/mos/pkg/utils"
+
+	"machinerun.io/disko"
+	"machinerun.io/disko/partid"
 )
 
 // Update can be full, meaning all existing Targets are replaced, or
@@ -81,30 +88,154 @@ const (
 	FsService        ServiceType = "fs-only"
 )
 
+type TargetStorage struct {
+	Dest  string `json:"dest" yaml:"dest"`
+	Label string `json:"label" yaml:"label"`
+}
+type TargetStorageList []TargetStorage
+
 // Target defines a single service.  This includes the rootfs
 // and every container and fs-only service.
 // NSGroup is a user namespace group.  Two services both in
 // NSGroup 'ran' will have the same uid mapping.  A service
 // in NSGroup "none" (or "") runs in the host uid network.
 type Target struct {
-	ServiceName string        `json:"service_name"` // name of target
-	Version     string        `json:"version"`      // docker or oci version tag
-	ServiceType ServiceType   `json:"service_type"`
-	Network     TargetNetwork `json:"network"`
-	NSGroup     string        `json:"nsgroup"`
-	Digest      string        `json:"digest"`
-	Size        int64         `json:"size"`
+	ServiceName string            `json:"service_name"` // name of target
+	Version     string            `json:"version"`      // docker or oci version tag
+	ServiceType ServiceType       `json:"service_type"`
+	Network     TargetNetwork     `json:"network"`
+	NSGroup     string            `json:"nsgroup"`
+	Digest      string            `json:"digest"`
+	Storage     TargetStorageList `json:"storage"`
+	Size        int64             `json:"size"`
 }
 type InstallTargets []Target
 
 func (t *Target) NeedsIdmap() bool {
-	return t.NSGroup != "" && t.NSGroup != "none"
+	return needsIdmap(t.NSGroup)
+}
+func needsIdmap(nsgroup string) bool {
+	return nsgroup != "" && nsgroup != "none"
+}
+
+// Note - Storage is an interface, an implementation detail
+// to abstract atomfs vs puzzlefs etc.  So for the 'storage'
+// information in manifest.yaml, we use StorageItem and
+// StorageList.
+
+// StorageItem is a request for a volume to be mounted into
+// a Target.
+type StorageItem struct {
+	Label      string `json:"label" yaml:"label"`
+	Persistent bool   `json:"persistent" yaml:"persistent"`
+	NSGroup    string `json:"nsgroup" yaml:"nsgroup"`
+	Size       uint64 `json:"size" yaml:"size"` // size in Mib
+}
+
+func (i *StorageItem) Delete(allDisks disko.DiskSet, mysys disko.System) error {
+	for _, d := range allDisks {
+		for _, p := range d.Partitions {
+			if p.Name == i.Label {
+				err := mysys.DeletePartition(d, p.Number)
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+		}
+	}
+	return nil
+}
+
+func (i *StorageItem) IsReserved() bool {
+	for _, n := range []string{"esp", "machine-config", "machine-store", "machine-scratch"} {
+		if i.Label == n {
+			return true
+		}
+	}
+	return false
+}
+
+const mib, gib = disko.Mebibyte, disko.Mebibyte * 1024
+
+// Create a user-requested storage item if it does not yet exist.
+// We accept the mos struct so we can find its nsgroup (uid mapping)
+func (i *StorageItem) Create(mos *Mos, allDisks disko.DiskSet, mysys disko.System) error {
+	size := i.Size * disko.Mebibyte
+	for _, d := range allDisks {
+		fslist := d.FreeSpacesWithMin(size)
+		if len(fslist) == 0 {
+			continue
+		}
+		num := uint(0)
+		for i := uint(1); i <= 128; i++ {
+			if _, ok := d.Partitions[i]; !ok {
+				num = i
+				break
+			}
+		}
+		if num == 0 {
+			return errors.Errorf("No free partition numbers")
+		}
+		freespace := fslist[0]
+		start := freespace.Start
+		p := disko.Partition{
+			Start:  start,
+			Last:   start + size - 1,
+			Number: num,
+			ID:     disko.GenGUID(),
+			Type:   partid.LinuxFS,
+			Name:   i.Label,
+		}
+		if err := mysys.CreatePartition(d, p); err != nil {
+			return errors.Wrapf(err, "Failed creating storage %#v", i)
+		}
+		dev := filepath.Join("/dev", pathForPartition(d.Name, p.Number))
+		cmd := []string{"mkfs.ext4", "-F", dev}
+		if err := utils.RunCommand(cmd...); err != nil {
+			return errors.Wrapf(err, "Failed creating fs on %#v", i)
+		}
+
+		// mount
+		dest := filepath.Join("/storage", i.Label)
+		if err := utils.EnsureDir(dest); err != nil {
+			return errors.Wrapf(err, "Failed creating mount dir %q", dest)
+		}
+		if err := syscall.Mount(dev, dest, "ext4", 0, ""); err != nil {
+			return errors.Wrapf(err, "Failed mounting %#v", i)
+		}
+
+		idmapset, _, err := mos.GetUIDMapStr(i.NSGroup)
+		if err != nil {
+			return err
+		}
+		if len(idmapset.Idmap) != 0 {
+			if err := idmapset.ShiftFile(dest); err != nil {
+				return errors.Wrapf(err, "Failed shifting %q to %#v", dest, idmapset.Idmap)
+			}
+		}
+		log.Infof("Created and mounted %#v onto %q", i, dest)
+		return nil
+	}
+	return errors.Errorf("Failed to find free space for %#v", i)
+}
+
+type StorageList []StorageItem
+
+func (s StorageList) Contains(n StorageItem) bool {
+	for _, i := range s {
+		if i.Label == n.Label {
+			return true
+		}
+	}
+	return false
 }
 
 // This describes an install manifest
 type InstallFile struct {
 	Version    int            `json:"version"`
 	Product    string         `json:"product"`
+	Storage    StorageList    `json:"storage"`
 	Targets    InstallTargets `json:"targets"`
 	UpdateType UpdateType     `json:"update_type"`
 }
@@ -128,19 +259,20 @@ type SysTarget struct {
 }
 type SysTargets []SysTarget
 
-func (s *SysTargets) Contains(needle SysTarget) (SysTarget, bool) {
+func (s *SysTargets) Contains(needle SysTarget) bool {
 	for _, t := range *s {
 		if t.Name == needle.Name {
-			return t, true
+			return true
 		}
 	}
-	return SysTarget{}, false
+	return false
 }
 
 type SysManifest struct {
 	// Persistent stored information
 	UidMaps    []IdmapSet  `json:"uidmaps"`
 	SysTargets []SysTarget `json:"targets"`
+	Storage    StorageList `json:"storage"`
 
 	// Runtime information
 	DefaultNic string
@@ -270,6 +402,7 @@ func (ts InstallTargets) Validate() error {
 type ImportFile struct {
 	Version    int         `yaml:"version"`
 	Product    string      `yaml:"product"`
+	Storage    StorageList `yaml:"storage"`
 	Targets    UserTargets `yaml:"targets"`
 	UpdateType UpdateType  `yaml:"update_type"`
 }
@@ -313,13 +446,14 @@ func (i *ImportFile) CompleteTargets(keyProject string) (UserTargets, error) {
 }
 
 type UserTarget struct {
-	ServiceName string        `yaml:"service_name"` // name of target
-	Source      string        `yaml:"source"`       // docker url from which to fetch
-	Version     string        `yaml:"version"`      // A version for internal use.
-	ServiceType ServiceType   `yaml:"service_type"`
-	Network     TargetNetwork `yaml:"network"`
-	NSGroup     string        `yaml:"nsgroup"`
-	Digest      string        `yaml:"digest"`
-	Size        int64         `yaml:"size"`
+	ServiceName string            `yaml:"service_name"` // name of target
+	Source      string            `yaml:"source"`       // docker url from which to fetch
+	Version     string            `yaml:"version"`      // A version for internal use.
+	Storage     TargetStorageList `yaml:"storage"`
+	ServiceType ServiceType       `yaml:"service_type"`
+	Network     TargetNetwork     `yaml:"network"`
+	NSGroup     string            `yaml:"nsgroup"`
+	Digest      string            `yaml:"digest"`
+	Size        int64             `yaml:"size"`
 }
 type UserTargets []UserTarget

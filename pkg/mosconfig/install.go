@@ -329,6 +329,13 @@ func PublishManifest(project, repo, destpath, manifestpath string, skipBootkit b
 		UpdateType: imports.UpdateType,
 	}
 
+	for _, s := range imports.Storage {
+		if s.IsReserved() {
+			return errors.Errorf("Invalid storage name %q", s.Label)
+		}
+		install.Storage = append(install.Storage, s)
+	}
+
 	// Copy each of the targets to specified oci repo,
 	// verify digest and size, and append them to the install
 	// manifest's list.
@@ -361,9 +368,11 @@ func PublishManifest(project, repo, destpath, manifestpath string, skipBootkit b
 			ServiceType: t.ServiceType,
 			Network:     t.Network,
 			NSGroup:     t.NSGroup,
+			Storage:     t.Storage,
 			Digest:      digest,
 			Size:        size},
 		)
+		log.Infof("appending storage item %#v", t.Storage)
 	}
 
 	workdir, err := os.MkdirTemp("", "manifest")

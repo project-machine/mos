@@ -253,3 +253,29 @@ func NewCpio(cpio, path string) error {
 
 	return nil
 }
+
+func IsSymlink(path string) (bool, error) {
+	statInfo, err := os.Lstat(path)
+	if err != nil {
+		return false, err
+	}
+	return (statInfo.Mode() & os.ModeSymlink) != 0, nil
+}
+
+func IsDirErr(path string) (bool, error) {
+	if !PathExists(path) {
+		return false, nil
+	}
+	isLink, err := IsSymlink(path)
+	if err != nil {
+		return false, err
+	}
+	if isLink {
+		return false, nil
+	}
+	statInfo, err := os.Stat(path)
+	if err != nil {
+		return false, err
+	}
+	return statInfo.IsDir(), nil
+}

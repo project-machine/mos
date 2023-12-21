@@ -87,6 +87,7 @@ func (mos *Mos) initManifest(manifestPath, manifestCert, manifestCA, configPath 
 	dest = filepath.Join(dir, "manifest.json")
 	targets := SysTargets{}
 	uidmaps := []IdmapSet{}
+	s := StorageList{}
 
 	for _, t := range cf.Targets {
 		newT := SysTarget{
@@ -95,7 +96,11 @@ func (mos *Mos) initManifest(manifestPath, manifestCert, manifestCA, configPath 
 		}
 		targets = append(targets, newT)
 
-		uidmaps = addUIDMap([]IdmapSet{}, uidmaps, t)
+		uidmaps = addUIDMap([]IdmapSet{}, uidmaps, t.NSGroup)
+	}
+
+	for _, n := range cf.Storage {
+		s = append(s, n)
 	}
 
 	sysmanifest := SysManifest{
@@ -103,6 +108,7 @@ func (mos *Mos) initManifest(manifestPath, manifestCert, manifestCA, configPath 
 		SysTargets: targets,
 		UsedPorts:  make(map[uint]string),
 		IpAddrs:    make(map[string]string),
+		Storage:    s,
 	}
 
 	bytes, err := json.Marshal(&sysmanifest)
