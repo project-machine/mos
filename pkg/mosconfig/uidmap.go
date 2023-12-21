@@ -58,19 +58,19 @@ func firstUnusedUID(uidmaps []IdmapSet) int64 {
 	return min
 }
 
-func addUIDMap(old []IdmapSet, uidmaps []IdmapSet, t Target) []IdmapSet {
-	if !t.NeedsIdmap() {
+func addUIDMap(old []IdmapSet, uidmaps []IdmapSet, nsgroup string) []IdmapSet {
+	if !needsIdmap(nsgroup) {
 		return uidmaps
 	}
 	for _, u := range uidmaps {
-		if u.Name == t.NSGroup {
+		if u.Name == nsgroup {
 			// use the nsgroup already defined in system manifest
 			return uidmaps
 		}
 	}
 
 	for _, u := range old {
-		if u.Name == t.NSGroup {
+		if u.Name == nsgroup {
 			// use the nsgroup already defined in system manifest
 			return append(uidmaps, u)
 		}
@@ -78,7 +78,7 @@ func addUIDMap(old []IdmapSet, uidmaps []IdmapSet, t Target) []IdmapSet {
 
 	// Create a new idmap range
 	uidmap := IdmapSet{
-		Name:   t.NSGroup,
+		Name:   nsgroup,
 		Hostid: firstUnusedUID(uidmaps),
 	}
 	uidmaps = append(uidmaps, uidmap)
@@ -87,7 +87,7 @@ func addUIDMap(old []IdmapSet, uidmaps []IdmapSet, t Target) []IdmapSet {
 
 // The install/upgrade step should have created an idmap
 // already so we return an error if simply not found
-func (mos *Mos) GetUIDMapStr(t *Target) (idmap.IdmapSet, []string, error) {
+func (mos *Mos) GetUIDMapStr(nsgroup string) (idmap.IdmapSet, []string, error) {
 	empty := idmap.IdmapSet{
 		Idmap: []idmap.IdmapEntry{},
 	}
@@ -97,12 +97,12 @@ func (mos *Mos) GetUIDMapStr(t *Target) (idmap.IdmapSet, []string, error) {
 	}
 	rangedefs := chooseRangeDefaults()
 
-	if t.NSGroup == "none" {
+	if nsgroup == "" || nsgroup == "none" {
 		return empty, []string{}, nil
 	}
 
 	for _, u := range manifest.UidMaps {
-		if u.Name == t.NSGroup {
+		if u.Name == nsgroup {
 			uidmap := idmap.IdmapEntry{
 				Isuid:    true,
 				Isgid:    true,
@@ -117,7 +117,7 @@ func (mos *Mos) GetUIDMapStr(t *Target) (idmap.IdmapSet, []string, error) {
 		}
 	}
 
-	return empty, []string{}, fmt.Errorf("Error finding UID Mapping for %s", t.ServiceName)
+	return empty, []string{}, fmt.Errorf("Error finding UID Mapping for %q", nsgroup)
 }
 
 func addUidMapping(set idmap.IdmapSet) error {

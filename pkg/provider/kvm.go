@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"net"
@@ -149,7 +150,7 @@ const (
 	FAILED  string = "status: failed"
 )
 
-func (m KVMMachine) RunProvision() error {
+func (m KVMMachine) RunProvision(showConsole bool) error {
 	// Start the machine, and watch the console for 'provision complete'
 	if err := m.Start(); err != nil {
 		return errors.Wrapf(err, "Failed starting the machine to provision")
@@ -167,7 +168,7 @@ func (m KVMMachine) RunProvision() error {
 	mdir := filepath.Join(home, ".local/state/machine/machines", m.Name, m.Name)
 	msock := filepath.Join(mdir, "sockets", "console.sock")
 	time.Sleep(2 * time.Second)
-	if err := waitForUnix(msock, "provisioned successfully", "XXX FAIL XXX"); err != nil {
+	if err := waitForUnix(msock, "provisioned successfully", "XXX FAIL XXX", showConsole); err != nil {
 		return errors.Wrapf(err, "Provisioning failed")
 	}
 
@@ -243,7 +244,7 @@ func (m KVMMachine) updateForBoot() error {
 	return nil
 }
 
-func (m KVMMachine) RunInstall() error {
+func (m KVMMachine) RunInstall(showConsole bool) error {
 	log.Infof("Setting up to install %q\n", m.Name)
 	if err := m.updateForInstall(); err != nil {
 		return errors.Wrapf(err, "Failed updating %q for install", m.Name)
@@ -264,7 +265,7 @@ func (m KVMMachine) RunInstall() error {
 	mdir := filepath.Join(home, ".local/state/machine/machines", m.Name, m.Name)
 	msock := filepath.Join(mdir, "sockets", "console.sock")
 	time.Sleep(2 * time.Second)
-	if err := waitForUnix(msock, "installed successfully", "XXX FAIL XXX"); err != nil {
+	if err := waitForUnix(msock, "installed successfully", "XXX FAIL XXX", showConsole); err != nil {
 		return errors.Wrapf(err, "Install failed")
 	}
 
@@ -281,12 +282,18 @@ func (m KVMMachine) RunInstall() error {
 
 // Connect to unix socket @sockPath, and waith for either EOF,
 // or for either @good or @string to be seen
-func waitForUnix(sockPath, good, bad string) error {
+func waitForUnix(sockPath, good, bad string, showConsole bool) error {
 	c, err := net.Dial("unix", sockPath)
 	if err != nil {
 		return errors.Wrapf(err, "Failed opening console socket %q", sockPath)
 	}
-	b, err := io.ReadAll(c)
+	var r io.Reader
+	if showConsole {
+		r = io.TeeReader(c, os.Stdout)
+	} else {
+		r = bufio.NewReader(c)
+	}
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return errors.Wrapf(err, "Failed reading console socket")
 	}

@@ -19,8 +19,8 @@ type Provider interface {
 }
 
 type Machine interface {
-	RunProvision() error
-	RunInstall() error
+	RunProvision(showConsole bool) error
+	RunInstall(showConsole bool) error
 	Start() error
 	Stop() error
 }

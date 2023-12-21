@@ -56,7 +56,7 @@ func (mos *Mos) Update(url string) error {
 		}
 	}
 
-	sysmanifest, err := mergeUpdateTargets(manifest, newtargets, newIF.UpdateType)
+	sysmanifest, err := mergeUpdateTargets(manifest, newtargets, newIF.Storage, newIF.UpdateType)
 	if err != nil {
 		return err
 	}
@@ -102,12 +102,18 @@ func (mos *Mos) Update(url string) error {
 // Any target in old which is also listed in updated, gets
 // switched for the one in updated.  Any target in updated
 // which is not in old gets appended.
-func mergeUpdateTargets(old *SysManifest, updated SysTargets, updateType UpdateType) (SysManifest, error) {
+func mergeUpdateTargets(old *SysManifest, updated SysTargets, s StorageList, updateType UpdateType) (SysManifest, error) {
 	newtargets := SysTargets{}
+	newstorage := StorageList{}
 	if updateType == PartialUpdate {
 		for _, t := range old.SysTargets {
-			if _, contained := updated.Contains(t); !contained {
+			if !updated.Contains(t) {
 				newtargets = append(newtargets, t)
+			}
+		}
+		for _, n := range old.Storage {
+			if !s.Contains(n) {
+				newstorage = append(newstorage, n)
 			}
 		}
 	}
@@ -116,13 +122,21 @@ func mergeUpdateTargets(old *SysManifest, updated SysTargets, updateType UpdateT
 		newtargets = append(newtargets, t)
 	}
 
+	for _, n := range s {
+		newstorage = append(newstorage, n)
+	}
+
 	uidmaps := []IdmapSet{}
 	for _, t := range newtargets {
-		uidmaps = addUIDMap(old.UidMaps, uidmaps, *t.raw)
+		uidmaps = addUIDMap(old.UidMaps, uidmaps, t.raw.NSGroup)
+	}
+	for _, n := range newstorage {
+		uidmaps = addUIDMap(old.UidMaps, uidmaps, n.NSGroup)
 	}
 
 	return SysManifest{
 		UidMaps:    uidmaps,
 		SysTargets: newtargets,
+		Storage:    newstorage,
 	}, nil
 }
