@@ -29,7 +29,7 @@ function trust_setup {
 function common_setup {
 	trust_setup
 
-	export ROOTFS_VERSION="${ROOTFS_VERSION:-v0.0.18.231121}"
+	export ROOTFS_VERSION="${ROOTFS_VERSION:-v0.0.19.231225}"
 	echo "ROOTFS_VERSION is ${ROOTFS_VERSION}"
 
 	if [ ! -d "${PWD}/zothub" ]; then

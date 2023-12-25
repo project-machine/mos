@@ -79,7 +79,7 @@ jobs:
           dir: 'layers'
           build-args: |
             ZOT_VERSION=2.0.0-rc5
-            ROOTFS_VERSION=v0.0.18.231121
+            ROOTFS_VERSION=v0.0.19.231225
             TOPDIR=${{ env.TOPDIR }}
           url: docker://zothub.io/machine/bootkit
           layer-type: squashfs
