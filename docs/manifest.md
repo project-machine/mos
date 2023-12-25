@@ -78,7 +78,7 @@ in the file 'stacker.yaml'):
 
 ```
 stacker build --layer-type=squashfs  \
-    --substitute ROOTFS_VERSION=v0.0.18.231121 \
+    --substitute ROOTFS_VERSION=v0.0.19.231225 \
     --substitute ZOT_VERSION=2.0.0-rc5
 ```
 
@@ -340,7 +340,7 @@ jq . < blobs/sha256/50a93be19bf1027b8363554359e288890324fa7e21002df072e50955e833
     },
     {
       "service_name": "hostfs",
-      "version": "v0.0.18.231121",
+      "version": "v0.0.19.231225",
       "service_type": "hostfs",
       "network": {
         "type": "host",

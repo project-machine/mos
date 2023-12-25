@@ -10,7 +10,7 @@ ORAS_VERSION := 1.0.0-rc.1
 REGCTL := $(TOOLSDIR)/bin/regctl
 REGCTL_VERSION := 0.5.0
 TOPDIR := $(shell git rev-parse --show-toplevel)
-BOOTKIT_VERSION ?= "v0.0.18.231121"
+BOOTKIT_VERSION ?= "v0.0.19.231225"
 ROOTFS_VERSION = $(BOOTKIT_VERSION)
 
 archout = $(shell arch)
