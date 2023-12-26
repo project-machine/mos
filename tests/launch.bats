@@ -25,7 +25,7 @@ product: default
 update_type: complete
 targets:
   - service_name: zot
-    source: "docker://zothub.io/machine/bootkit/demo-zot:0.0.4-squashfs"
+    source: "docker://zothub.io/machine/bootkit/demo-zot:v0.0.28-squashfs"
     version: 1.0.0
     service_type: container
     nsgroup: "zot"
